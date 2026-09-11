@@ -17,5 +17,6 @@ public enum ErrorCode {
     CONFIG_VALIDATION_FAILED,
     FORBIDDEN,
     VALIDATION_ERROR,
+    RATE_LIMITED,            // 429 — start/cashout spam (optional filter)
     INTERNAL_ERROR
 }

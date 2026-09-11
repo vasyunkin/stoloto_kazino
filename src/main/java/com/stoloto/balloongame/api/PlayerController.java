@@ -4,6 +4,8 @@ import com.stoloto.balloongame.api.dto.BalanceResponse;
 import com.stoloto.balloongame.api.dto.DepositRequest;
 import com.stoloto.balloongame.api.dto.DepositResponse;
 import com.stoloto.balloongame.service.PlayerService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/players")
 @RequiredArgsConstructor
+@Tag(name = "Players", description = "Кошелёк: баланс и демо-пополнение")
 public class PlayerController {
 
     private final PlayerService playerService;
@@ -29,6 +32,7 @@ public class PlayerController {
      * Returns the current wallet balance for the given player.
      * If the player does not exist, returns 404 PLAYER_NOT_FOUND.
      */
+    @Operation(summary = "Текущий баланс. 404 PLAYER_NOT_FOUND, если игрока ещё не было")
     @GetMapping("/{externalId}/balance")
     public ResponseEntity<BalanceResponse> getBalance(@PathVariable String externalId) {
         var balance = playerService.getBalance(externalId);
@@ -45,6 +49,7 @@ public class PlayerController {
      * Response 200: { "externalId", "depositedAmount", "newBalance" }
      * Response 403: DEPOSIT_NOT_ALLOWED if the flag is false.
      */
+    @Operation(summary = "Демо-пополнение (создаёт игрока). 403, если allow-deposit=false")
     @PostMapping("/{externalId}/deposit")
     public ResponseEntity<DepositResponse> deposit(
             @PathVariable String externalId,

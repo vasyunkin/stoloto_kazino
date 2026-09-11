@@ -15,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 /**
  * Servlet filter: guards all /api/admin/** endpoints with the X-Admin-Key header.
  * Missing or wrong key → 403 (without detail, to avoid leaking key existence).
+ * OPTIONS is skipped so browser CORS preflight can succeed without the key.
  *
  * In v0 we keep this simple (no Spring Security) to stay fast for the hackathon.
  * For the final: swap to Spring Security Basic/OAuth2.
@@ -36,7 +37,7 @@ public class AdminKeyFilter extends OncePerRequestFilter {
 
         String path = request.getRequestURI();
 
-        if (!path.startsWith(ADMIN_PATH_PREFIX)) {
+        if (!path.startsWith(ADMIN_PATH_PREFIX) || "OPTIONS".equalsIgnoreCase(request.getMethod())) {
             filterChain.doFilter(request, response);
             return;
         }

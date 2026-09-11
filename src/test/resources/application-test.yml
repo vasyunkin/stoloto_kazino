@@ -4,3 +4,7 @@ game:
   admin:
     api-key: test-admin-key   # avoid "change-me-in-prod" confusion in tests
     allow-deposit: true
+
+app:
+  rate-limit:
+    enabled: false            # flyingRound() may POST /start dozens of times
