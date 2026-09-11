@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.Instant;
 
 /**
  * Single source of elapsed-time derived values for a round (I3).
@@ -23,17 +24,26 @@ public class GameClockService {
     private final Clock clock;
     private final CrashMathService crashMath;
 
-    public BigDecimal currentMultiplier(GameSession session) {
+    /** I3: single multiplier function. Pass one {@code now} per resolve tick. */
+    public BigDecimal multiplier(GameSession session, Instant now) {
         return crashMath.multiplierAt(
                 session.getStartTime(),
-                clock.instant(),
+                now,
                 session.getConfigSnapshot().getMath().getGrowthRate());
     }
 
-    public int currentLine(GameSession session) {
+    public int lineIndex(GameSession session, Instant now) {
         return crashMath.lineIndexAt(
                 session.getStartTime(),
-                clock.instant(),
+                now,
                 session.getConfigSnapshot().getAscentSpeedLinesPerSec());
+    }
+
+    public BigDecimal currentMultiplier(GameSession session) {
+        return multiplier(session, clock.instant());
+    }
+
+    public int currentLine(GameSession session) {
+        return lineIndex(session, clock.instant());
     }
 }

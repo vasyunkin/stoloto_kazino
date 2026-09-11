@@ -57,4 +57,7 @@ public class GameSession {
 
     @Setter
     private volatile BigDecimal winAmount;
+
+    @Setter
+    private volatile Instant endedAt;
 }

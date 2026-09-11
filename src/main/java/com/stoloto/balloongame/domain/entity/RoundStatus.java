@@ -12,5 +12,9 @@ public enum RoundStatus {
     /** Player cashed out before crash; win credited. */
     CASHED_OUT,
     /** Round voided on server restart (refund issued). */
-    VOID
+    VOID;
+
+    public boolean isTerminal() {
+        return this != FLYING;
+    }
 }

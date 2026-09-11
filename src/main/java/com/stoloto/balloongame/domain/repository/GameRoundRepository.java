@@ -18,6 +18,10 @@ public interface GameRoundRepository extends JpaRepository<GameRound, UUID> {
 
     long countByPlayer_ExternalId(String externalId);
 
+    /** Rebuild {@code GameSession} from DB (cache miss). Player must be loaded (I6). */
+    @Query("SELECT r FROM GameRound r JOIN FETCH r.player WHERE r.id = :id")
+    Optional<GameRound> findByIdWithPlayer(@Param("id") UUID id);
+
     /**
      * Used by state/cashout to verify round ownership before operations (I6).
      */

@@ -3,6 +3,9 @@ package com.stoloto.balloongame.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.stoloto.balloongame.api.dto.BetRequest;
+import com.stoloto.balloongame.api.dto.BoosterStateDto;
+import com.stoloto.balloongame.api.dto.CashoutResponse;
+import com.stoloto.balloongame.api.dto.GameStateResponse;
 import com.stoloto.balloongame.api.dto.StartGameResponse;
 import com.stoloto.balloongame.api.exception.GameException;
 import com.stoloto.balloongame.config.GameConfig;
@@ -21,12 +24,12 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Coordinates round start: snapshot config, draw PF/crash/booster, debit bet,
- * persist {@code game_round} (variant A — seed + crashPoint written immediately).
- *
- * <p>State / cashout / crash transitions are S5 — do not add them here.
+ * persist {@code game_round} (variant A — seed + crashPoint written immediately),
+ * and facade for state/cashout which delegate to {@link RoundLifecycleService}.
  */
 @Slf4j
 @Service
@@ -43,6 +46,7 @@ public class GameOrchestrator {
     private final PlayerService playerService;
     private final GameRoundRepository gameRoundRepository;
     private final GameSessionCache sessionCache;
+    private final RoundLifecycleService lifecycle;
     private final ObjectMapper objectMapper;
     private final Clock clock;
 
@@ -132,6 +136,132 @@ public class GameOrchestrator {
                 secrets.commitHash(),
                 secrets.commitHash(),
                 startedAt);
+    }
+
+    /**
+     * Polling snapshot. Not {@code @Transactional} — lifecycle opens its own write TX
+     * under the round lock (must not join a read-only outer transaction).
+     */
+    public GameStateResponse state(UUID gameId, String xPlayerId) {
+        GameSession session = requireOwnedSession(gameId, xPlayerId);
+        RoundView view = lifecycle.resolve(session, ResolveIntent.STATE_ONLY);
+        return toStateResponse(view);
+    }
+
+    public CashoutResponse cashout(UUID gameId, String xPlayerId) {
+        GameSession session = requireOwnedSession(gameId, xPlayerId);
+        RoundView view = lifecycle.resolve(session, ResolveIntent.CASHOUT);
+        GameSession done = view.session();
+        return new CashoutResponse(
+                done.getGameId(),
+                done.getCashoutMultiplier(),
+                done.getWinAmount(),
+                view.pointsTotal(),
+                done.getServerSeedHex());
+    }
+
+    private GameSession requireOwnedSession(UUID gameId, String xPlayerId) {
+        GameSession session = sessionCache.get(gameId).orElseGet(() -> rebuildFromDb(gameId));
+        if (!session.getPlayerId().equals(xPlayerId)) {
+            throw GameException.forbidden();
+        }
+        return session;
+    }
+
+    private GameSession rebuildFromDb(UUID gameId) {
+        GameRound round = gameRoundRepository.findByIdWithPlayer(gameId)
+                .orElseThrow(GameException::gameNotFound);
+        GameSession session = toSession(round);
+        sessionCache.put(session);
+        return session;
+    }
+
+    private GameSession toSession(GameRound round) {
+        GameConfig snapshot = fromJson(round.getGameConfigSnapshot());
+        GameSession session = GameSession.builder()
+                .gameId(round.getId())
+                .playerId(round.getPlayer().getExternalId())
+                .betAmount(round.getBetAmount())
+                .balloonType(round.getBalloonType())
+                .crashPoint(round.getCrashPoint())
+                .startTime(round.getStartedAt())
+                .serverSeedHex(round.getServerSeed())
+                .clientSeed(round.getClientSeed())
+                .nonce(round.getNonce())
+                .commitHash(round.getServerSeedHash())
+                .boostTier(round.getBoostTier())
+                .boostTriggerLine(round.getBoostTriggerLine())
+                .boostMultiplier(lookupBoostMultiplier(snapshot, round.getBoostTier()))
+                .configSnapshot(snapshot)
+                .createdAt(round.getStartedAt())
+                .status(round.getStatus())
+                .cashoutMultiplier(round.getCashoutMultiplier())
+                .winAmount(round.getWinAmount())
+                .endedAt(round.getEndedAt())
+                .boostActivated(round.getBoostTriggerLine() != null
+                        && round.getStatus().isTerminal())
+                .build();
+        session.setLinesPassedSnapshot(0);
+        return session;
+    }
+
+    private GameStateResponse toStateResponse(RoundView view) {
+        GameSession session = view.session();
+        boolean flying = view.status() == RoundStatus.FLYING;
+        return new GameStateResponse(
+                session.getGameId(),
+                view.status(),
+                view.multiplier(),
+                view.lineIndex(),
+                view.zone(),
+                view.pointsTotal(),
+                boosterDto(session),
+                flying ? null : session.getCrashPoint(),
+                flying ? null : session.getServerSeedHex(),
+                view.status() == RoundStatus.CASHED_OUT ? session.getWinAmount() : null);
+    }
+
+    private BoosterStateDto boosterDto(GameSession session) {
+        if (session.getBoostTier() == null) {
+            return null;
+        }
+        String name = "Booster";
+        if (session.getConfigSnapshot().getBoosters() != null) {
+            name = session.getConfigSnapshot().getBoosters().getTiers().stream()
+                    .filter(t -> t.getTier() == session.getBoostTier())
+                    .map(GameConfig.BoosterTier::getName)
+                    .findFirst()
+                    .orElse(name);
+        }
+        return new BoosterStateDto(
+                true,
+                session.getBoostTier(),
+                name,
+                session.getBoostMultiplier(),
+                session.getBoostTriggerLine() == null ? 0 : session.getBoostTriggerLine(),
+                session.isBoostActivated());
+    }
+
+    private static BigDecimal lookupBoostMultiplier(GameConfig snapshot, Integer tier) {
+        if (tier == null || snapshot.getBoosters() == null) {
+            return null;
+        }
+        return snapshot.getBoosters().getTiers().stream()
+                .filter(t -> t.getTier() == tier)
+                .map(t -> BigDecimal.valueOf(t.getMultiplier()))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private GameConfig fromJson(String json) {
+        if (json == null || json.isBlank()) {
+            throw new IllegalStateException("game_config_snapshot missing on game_round");
+        }
+        try {
+            return objectMapper.readValue(json, GameConfig.class);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Failed to deserialize config snapshot", e);
+        }
     }
 
     private void validateBet(BetRequest request, GameConfig snapshot) {
