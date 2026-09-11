@@ -16,6 +16,8 @@ public interface GameRoundRepository extends JpaRepository<GameRound, UUID> {
     /** Find all rounds currently in FLYING status — used by startup recovery job (S7). */
     List<GameRound> findAllByStatus(RoundStatus status);
 
+    long countByPlayer_ExternalId(String externalId);
+
     /**
      * Used by state/cashout to verify round ownership before operations (I6).
      */
