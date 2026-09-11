@@ -200,8 +200,9 @@ public class GameOrchestrator {
                 .endedAt(round.getEndedAt())
                 .boostActivated(round.getBoostTriggerLine() != null
                         && round.getStatus().isTerminal())
+                .pointsEarned(round.getPointsEarned())
+                .linesPassedSnapshot(0)
                 .build();
-        session.setLinesPassedSnapshot(0);
         return session;
     }
 

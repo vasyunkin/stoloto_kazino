@@ -179,6 +179,14 @@ class BoosterScoringTest {
      * This simulates the polling pattern where previousLines tracks progress.
      */
     @Test
+    void pointsForNewLines_redZone_usesConfigMultiplier() {
+        config.getScoring().setRedZoneMultiplier(2.0);
+        // Lines 9, 10, 11 are RED (greenLevels=9)
+        int points = scoringService.pointsForNewLines(8, 11, config);
+        assertThat(points).isEqualTo(60); // 3 × 10 × 2.0
+    }
+
+    @Test
     void pointsForNewLines_idempotent_onRepeatCallWithSameWindow() {
         int firstCall  = scoringService.pointsForNewLines(0, 5, config);
         int secondCall = scoringService.pointsForNewLines(5, 5, config); // same upper bound

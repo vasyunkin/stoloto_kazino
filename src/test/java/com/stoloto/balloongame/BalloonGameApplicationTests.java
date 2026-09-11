@@ -69,6 +69,7 @@ class BalloonGameApplicationTests {
         assertThat(gameConfig.getMath().getGrowthRate()).isEqualTo(0.065);
         assertThat(gameConfig.getBoosters().getSpawnProbability()).isEqualTo(0.70);
         assertThat(gameConfig.getBoosters().getTiers()).hasSize(3);
+        assertThat(gameConfig.getScoring().getRedZoneMultiplier()).isEqualTo(1.0);
     }
 
     @Test

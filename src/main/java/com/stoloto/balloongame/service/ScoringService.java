@@ -39,7 +39,9 @@ public class ScoringService {
         int greenLines = config.getGreenLevels();
         int redLines = config.getRedLevels();
         int pointsPerLine = config.getPointsPerLine();
-        double redMultiplier = 1.0; // §6.3: default 1.0; extend via config field in S6
+        double redMultiplier = config.getScoring() != null
+                ? config.getScoring().getRedZoneMultiplier()
+                : 1.0;
 
         int total = 0;
 

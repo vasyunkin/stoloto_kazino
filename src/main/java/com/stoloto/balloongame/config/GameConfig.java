@@ -43,6 +43,9 @@ public class GameConfig {
     private AdminConfig admin = new AdminConfig();
 
     @Valid
+    private ScoringConfig scoring = new ScoringConfig();
+
+    @Valid
     private ProvablyFairConfig provablyFair = new ProvablyFairConfig();
 
     // ── Nested configs ────────────────────────────────────────────────────
@@ -117,6 +120,14 @@ public class GameConfig {
     }
 
     @Data
+    public static class ScoringConfig {
+
+        /** RED-zone line points multiplier. Default 1.0 = same as GREEN (jury-tunable). */
+        @DecimalMin("0.0")
+        private double redZoneMultiplier = 1.0;
+    }
+
+    @Data
     public static class ProvablyFairConfig {
 
         @Positive
@@ -138,6 +149,12 @@ public class GameConfig {
         copy.redLevels = this.redLevels;
         copy.pointsPerLine = this.pointsPerLine;
         copy.ascentSpeedLinesPerSec = this.ascentSpeedLinesPerSec;
+
+        ScoringConfig sc = new ScoringConfig();
+        if (this.scoring != null) {
+            sc.redZoneMultiplier = this.scoring.redZoneMultiplier;
+        }
+        copy.scoring = sc;
 
         MathConfig m = new MathConfig();
         m.growthRate = this.math.growthRate;

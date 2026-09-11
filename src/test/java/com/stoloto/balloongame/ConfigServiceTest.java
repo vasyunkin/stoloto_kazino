@@ -33,6 +33,17 @@ class ConfigServiceTest {
     }
 
     @Test
+    void getSnapshot_copiesScoringRedZoneMultiplier() {
+        live.getScoring().setRedZoneMultiplier(2.5);
+        configService = new ConfigService(live);
+
+        GameConfig snapshot = configService.getSnapshot();
+        snapshot.getScoring().setRedZoneMultiplier(9.0);
+        assertThat(live.getScoring().getRedZoneMultiplier()).isEqualTo(2.5);
+        assertThat(configService.getSnapshot().getScoring().getRedZoneMultiplier()).isEqualTo(2.5);
+    }
+
+    @Test
     void getSnapshot_twoCalls_areIndependentCopies() {
         GameConfig a = configService.getSnapshot();
         GameConfig b = configService.getSnapshot();

@@ -52,6 +52,11 @@ public class GameSession {
     @Builder.Default
     private volatile int linesPassedSnapshot = 0;
 
+    /** Cumulative points for this round (idempotent via linesPassedSnapshot). */
+    @Setter
+    @Builder.Default
+    private volatile int pointsEarned = 0;
+
     @Setter
     private volatile BigDecimal cashoutMultiplier;
 

@@ -1,6 +1,7 @@
 package com.stoloto.balloongame.service;
 
 import com.stoloto.balloongame.api.exception.GameException;
+import com.stoloto.balloongame.config.GameConfig;
 import com.stoloto.balloongame.domain.entity.GameRound;
 import com.stoloto.balloongame.domain.entity.RoundStatus;
 import com.stoloto.balloongame.domain.repository.GameRoundRepository;
@@ -42,6 +43,7 @@ public class RoundLifecycleService {
     private final PlayerRepository playerRepository;
     private final PlayerService playerService;
     private final GameRoundRepository gameRoundRepository;
+    private final ScoringService scoringService;
 
     public RoundView resolve(GameSession session, ResolveIntent intent) {
         ReentrantLock lock = sessionCache.lockFor(session.getGameId());
@@ -59,7 +61,16 @@ public class RoundLifecycleService {
             Instant now = clock.instant();
             BigDecimal k = gameClock.multiplier(current, now);
             int line = gameClock.lineIndex(current, now);
-            activateBoosterIfDue(current, line);
+
+            int scoredLine = line;
+            if (k.compareTo(current.getCrashPoint()) >= 0) {
+                GameConfig snap = current.getConfigSnapshot();
+                scoredLine = crashMath.lineForMultiplier(
+                        current.getCrashPoint().doubleValue(),
+                        snap.getMath().getGrowthRate(),
+                        snap.getAscentSpeedLinesPerSec());
+            }
+            applyScoring(current, scoredLine);
 
             if (k.compareTo(current.getCrashPoint()) >= 0) {
                 persistCrash(current, now);
@@ -95,7 +106,7 @@ public class RoundLifecycleService {
     private RoundView flyingView(GameSession session, BigDecimal k, int line) {
         GameConfigSnapshotLines lines = GameConfigSnapshotLines.from(session);
         String zone = crashMath.zoneFor(line, lines.green(), lines.red());
-        return new RoundView(session, RoundStatus.FLYING, k, line, zone, 0);
+        return new RoundView(session, RoundStatus.FLYING, k, line, zone, session.getPointsEarned());
     }
 
     private RoundView viewOfTerminal(GameSession session) {
@@ -109,16 +120,40 @@ public class RoundLifecycleService {
                 && session.getCashoutMultiplier() != null
                 ? session.getCashoutMultiplier()
                 : session.getCrashPoint();
-        return new RoundView(session, session.getStatus(), display, line, zone, 0);
+        return new RoundView(session, session.getStatus(), display, line, zone, session.getPointsEarned());
     }
 
-    private void activateBoosterIfDue(GameSession session, int line) {
-        if (session.getBoostTriggerLine() == null || session.isBoostActivated()) {
-            return;
-        }
-        if (line >= session.getBoostTriggerLine()) {
+    /**
+     * Awards points for newly passed lines and a one-shot booster bonus (I8: snapshot only).
+     * Idempotent: repeat polls with the same line add 0.
+     */
+    private void applyScoring(GameSession session, int currentLine) {
+        GameConfig snapshot = session.getConfigSnapshot();
+        int delta = scoringService.pointsForNewLines(
+                session.getLinesPassedSnapshot(), currentLine, snapshot);
+
+        BoosterResult booster = boosterFrom(session);
+        if (scoringService.isBoosterActivating(booster, currentLine, session.isBoostActivated())) {
+            delta += scoringService.boosterBonus(booster, snapshot);
             session.setBoostActivated(true);
         }
+
+        session.setPointsEarned(session.getPointsEarned() + delta);
+        session.setLinesPassedSnapshot(Math.max(session.getLinesPassedSnapshot(), currentLine));
+    }
+
+    private static BoosterResult boosterFrom(GameSession session) {
+        if (session.getBoostTier() == null || session.getBoostTriggerLine() == null) {
+            return null;
+        }
+        double multiplier = session.getBoostMultiplier() != null
+                ? session.getBoostMultiplier().doubleValue()
+                : 1.0;
+        return new BoosterResult(
+                session.getBoostTier(),
+                "booster",
+                multiplier,
+                session.getBoostTriggerLine());
     }
 
     private void persistCrash(GameSession session, Instant endedAt) {
@@ -130,7 +165,7 @@ public class RoundLifecycleService {
             }
             round.setStatus(RoundStatus.CRASHED);
             round.setEndedAt(endedAt);
-            round.setPointsEarned(0);
+            round.setPointsEarned(session.getPointsEarned());
         });
     }
 
@@ -150,7 +185,7 @@ public class RoundLifecycleService {
             round.setCashoutMultiplier(multiplier);
             round.setWinAmount(win);
             round.setEndedAt(endedAt);
-            round.setPointsEarned(0);
+            round.setPointsEarned(session.getPointsEarned());
         });
     }
 

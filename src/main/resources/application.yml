@@ -53,6 +53,9 @@ game:
   points-per-line: 10         # Base score points per line passed
   ascent-speed-lines-per-sec: 1.5
 
+  scoring:
+    red-zone-multiplier: 1.0  # RED zone line points vs GREEN (jury-tunable)
+
   # Crash Math: K(t) = 1 + (e^(r*t) - 1)
   math:
     growth-rate: 0.065        # Exponential acceleration (r)
