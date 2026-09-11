@@ -8,6 +8,7 @@ import com.stoloto.balloongame.api.dto.VerifyResponse;
 import com.stoloto.balloongame.service.GameOrchestrator;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -28,7 +29,8 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/game")
 @RequiredArgsConstructor
-@Tag(name = "Game", description = "Старт раунда, polling state, cashout, PF verify")
+@Tag(name = "Game", description = "Сначала POST /start — он создаёт раунд и возвращает gameId. UUID в примерах Swagger — заглушка.")
+@SecurityRequirement(name = "PlayerId")
 public class GameController {
 
     private final GameOrchestrator orchestrator;
@@ -42,7 +44,7 @@ public class GameController {
     @Operation(summary = "Начать раунд: списать ставку, вернуть gameId и commitHash (без crashPoint)")
     @PostMapping("/start")
     public ResponseEntity<StartGameResponse> start(
-            @Parameter(description = "Должен совпадать с playerId в теле", required = true)
+            @Parameter(hidden = true)
             @RequestHeader("X-Player-Id") String xPlayerId,
             @Valid @RequestBody BetRequest request) {
         return ResponseEntity.ok(orchestrator.start(request, xPlayerId));
@@ -54,8 +56,9 @@ public class GameController {
     @Operation(summary = "Состояние раунда. Poll каждые 100–250 ms. Секреты только после CRASHED/CASHED_OUT")
     @GetMapping("/state/{gameId}")
     public ResponseEntity<GameStateResponse> state(
-            @Parameter(description = "Владелец раунда", required = true)
+            @Parameter(hidden = true)
             @RequestHeader("X-Player-Id") String xPlayerId,
+            @Parameter(description = "Скопировать из ответа POST /start. Пример 3fa85f64-... — не настоящая игра.")
             @PathVariable UUID gameId) {
         return ResponseEntity.ok(orchestrator.state(gameId, xPlayerId));
     }
@@ -66,8 +69,9 @@ public class GameController {
     @Operation(summary = "Зафиксировать выигрыш, если шар ещё в полёте и K < crashPoint")
     @PostMapping("/cashout/{gameId}")
     public ResponseEntity<CashoutResponse> cashout(
-            @Parameter(description = "Владелец раунда", required = true)
+            @Parameter(hidden = true)
             @RequestHeader("X-Player-Id") String xPlayerId,
+            @Parameter(description = "Скопировать из ответа POST /start. Пример 3fa85f64-... — не настоящая игра.")
             @PathVariable UUID gameId) {
         return ResponseEntity.ok(orchestrator.cashout(gameId, xPlayerId));
     }
@@ -78,8 +82,9 @@ public class GameController {
     @Operation(summary = "Provably Fair: seed и crashPoint после конца раунда")
     @GetMapping("/verify/{gameId}")
     public ResponseEntity<VerifyResponse> verify(
-            @Parameter(description = "Владелец раунда", required = true)
+            @Parameter(hidden = true)
             @RequestHeader("X-Player-Id") String xPlayerId,
+            @Parameter(description = "Скопировать из ответа POST /start. Пример 3fa85f64-... — не настоящая игра.")
             @PathVariable UUID gameId) {
         return ResponseEntity.ok(orchestrator.verify(gameId, xPlayerId));
     }

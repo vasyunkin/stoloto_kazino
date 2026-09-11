@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/admin")
 @RequiredArgsConstructor
-@Tag(name = "Admin", description = "Runtime-конфиг. Заголовок X-Admin-Key. apiKey в JSON не отдаётся и не меняется")
+@Tag(name = "Admin", description = "Ключ: Authorize → AdminKey = change-me-in-prod. Не test-admin-key.")
 @SecurityRequirement(name = "AdminKey")
 public class AdminController {
 

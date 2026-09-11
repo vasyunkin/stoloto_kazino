@@ -53,6 +53,7 @@ springdoc:
     path: /swagger-ui.html
     operations-sorter: method
     tags-sorter: alpha
+    persist-authorization: true
 
 # ── CORS + rate limit (S9) ────────────────────────────────────────────────
 app:

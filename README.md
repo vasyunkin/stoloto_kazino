@@ -39,6 +39,17 @@ Compose сначала поднимает Postgres, ждёт healthcheck, зат
 - Swagger UI: [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
 - OpenAPI JSON: [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs)
 
+### Как потыкать API в Swagger
+
+Игр заранее нет, и UUID `3fa85f64-5717-4562-b3fc-2c963f66afa6` в форме — **заглушка OpenAPI**, не существующий раунд.
+
+1. Справа сверху **Authorize**.
+2. **PlayerId** — любая строка, например `demo`. Это не логин и не пароль, просто id игрока.
+3. **AdminKey** — `change-me-in-prod` (так в Docker и в `application.yml`). `test-admin-key` есть только в автотестах, в живом сервере он невалиден.
+4. Players → `POST /api/players/{id}/deposit`: в path `demo`, тело `{"amount": 1000}`. Так появляется игрок и деньги.
+5. Game → `POST /api/game/start`, в теле тот же `"playerId": "demo"`, ставка например `50`, `balloonType`: `STANDARD`. В ответе будет настоящий `gameId`.
+6. Этот `gameId` вставляете в **state / cashout / verify**. Execute на примере из Swagger даст 403/404 — такой игры нет.
+
 Остановка: `Ctrl+C`, затем при необходимости `docker compose down`. Данные Postgres лежат в volume `postgres-data`.
 
 ### Backend локально, БД в Docker
@@ -91,7 +102,7 @@ sequenceDiagram
 
 ## API для фронта
 
-Живой контракт — Swagger. В UI для игры укажите `X-Player-Id`, для админки — `X-Admin-Key`.
+Живой контракт — Swagger. Сначала **Authorize**, потом deposit → start → копируете `gameId`.
 
 | Метод | Путь | Зачем |
 |-------|------|--------|
@@ -124,19 +135,9 @@ sequenceDiagram
 
 ## Админка и конфиг
 
-`GET`/`PUT /api/admin/config` за ключом `GAME_ADMIN_KEY` (в compose по умолчанию `change-me-in-prod`). PUT — глубокий merge JSON, без перезапуска.
+`GET`/`PUT /api/admin/config`. Логина нет: в Swagger **Authorize → AdminKey** вставьте `change-me-in-prod`. Если ключ «всегда невалиден», скорее всего введён `test-admin-key` или поле оставили пустым.
 
 Уже летящий раунд **не** подхватывает новый `growthRate`: у него снимок конфига со старта. Ключ админки в JSON не отдаётся и через PUT не меняется.
 
 На `start` и `cashout` стоит простой rate limit (40 запросов / 10 с на игрока) — антиспам, не защита игровой логики.
 
----
-
-## Полезные пути в репозитории
-
-| | |
-|---|---|
-| Спека | `.specs/0-backend-technical-spec.md` |
-| Слайсы реализации | `.specs/1-implementation-slices.md` |
-| Конфиг игры | `src/main/resources/application.yml` |
-| Схема БД | `src/main/resources/db/migration/` |
