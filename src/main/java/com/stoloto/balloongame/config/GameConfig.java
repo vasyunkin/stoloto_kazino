@@ -1,5 +1,7 @@
 package com.stoloto.balloongame.config;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonMerge;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.Data;
@@ -33,18 +35,23 @@ public class GameConfig {
     @Positive
     private double ascentSpeedLinesPerSec = 1.5;
 
+    @JsonMerge
     @Valid
     private MathConfig math = new MathConfig();
 
+    @JsonMerge
     @Valid
     private BoostersConfig boosters = new BoostersConfig();
 
+    @JsonMerge
     @Valid
     private AdminConfig admin = new AdminConfig();
 
+    @JsonMerge
     @Valid
     private ScoringConfig scoring = new ScoringConfig();
 
+    @JsonMerge
     @Valid
     private ProvablyFairConfig provablyFair = new ProvablyFairConfig();
 
@@ -99,7 +106,8 @@ public class GameConfig {
     @Data
     public static class AdminConfig {
 
-        /** Secret key for X-Admin-Key header (override via env GAME_ADMIN_KEY). */
+        /** Secret key for X-Admin-Key. Bound from YAML/env; never in admin JSON (I7-adjacent). */
+        @JsonIgnore
         @NotBlank
         private String apiKey = "change-me-in-prod";
 

@@ -1,37 +1,97 @@
 package com.stoloto.balloongame.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.stoloto.balloongame.api.exception.GameException;
 import com.stoloto.balloongame.config.GameConfig;
+import com.stoloto.balloongame.domain.entity.ConfigSnapshotEntity;
+import com.stoloto.balloongame.domain.repository.ConfigSnapshotRepository;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validator;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 /**
- * Holds the current game configuration for <em>new</em> rounds.
+ * Runtime game configuration for <em>new</em> rounds (I8).
  *
- * <p>I8: callers must use {@link #getSnapshot()} — never the live
- * {@code @ConfigurationProperties} bean — and store that copy on the session.
- * {@link #update(GameConfig)} is a stub for S8 admin PUT; not exposed via HTTP in S4.
+ * <p>Holds an {@link AtomicReference} independent of the
+ * {@code @ConfigurationProperties} bean. Admin PUT swaps the reference after
+ * Jakarta Validation; flying sessions keep their start-time snapshot.
  */
 @Service
 public class ConfigService {
 
     private final AtomicReference<GameConfig> current;
+    private final ObjectMapper objectMapper;
+    private final Validator validator;
+    private final ConfigSnapshotRepository snapshotRepository;
 
-    public ConfigService(GameConfig initialConfig) {
-        this.current = new AtomicReference<>(initialConfig);
+    public ConfigService(GameConfig initialConfig,
+                         ObjectMapper objectMapper,
+                         Validator validator,
+                         ConfigSnapshotRepository snapshotRepository) {
+        this.current = new AtomicReference<>(initialConfig.deepCopy());
+        this.objectMapper = objectMapper;
+        this.validator = validator;
+        this.snapshotRepository = snapshotRepository;
     }
 
-    /**
-     * Deep copy of the current config. Never returns the live mutable bean.
-     */
+    /** Deep copy — never the live mutable reference. */
     public GameConfig getSnapshot() {
         return current.get().deepCopy();
     }
 
-    /**
-     * Atomic swap used by admin PUT in S8. Not wired to an endpoint in S4.
-     */
     public void update(GameConfig newConfig) {
-        current.set(newConfig);
+        current.set(newConfig.deepCopy());
+    }
+
+    /**
+     * Partial JSON merge into the current config, validate, persist audit row, atomic swap.
+     */
+    @Transactional
+    public GameConfig mergeAndApply(String json, String appliedBy) {
+        GameConfig merged = getSnapshot();
+        try {
+            JsonNode tree = objectMapper.readTree(json);
+            if (tree == null || !tree.isObject()) {
+                throw GameException.configValidationFailed("Config body must be a JSON object");
+            }
+            objectMapper.readerForUpdating(merged).readValue(tree);
+        } catch (GameException e) {
+            throw e;
+        } catch (JsonProcessingException e) {
+            throw GameException.configValidationFailed("Invalid config JSON");
+        } catch (Exception e) {
+            throw GameException.configValidationFailed("Invalid config JSON");
+        }
+
+        validate(merged);
+        try {
+            String payload = objectMapper.writeValueAsString(merged);
+            snapshotRepository.save(new ConfigSnapshotEntity(payload, appliedBy == null ? "admin" : appliedBy));
+        } catch (JsonProcessingException e) {
+            throw GameException.configValidationFailed("Failed to persist config snapshot");
+        }
+        update(merged);
+        return getSnapshot();
+    }
+
+    private void validate(GameConfig config) {
+        Set<ConstraintViolation<GameConfig>> violations = validator.validate(config);
+        if (!violations.isEmpty()) {
+            String details = violations.stream()
+                    .map(v -> v.getPropertyPath() + " " + v.getMessage())
+                    .collect(Collectors.joining("; "));
+            throw GameException.configValidationFailed(details);
+        }
+        var admin = config.getAdmin();
+        if (admin.getMinBetAmount().compareTo(admin.getMaxBetAmount()) > 0) {
+            throw GameException.configValidationFailed("minBetAmount must be <= maxBetAmount");
+        }
     }
 }
