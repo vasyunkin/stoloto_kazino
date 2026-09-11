@@ -1,21 +1,16 @@
-# Build stage
-FROM maven:3.9.6-eclipse-temurin-17 AS build
+# Ubuntu Temurin (not Alpine): linux/amd64 + linux/arm64.
+# eclipse-temurin:17-jre-alpine has no Apple Silicon variant.
+FROM maven:3.9.9-eclipse-temurin-21 AS build
 WORKDIR /app
 
-# Cache dependencies
 COPY pom.xml .
-RUN mvn dependency:go-offline -B
-
-# Copy sources and build jar
 COPY src ./src
-RUN mvn clean package -DskipTests
+RUN mvn -B -DskipTests package
 
-# Runtime stage
-FROM eclipse-temurin:17-jre-alpine
+FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
 
-# Run as non-root user for security best practices
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN groupadd --system appgroup && useradd --system --gid appgroup --no-create-home appuser
 USER appuser
 
 COPY --from=build /app/target/balloon-game-*.jar app.jar

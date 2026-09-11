@@ -1,0 +1,7 @@
+.git
+.idea
+.specs
+target
+*.md
+.mvn/wrapper/maven-wrapper.jar
+src/test

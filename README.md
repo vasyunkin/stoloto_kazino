@@ -1,20 +1,49 @@
-# Воздушный Шар — backend
+# Воздушный Шар
 
-Crash-игра: Java 21 / Spring Boot 3.4 / PostgreSQL 16.
+Backend crash-игры для хакатона. Игрок ставит деньги, шар поднимается, коэффициент \(K(t)\) растёт экспоненциально. Нужно забрать выигрыш (**cashout**) до краша. Параллельно копятся очки за линии высоты и бустер.
 
-Контракт для фронта: **OpenAPI** (`/swagger-ui.html`, JSON `/v3/api-docs`) + этот README. Новых игровых фич в API нет — только описанные эндпоинты.
+Исход раунда считается **на сервере до старта полёта** и не пересчитывается. Пока шар в воздухе, API не отдаёт точку краша и seed — это можно проверить только после конца раунда (Provably Fair).
 
-## Запуск
+Фронтенд в этот репозиторий не входит. Контракт — этот README и OpenAPI.
 
-Полный стек (Postgres + backend):
+---
+
+## Стек
+
+| | |
+|---|---|
+| Язык | Java 21 |
+| Фреймворк | Spring Boot 3.4 (Maven) |
+| БД | PostgreSQL 16, миграции Flyway |
+| Деньги | `BigDecimal` + таблица `wallet_ledger`, без `double` |
+| Активный раунд | in-memory `GameSession` + PostgreSQL как источник правды |
+| Документация API | springdoc OpenAPI 3 + Swagger UI |
+| Тесты | JUnit 5, Testcontainers |
+| Запуск | Docker Compose |
+
+Авторизации как в проде нет: игрок передаётся заголовком `X-Player-Id`, админка — `X-Admin-Key`. Spring Security не подключён.
+
+---
+
+## Как запустить
+
+Нужны **Docker Desktop** (на Apple Silicon это нормально) и свободные порты **8080** (API) и **5433** (Postgres на хосте).
 
 ```bash
 docker compose up --build
 ```
 
-Postgres в compose проброшен на хост как **5433** (`5433:5432`). Контейнер backend ходит на `postgres:5432`. Health: `GET http://localhost:8080/actuator/health`.
+Compose сначала поднимает Postgres, ждёт healthcheck, затем backend. Готовность:
 
-Только БД, backend локально:
+- API: [http://localhost:8080/actuator/health](http://localhost:8080/actuator/health)
+- Swagger UI: [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
+- OpenAPI JSON: [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs)
+
+Остановка: `Ctrl+C`, затем при необходимости `docker compose down`. Данные Postgres лежат в volume `postgres-data`.
+
+### Backend локально, БД в Docker
+
+Удобно, если меняете код и не хотите пересобирать образ.
 
 ```bash
 docker compose up postgres
@@ -24,128 +53,90 @@ SPRING_DATASOURCE_PASSWORD=balloon \
 ./mvnw spring-boot:run
 ```
 
-По умолчанию `application.yml` смотрит на `localhost:5432`. Если Postgres только из compose — передайте URL с портом **5433**.
+В `application.yml` по умолчанию порт Postgres **5432**. Compose пробрасывает его на хост как **5433**, поэтому локальному Spring нужен URL выше. Внутри сети Compose backend ходит на `postgres:5432` — это уже прописано в `docker-compose.yml`.
 
-## OpenAPI
+Тесты: `./mvnw test` (нужен Docker для Testcontainers).
 
-| Что | URL |
-|-----|-----|
-| Swagger UI | http://localhost:8080/swagger-ui.html |
-| OpenAPI JSON | http://localhost:8080/v3/api-docs |
+---
 
-В UI для `/api/game/**` укажите заголовок `X-Player-Id`. Для `/api/admin/**` — `X-Admin-Key` (схема **AdminKey**).
+## Как устроена игра
 
-## Типичный игровой цикл
+```mermaid
+sequenceDiagram
+  participant UI as Frontend
+  participant API as Backend
+  participant DB as PostgreSQL
 
-Заголовок `X-Player-Id` обязателен на всех `/api/game/**` и **должен совпадать** с `playerId` в ставке. Чужой `gameId` → `403 FORBIDDEN` (не 404).
-
-Poll `GET /state` каждые **100–250 ms**. Пока `status=FLYING`, в ответе **нет** `crashPoint` и `serverSeed`.
-
-```bash
-BASE=http://localhost:8080
-PLAYER=demo
-
-# 1. Демо-пополнение (пока game.admin.allow-deposit=true)
-curl -s -X POST "$BASE/api/players/$PLAYER/deposit" \
-  -H 'Content-Type: application/json' \
-  -d '{"amount": 1000}'
-
-curl -s "$BASE/api/players/$PLAYER/balance"
-
-# 2. Старт раунда
-START=$(curl -s -X POST "$BASE/api/game/start" \
-  -H 'Content-Type: application/json' \
-  -H "X-Player-Id: $PLAYER" \
-  -d "{\"playerId\":\"$PLAYER\",\"betAmount\":50,\"balloonType\":\"STANDARD\",\"boosterPreference\":\"AUTO\"}")
-echo "$START"
-GAME_ID=$(echo "$START" | python3 -c "import sys,json; print(json.load(sys.stdin)['gameId'])")
-
-# 3. Poll (в UI — таймер 100–250 ms, пока status=FLYING)
-curl -s "$BASE/api/game/state/$GAME_ID" -H "X-Player-Id: $PLAYER"
-
-# 4. Cashout, пока шар в полёте и K < crashPoint
-curl -s -X POST "$BASE/api/game/cashout/$GAME_ID" -H "X-Player-Id: $PLAYER"
-
-# 5. Provably Fair (только после CRASHED / CASHED_OUT / VOID)
-curl -s "$BASE/api/game/verify/$GAME_ID" -H "X-Player-Id: $PLAYER"
+  UI->>API: deposit (демо)
+  UI->>API: POST /api/game/start
+  Note over API,DB: lock игрока, списание ставки,<br/>crashPoint и seed уже зафиксированы
+  loop каждые 100–250 ms
+    UI->>API: GET /api/game/state/{gameId}
+    Note over API: K(t) по часам сервера<br/>при K ≥ crashPoint → CRASHED
+  end
+  UI->>API: POST /api/game/cashout/{gameId}
+  Note over API,DB: выигрыш, если ещё FLYING
+  UI->>API: GET /api/game/verify/{gameId}
 ```
 
-`POST /start` возвращает `gameId`, `commitHash`, `serverSeedHash`, `startedAt`. Секреты раунда не отдаются.
+1. **Пополнение.** Для демо `POST /api/players/{id}/deposit`. В проде флаг `game.admin.allow-deposit` выключают; платёжного шлюза нет.
+2. **Старт.** `POST /api/game/start` списывает ставку, пишет раунд в БД и кладёт сессию в память. В ответе `gameId` и `commitHash`. Точка краша и `serverSeed` **не** приходят.
+3. **Полёт.** Клиент опрашивает `GET /api/game/state/{gameId}` каждые **100–250 ms**. Сервер считает множитель одной функцией от времени старта. Когда \(K\) догоняет заранее посчитанный `crashPoint`, статус становится `CRASHED`, ставка сгорает.
+4. **Cashout.** Пока статус `FLYING` и \(K < crashPoint\), `POST /api/game/cashout/{gameId}` фиксирует выигрыш `bet × K`. Повторный cashout — ошибка. Гонка cashout/crash сериализуется локом на раунд.
+5. **Проверка честности.** После `CRASHED` / `CASHED_OUT` (или `VOID` после рестарта сервера) `GET /api/game/verify/{gameId}` отдаёт seed и `crashPoint`. Пока шар летит — `409`.
 
-## Заголовки
+Чужой `gameId` или несовпадение `X-Player-Id` с `playerId` ставки → **403**, не 404: UUID чужих раундов не палим.
 
-| Заголовок | Где | Зачем |
-|-----------|-----|--------|
-| `X-Player-Id` | `/api/game/**` | Идентификатор игрока (хакатон, вместо OAuth). Совпадает с `playerId`. |
-| `X-Admin-Key` | `/api/admin/**` | Сравнение с `game.admin.api-key` / `GAME_ADMIN_KEY`. Неверный ключ → 403 без деталей. |
-| `Content-Type: application/json` | POST/PUT с телом | |
+---
 
-## Ошибки
+## API для фронта
 
-Тело: `{ "code", "message", "timestamp", "details"? }`.
+Живой контракт — Swagger. В UI для игры укажите `X-Player-Id`, для админки — `X-Admin-Key`.
 
-| HTTP | code | Когда |
-|------|------|--------|
-| 400 | `VALIDATION_ERROR` | Нет заголовка, невалидное тело |
-| 400 | `CONFIG_VALIDATION_FAILED` | Битый JSON / невалидный admin PUT |
-| 400 | `INVALID_BET` | Ставка вне `[minBet, maxBet]` |
-| 402 | `INSUFFICIENT_BALANCE` | Не хватает денег на ставку |
-| 403 | `FORBIDDEN` | Чужой `gameId` / несовпадение `X-Player-Id` / плохой admin key |
-| 403 | `DEPOSIT_NOT_ALLOWED` | `allow-deposit=false` |
-| 404 | `PLAYER_NOT_FOUND` | Баланс несуществующего игрока |
-| 409 | `ALREADY_CRASHED` / `ALREADY_CASHED_OUT` | Повторный cashout / шар уже упал |
-| 409 | `ROUND_NOT_TERMINAL` | `verify` пока раунд летит |
-| 410 | `ROUND_EXPIRED` | Cache miss по `FLYING` (рестарт / TTL) |
-| 429 | `RATE_LIMITED` | Слишком частые `start`/`cashout` (см. ниже) |
+| Метод | Путь | Зачем |
+|-------|------|--------|
+| `POST` | `/api/players/{id}/deposit` | Демо-пополнение, создаёт игрока |
+| `GET` | `/api/players/{id}/balance` | Баланс |
+| `POST` | `/api/game/start` | Ставка, новый раунд |
+| `GET` | `/api/game/state/{gameId}` | Polling полёта |
+| `POST` | `/api/game/cashout/{gameId}` | Забрать выигрыш |
+| `GET` | `/api/game/verify/{gameId}` | Раскрыть PF после конца раунда |
+| `GET`/`PUT` | `/api/admin/config` | Тюнинг математики без пересборки |
 
-## CORS
+Заголовок `X-Player-Id` обязателен на всех `/api/game/**` и должен совпадать с `playerId` в теле `start`.
 
-Whitelist, **не** `*`. По умолчанию:
+Ошибки всегда в одном виде: `{ "code", "message", "timestamp", "details"? }`. Частые коды: `INSUFFICIENT_BALANCE` (402), `FORBIDDEN` (403), `ALREADY_CRASHED` / `ALREADY_CASHED_OUT` (409), `ROUND_NOT_TERMINAL` (409), `ROUND_EXPIRED` (410), `RATE_LIMITED` (429).
 
-- `http://localhost:3000`
-- `http://localhost:5173`
-- `http://127.0.0.1:3000`
-- `http://127.0.0.1:5173`
+Локальный фронт (Vite / CRA) уже в CORS whitelist: `localhost` и `127.0.0.1` на портах **3000** и **5173**. Звёздочки нет.
 
-Заголовки: `Content-Type`, `X-Player-Id`, `X-Admin-Key`. Список: `app.cors.allowed-origins`.
+---
 
-## Rate limit
+## Деньги и честность
 
-На `POST /api/game/start` и `POST /api/game/cashout/{gameId}`: окно `app.rate-limit` (по умолчанию 40 запросов / 10 с на игрока). Ответ 429 `RATE_LIMITED`. В тестах выключено (`app.rate-limit.enabled=false`).
+- Списание и начисление идут только через ledger. Баланс игрока в транзакции берётся с пессимистичным локом.
+- `crashPoint`, бустер и PF-seed фиксируются в `POST /start`, дальше не пересчитываются.
+- Пока `status = FLYING`, `crashPoint` и `serverSeed` в JSON нет (поля просто отсутствуют).
+- Алгоритм PF: **`crash-v1`**. После конца раунда: `commitHash` должен совпасть с `SHA-256(serverSeed|clientSeed|nonce)`; `crashPoint` восстанавливается из HMAC-SHA256 по seed. Формула и константы (`houseEdge`, `instantCrashRate`) — в Swagger-ответе verify и в `.specs/`.
 
-Это антиспам, не замена игровых локов.
+Если процесс упал посреди полёта: при старте все `FLYING` в БД становятся `VOID`, ставка возвращается (`CREDIT_REFUND`). Полёт из БД не восстанавливается: повторный `state` по такому раунду → `410 ROUND_EXPIRED`.
 
-## Admin
+---
 
-```bash
-curl -s "$BASE/api/admin/config" -H "X-Admin-Key: $GAME_ADMIN_KEY"
-curl -s -X PUT "$BASE/api/admin/config" \
-  -H "X-Admin-Key: $GAME_ADMIN_KEY" \
-  -H 'Content-Type: application/json' \
-  -d '{"math":{"growthRate":0.07}}'
-```
+## Админка и конфиг
 
-Deep merge. Поле `admin.apiKey` в JSON не отдаётся и через PUT не меняется. Уже начатый раунд использует снимок конфига со `start`, не «живой» YAML.
+`GET`/`PUT /api/admin/config` за ключом `GAME_ADMIN_KEY` (в compose по умолчанию `change-me-in-prod`). PUT — глубокий merge JSON, без перезапуска.
 
-## Рестарт сервера
+Уже летящий раунд **не** подхватывает новый `growthRate`: у него снимок конфига со старта. Ключ админки в JSON не отдаётся и через PUT не меняется.
 
-Все раунды `FLYING` при старте процесса → `VOID` + возврат ставки (`CREDIT_REFUND`). Полёт в памяти не восстанавливается: cache miss по `FLYING` → `410 ROUND_EXPIRED`.
+На `start` и `cashout` стоит простой rate limit (40 запросов / 10 с на игрока) — антиспам, не защита игровой логики.
 
-## Provably Fair (`crash-v1`)
+---
 
-После `CRASHED` / `CASHED_OUT` (или `VOID` после recovery):
+## Полезные пути в репозитории
 
-```bash
-curl "$BASE/api/game/verify/{gameId}" -H "X-Player-Id: demo"
-```
-
-Ответ: `serverSeed`, `clientSeed`, `nonce`, `commitHash`, `crashPoint`, `algorithmVersion`.
-
-Проверка вручную:
-
-1. `commitHash == SHA-256( serverSeed + "|" + clientSeed + "|" + nonce )` (hex, lowercase).
-2. `h = HMAC-SHA256(key=serverSeedBytes, msg=clientSeed + ":" + nonce)`.
-3. `u = first52bits(h) / 2^52`. Если `u < instant-crash-rate` → `crashPoint = 1.0000`, иначе  
-   `min(maxWin, max(1.0, (1 - houseEdge) / u))` — должно совпасть с `crashPoint` из verify.
-
-Пока `status = FLYING`, seed и crashPoint в API нет. Verify до конца раунда → `409 ROUND_NOT_TERMINAL`.
+| | |
+|---|---|
+| Спека | `.specs/0-backend-technical-spec.md` |
+| Слайсы реализации | `.specs/1-implementation-slices.md` |
+| Конфиг игры | `src/main/resources/application.yml` |
+| Схема БД | `src/main/resources/db/migration/` |
