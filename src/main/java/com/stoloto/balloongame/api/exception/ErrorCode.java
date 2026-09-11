@@ -13,6 +13,7 @@ public enum ErrorCode {
     INVALID_BET,
     DEPOSIT_NOT_ALLOWED,     // game.admin.allow-deposit=false
     ROUND_NOT_TERMINAL,      // verify called before round ended
+    ROUND_EXPIRED,           // FLYING cache miss / recovered VOID — 410
     CONFIG_VALIDATION_FAILED,
     FORBIDDEN,
     VALIDATION_ERROR,

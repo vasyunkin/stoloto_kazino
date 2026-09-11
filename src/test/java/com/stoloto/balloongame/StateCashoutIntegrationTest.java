@@ -476,13 +476,14 @@ class StateCashoutIntegrationTest {
     // ── cache miss rebuild ────────────────────────────────────────────────
 
     @Test
-    void state_rebuildsSessionFromDbOnCacheMiss() throws Exception {
+    void state_flyingCacheMiss_returns410() throws Exception {
         FlyingRound flying = flyingRound();
         sessionCache.evict(flying.gameId());
 
-        GameStateResponse state = orchestrator.state(flying.gameId(), flying.playerId());
-        assertThat(state.status()).isEqualTo(RoundStatus.FLYING);
-        assertThat(state.gameId()).isEqualTo(flying.gameId());
+        mockMvc.perform(get("/api/game/state/" + flying.gameId())
+                        .header("X-Player-Id", flying.playerId()))
+                .andExpect(status().isGone())
+                .andExpect(jsonPath("$.code").value("ROUND_EXPIRED"));
     }
 
     // ── I7 ────────────────────────────────────────────────────────────────

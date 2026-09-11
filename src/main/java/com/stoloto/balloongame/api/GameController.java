@@ -4,6 +4,7 @@ import com.stoloto.balloongame.api.dto.BetRequest;
 import com.stoloto.balloongame.api.dto.CashoutResponse;
 import com.stoloto.balloongame.api.dto.GameStateResponse;
 import com.stoloto.balloongame.api.dto.StartGameResponse;
+import com.stoloto.balloongame.api.dto.VerifyResponse;
 import com.stoloto.balloongame.service.GameOrchestrator;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -59,5 +60,15 @@ public class GameController {
             @RequestHeader("X-Player-Id") String xPlayerId,
             @PathVariable UUID gameId) {
         return ResponseEntity.ok(orchestrator.cashout(gameId, xPlayerId));
+    }
+
+    /**
+     * GET /api/game/verify/{gameId} — PF reveal after CRASHED / CASHED_OUT / VOID.
+     */
+    @GetMapping("/verify/{gameId}")
+    public ResponseEntity<VerifyResponse> verify(
+            @RequestHeader("X-Player-Id") String xPlayerId,
+            @PathVariable UUID gameId) {
+        return ResponseEntity.ok(orchestrator.verify(gameId, xPlayerId));
     }
 }

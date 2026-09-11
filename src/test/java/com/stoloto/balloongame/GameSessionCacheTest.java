@@ -8,7 +8,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.UUID;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -23,7 +26,7 @@ class GameSessionCacheTest {
 
     @BeforeEach
     void setUp() {
-        cache = new GameSessionCache();
+        cache = new GameSessionCache(Clock.systemUTC());
     }
 
     @Test
@@ -51,6 +54,42 @@ class GameSessionCacheTest {
         long n1 = cache.nextNonce();
         long n2 = cache.nextNonce();
         assertThat(n2).isGreaterThan(n1);
+    }
+
+    @Test
+    void get_evictsTerminalAfterTtl() {
+        Instant now = Instant.parse("2026-01-01T00:16:00Z");
+        GameSessionCache ttlCache = new GameSessionCache(Clock.fixed(now, ZoneOffset.UTC));
+        UUID id = UUID.randomUUID();
+        GameSession terminal = session(id);
+        terminal.setStatus(RoundStatus.CASHED_OUT);
+        terminal.setEndedAt(now.minus(GameSessionCache.TERMINAL_TTL).minusSeconds(1));
+        ttlCache.put(terminal);
+
+        assertThat(ttlCache.get(id)).isEmpty();
+    }
+
+    @Test
+    void get_doesNotEvictFlyingEvenIfOld() {
+        Instant now = Instant.parse("2026-01-01T03:00:00Z");
+        GameSessionCache ttlCache = new GameSessionCache(Clock.fixed(now, ZoneOffset.UTC));
+        GameSession flying = session(UUID.randomUUID());
+        ttlCache.put(flying);
+
+        assertThat(ttlCache.get(flying.getGameId())).containsSame(flying);
+    }
+
+    @Test
+    void get_keepsTerminalWithinTtl() {
+        Instant now = Instant.parse("2026-01-01T00:10:00Z");
+        GameSessionCache ttlCache = new GameSessionCache(Clock.fixed(now, ZoneOffset.UTC));
+        UUID id = UUID.randomUUID();
+        GameSession terminal = session(id);
+        terminal.setStatus(RoundStatus.CRASHED);
+        terminal.setEndedAt(now.minus(Duration.ofMinutes(5)));
+        ttlCache.put(terminal);
+
+        assertThat(ttlCache.get(id)).containsSame(terminal);
     }
 
     private static GameSession session(UUID id) {

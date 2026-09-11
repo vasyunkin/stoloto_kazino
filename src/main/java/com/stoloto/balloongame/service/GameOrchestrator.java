@@ -7,6 +7,7 @@ import com.stoloto.balloongame.api.dto.BoosterStateDto;
 import com.stoloto.balloongame.api.dto.CashoutResponse;
 import com.stoloto.balloongame.api.dto.GameStateResponse;
 import com.stoloto.balloongame.api.dto.StartGameResponse;
+import com.stoloto.balloongame.api.dto.VerifyResponse;
 import com.stoloto.balloongame.api.exception.GameException;
 import com.stoloto.balloongame.config.GameConfig;
 import com.stoloto.balloongame.domain.entity.GameRound;
@@ -160,17 +161,46 @@ public class GameOrchestrator {
                 done.getServerSeedHex());
     }
 
-    private GameSession requireOwnedSession(UUID gameId, String xPlayerId) {
-        GameSession session = sessionCache.get(gameId).orElseGet(() -> rebuildFromDb(gameId));
-        if (!session.getPlayerId().equals(xPlayerId)) {
-            throw GameException.forbidden();
-        }
-        return session;
-    }
-
-    private GameSession rebuildFromDb(UUID gameId) {
+    /**
+     * Provably Fair reveal. Reads PostgreSQL (not the TTL cache) so terminal data
+     * survives eviction. Seed is returned only when status is terminal (I1).
+     */
+    public VerifyResponse verify(UUID gameId, String xPlayerId) {
         GameRound round = gameRoundRepository.findByIdWithPlayer(gameId)
                 .orElseThrow(GameException::gameNotFound);
+        if (!round.getPlayer().getExternalId().equals(xPlayerId)) {
+            throw GameException.forbidden();
+        }
+        if (!round.getStatus().isTerminal()) {
+            throw GameException.roundNotTerminal();
+        }
+        return new VerifyResponse(
+                round.getId(),
+                round.getServerSeed(),
+                round.getClientSeed(),
+                round.getNonce(),
+                round.getServerSeedHash(),
+                round.getCrashPoint(),
+                provablyFairService.algorithmVersion());
+    }
+
+    private GameSession requireOwnedSession(UUID gameId, String xPlayerId) {
+        Optional<GameSession> cached = sessionCache.get(gameId);
+        if (cached.isPresent()) {
+            GameSession session = cached.get();
+            if (!session.getPlayerId().equals(xPlayerId)) {
+                throw GameException.forbidden();
+            }
+            return session;
+        }
+        GameRound round = gameRoundRepository.findByIdWithPlayer(gameId)
+                .orElseThrow(GameException::gameNotFound);
+        if (!round.getPlayer().getExternalId().equals(xPlayerId)) {
+            throw GameException.forbidden();
+        }
+        if (round.getStatus() == RoundStatus.FLYING || round.getStatus() == RoundStatus.VOID) {
+            throw GameException.roundExpired();
+        }
         GameSession session = toSession(round);
         sessionCache.put(session);
         return session;

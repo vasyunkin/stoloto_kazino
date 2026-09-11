@@ -50,6 +50,11 @@ public class GameException extends RuntimeException {
                 "Provably Fair data is available only after the round ends", HttpStatus.CONFLICT);
     }
 
+    public static GameException roundExpired() {
+        return new GameException(ErrorCode.ROUND_EXPIRED,
+                "Round is no longer active", HttpStatus.GONE);
+    }
+
     public static GameException configValidationFailed(String detail) {
         return new GameException(ErrorCode.CONFIG_VALIDATION_FAILED, detail, HttpStatus.BAD_REQUEST);
     }

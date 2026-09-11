@@ -13,8 +13,11 @@ import java.util.UUID;
 
 public interface GameRoundRepository extends JpaRepository<GameRound, UUID> {
 
-    /** Find all rounds currently in FLYING status — used by startup recovery job (S7). */
-    List<GameRound> findAllByStatus(RoundStatus status);
+    @Query("SELECT r.id FROM GameRound r WHERE r.status = :status")
+    List<UUID> findIdsByStatus(@Param("status") RoundStatus status);
+
+    @Query("SELECT r.player.externalId FROM GameRound r WHERE r.id = :id")
+    Optional<String> findPlayerExternalIdById(@Param("id") UUID id);
 
     long countByPlayer_ExternalId(String externalId);
 
