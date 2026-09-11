@@ -1,0 +1,85 @@
+# --- Maven / Java build ---
+target/
+build/
+!.mvn/wrapper/maven-wrapper.jar
+.mvn/wrapper/maven-wrapper.jar
+HELP.md
+
+# --- Specs, snapshots, local notes (не в репозиторий) ---
+.specs/
+.snaps/
+**/__snapshots__/
+*.snap
+
+# --- Secrets & local config ---
+.env
+.env.*
+!.env.example
+**/application-local.yml
+**/application-local.yaml
+**/application-*.local.yml
+**/application-*.local.yaml
+
+# --- Logs & temp ---
+*.log
+logs/
+*.tmp
+*.temp
+*.bak
+*.swp
+*~
+
+# --- OS ---
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+Desktop.ini
+
+# --- JVM crash dumps ---
+hs_err_pid*
+replay_pid*
+
+# --- IDE: IntelliJ IDEA ---
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+# --- IDE: Eclipse / STS ---
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings/
+.springBeans
+.sts4-cache/
+
+# --- IDE: NetBeans ---
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# --- IDE: VS Code (личные настройки; общие — через .vscode/*.example при необходимости) ---
+.vscode/
+
+# --- Cursor (локальный кеш агента; rules/skills — коммитить явно при необходимости) ---
+.cursor/
+
+# --- Docker / local data ---
+docker-data/
+postgres-data/
+
+# --- Test / coverage artifacts ---
+.jacoco/
+coverage/
+*.exec
+
+# --- Frontend (если появится рядом) ---
+node_modules/
+dist/
+.npm/
+.pnpm-store/

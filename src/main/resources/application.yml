@@ -1,0 +1,91 @@
+server:
+  port: 8080
+  compression:
+    enabled: true
+    mime-types: application/json,text/plain
+
+spring:
+  application:
+    name: balloon-game
+
+  # ── Database ────────────────────────────────────────────────────────────
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/balloon_game}
+    username: ${SPRING_DATASOURCE_USERNAME:balloon}
+    password: ${SPRING_DATASOURCE_PASSWORD:balloon}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+        jdbc:
+          time_zone: UTC
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+
+# ── Actuator ──────────────────────────────────────────────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+# ── Game Configuration (runtime-configurable via PUT /api/admin/config) ──
+game:
+  # Altitude / Levels structure
+  green-levels: 9             # Safe zone lines
+  red-levels: 12              # Risk zone lines
+  points-per-line: 10         # Base score points per line passed
+  ascent-speed-lines-per-sec: 1.5
+
+  # Crash Math: K(t) = 1 + (e^(r*t) - 1)
+  math:
+    growth-rate: 0.065        # Exponential acceleration (r)
+    house-edge: 0.04          # 4% house edge (RTP = 96%)
+    instant-crash-rate: 0.03  # 3% chance of crash at 1.00x
+
+  # Booster settings
+  boosters:
+    spawn-probability: 0.70
+    tiers:
+      - tier: 1
+        name: "Standard Flame"
+        multiplier: 1.5
+        probability-weight: 50
+      - tier: 2
+        name: "Super Burner"
+        multiplier: 2.0
+        probability-weight: 35
+      - tier: 3
+        name: "Nitro Thruster"
+        multiplier: 3.0
+        probability-weight: 15
+
+  # Admin & wallet limits
+  admin:
+    api-key: ${GAME_ADMIN_KEY:change-me-in-prod}
+    min-bet-amount: 10.0
+    max-bet-amount: 10000.0
+    min-win-amount: 50.0
+    max-win-multiplier: 100.0
+    allow-deposit: true       # Set false in prod; overridable via PUT /api/admin/config
+
+  # Provably Fair
+  provably-fair:
+    server-seed-length-bytes: 32
+    hash-algorithm: SHA-256

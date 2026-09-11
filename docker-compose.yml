@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: balloon-game-postgres
+    environment:
+      POSTGRES_DB: balloon_game
+      POSTGRES_USER: balloon
+      POSTGRES_PASSWORD: balloon
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U balloon -d balloon_game"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: balloon-game-backend
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: default
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/balloon_game
+      SPRING_DATASOURCE_USERNAME: balloon
+      SPRING_DATASOURCE_PASSWORD: balloon
+      GAME_ADMIN_KEY: ${GAME_ADMIN_KEY:-change-me-in-prod}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres-data:

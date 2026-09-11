@@ -1,0 +1,6 @@
+# Test profile overrides.
+# Datasource URL is overridden by @ServiceConnection (Testcontainers) — no need to set it here.
+game:
+  admin:
+    api-key: test-admin-key   # avoid "change-me-in-prod" confusion in tests
+    allow-deposit: true
