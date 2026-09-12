@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ApiError } from '../api/client'
 import { startGame } from '../api/gameApi'
 import { BetChips } from '../components/BetChips'
@@ -11,10 +11,12 @@ import { useGameStore } from '../stores/gameStore'
 import { usePlayerStore } from '../stores/playerStore'
 import './PrefightScreen.css'
 
+const MIN_BET = { STANDARD: 12, LUCKY: 25 } as const
+
 export function PrefightScreen() {
   const balance = usePlayerStore((s) => s.balance)
+  const boosterCharges = usePlayerStore((s) => s.boosterCharges)
   const playerId = usePlayerStore((s) => s.playerId)
-  const setBalance = usePlayerStore((s) => s.setBalance)
 
   const balloonType = useGameStore((s) => s.balloonType)
   const betAmount = useGameStore((s) => s.betAmount)
@@ -25,16 +27,33 @@ export function PrefightScreen() {
   const beginRound = useGameStore((s) => s.beginRound)
 
   const [cardId, setCardId] = useState<BoosterCardId>(
-    boosterPreference === 'NONE' ? 'none' : 'x2',
+    boosterPreference === 'NONE' || boosterCharges <= 0 ? 'none' : 'auto',
   )
   const [starting, setStarting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [helpOpen, setHelpOpen] = useState(false)
 
+  useEffect(() => {
+    const min = MIN_BET[balloonType]
+    if (betAmount < min) setBetAmount(min)
+  }, [balloonType, betAmount, setBetAmount])
+
+  useEffect(() => {
+    if (boosterCharges <= 0 && cardId === 'auto') {
+      setCardId('none')
+      setBoosterPreference('NONE')
+    }
+  }, [boosterCharges, cardId, setBoosterPreference])
+
   const themeLabel = balloonType === 'LUCKY' ? 'Красный шар' : 'Зеленый шар'
+  const minBet = MIN_BET[balloonType]
   const canStart = useMemo(
-    () => betAmount > 0 && betAmount <= balance && !starting,
-    [betAmount, balance, starting],
+    () =>
+      betAmount >= minBet &&
+      betAmount <= balance &&
+      !starting &&
+      (boosterPreference === 'NONE' || boosterCharges > 0),
+    [betAmount, balance, starting, minBet, boosterPreference, boosterCharges],
   )
 
   const onStart = async () => {
@@ -49,13 +68,13 @@ export function PrefightScreen() {
         boosterPreference,
       })
       beginRound(res.gameId, res.commitHash, betAmount, res.startedAt)
-      // Refresh wallet after debit (don't auto-deposit here).
-      const bal = await ensureWallet(false)
-      setBalance(bal)
+      await ensureWallet(false)
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.code === 'INSUFFICIENT_BALANCE') {
           setError('Недостаточно средств — пополни баланс на Hub')
+        } else if (err.code === 'NO_BOOSTER_CHARGES') {
+          setError('Нет зарядов бустера — выбери «Без» или сделай депозит')
         } else {
           setError(`${err.code}: ${err.message}`)
         }
@@ -81,15 +100,23 @@ export function PrefightScreen() {
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <p className="prefight-theme">{themeLabel}</p>
+        <p className="prefight-theme">
+          {themeLabel} · мин. ставка {minBet} ◎ · заряды {boosterCharges}
+        </p>
 
         <section className="prefight-section">
           <h3>Ставка</h3>
-          <BetChips value={betAmount} balance={balance} onChange={setBetAmount} />
+          <BetChips
+            value={betAmount}
+            balance={balance}
+            balloonType={balloonType}
+            onChange={setBetAmount}
+          />
         </section>
 
         <BoosterCards
           selectedId={cardId}
+          charges={boosterCharges}
           onSelect={(id, preference) => {
             setCardId(id)
             setBoosterPreference(preference)

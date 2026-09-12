@@ -51,7 +51,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class HistoryIntegrationTest {
 
     private static final Instant T0 = Instant.parse("2026-09-12T10:00:00Z");
-    private static final BigDecimal MIN_FLYING_CRASH = new BigDecimal("1.0500");
+    private static final BigDecimal MIN_FLYING_CRASH = new BigDecimal("1.3500");
 
     @TestConfiguration
     static class TestClockConfig {
@@ -119,7 +119,7 @@ class HistoryIntegrationTest {
     private void freezeJustBelowCrash(GameRound round) {
         BigDecimal target = round.getCrashPoint()
                 .subtract(new BigDecimal("0.0200"))
-                .max(BigDecimal.ONE);
+                .max(new BigDecimal("1.2000"));
         freezeAtMultiplier(round, target);
         if (kNow(round).compareTo(round.getCrashPoint()) >= 0) {
             clock.freeze(round.getStartedAt());

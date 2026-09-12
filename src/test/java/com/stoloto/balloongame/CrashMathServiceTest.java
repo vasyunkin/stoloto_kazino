@@ -56,6 +56,8 @@ class CrashMathServiceTest {
         GameConfig.MathConfig math = new GameConfig.MathConfig();
         math.setInstantCrashRate(instantRate);
         math.setHouseEdge(houseEdge);
+        math.setMinCrashPoint(new BigDecimal("1.20"));
+        math.setMinCashoutMultiplier(new BigDecimal("1.20"));
         cfg.setMath(math);
 
         GameConfig.AdminConfig admin = new GameConfig.AdminConfig();
@@ -99,12 +101,12 @@ class CrashMathServiceTest {
         BigDecimal actual = crashMath.drawCrashMultiplier(SERVER_HEX, CLIENT, NONCE, defaultConfig);
 
         if (u < 0.03) {
-            // This seed happens to produce instant crash → verify it
-            assertThat(actual).isEqualByComparingTo("1.0000");
+            // This seed happens to produce early crash → floor at minCrashPoint
+            assertThat(actual).isEqualByComparingTo("1.2000");
         } else {
-            // Normal crash — verify against independent formula
+            // Normal crash — verify against independent formula with floor 1.20
             double raw  = (1.0 - 0.04) / u;
-            double cap  = Math.min(100.0, Math.max(1.0, raw));
+            double cap  = Math.min(100.0, Math.max(1.20, raw));
             BigDecimal expected = BigDecimal.valueOf(cap).setScale(4, RoundingMode.HALF_UP);
             assertThat(actual)
                     .as("crash point must match independent HMAC formula (golden vector 1)")
@@ -113,7 +115,7 @@ class CrashMathServiceTest {
 
         // Common invariants regardless of branch
         assertThat(actual.scale()).isEqualTo(4);
-        assertThat(actual).isGreaterThanOrEqualTo(BigDecimal.ONE);
+        assertThat(actual).isGreaterThanOrEqualTo(new BigDecimal("1.20"));
         assertThat(actual).isLessThanOrEqualTo(BigDecimal.valueOf(100));
     }
 
@@ -136,8 +138,7 @@ class CrashMathServiceTest {
     // ── Golden vector 2: Instant crash ────────────────────────────────────
 
     /**
-     * Golden vector 2: instantCrashRate = 1.0 → ANY seed always produces 1.0000.
-     * Tests the instant-crash branch explicitly (100% branch coverage for this path).
+     * Golden vector 2: instantCrashRate = 1.0 → ANY seed always produces minCrashPoint (1.20).
      */
     @Test
     void drawCrashMultiplier_goldenVector_instantCrash_whenRateIs100Percent() {
@@ -147,42 +148,36 @@ class CrashMathServiceTest {
         BigDecimal crash2 = crashMath.drawCrashMultiplier("00".repeat(32), "other", 1L, instantConfig);
         BigDecimal crash3 = crashMath.drawCrashMultiplier("ff".repeat(32), "", 0L, instantConfig);
 
-        assertThat(crash1).as("instant-crash: seed1").isEqualByComparingTo("1.0000");
-        assertThat(crash2).as("instant-crash: seed2").isEqualByComparingTo("1.0000");
-        assertThat(crash3).as("instant-crash: seed3").isEqualByComparingTo("1.0000");
+        assertThat(crash1).as("early-crash: seed1").isEqualByComparingTo("1.2000");
+        assertThat(crash2).as("early-crash: seed2").isEqualByComparingTo("1.2000");
+        assertThat(crash3).as("early-crash: seed3").isEqualByComparingTo("1.2000");
     }
 
     /**
-     * Golden vector 2b: instantCrashRate = 0.0 → crash point is always > 1.00
-     * (with very high houseEdge to keep the formula tractable).
+     * Golden vector 2b: instantCrashRate = 0.0 → crash point is always >= minCrashPoint
      */
     @Test
     void drawCrashMultiplier_noInstantCrash_whenRateIsZero() {
         GameConfig noInstant = buildConfig(0.0, 0.04, 100.0);
         BigDecimal result = crashMath.drawCrashMultiplier(SERVER_HEX, CLIENT, NONCE, noInstant);
-        assertThat(result).isGreaterThan(BigDecimal.ONE);
+        assertThat(result).isGreaterThanOrEqualTo(new BigDecimal("1.20"));
     }
 
     // ── Golden vector 3: Cap at maxWinMultiplier ──────────────────────────
 
     /**
-     * Golden vector 3: maxWinMultiplier = 1.01 with no instant crash.
-     * For very small u, (1-houseEdge)/u >> 1.01 → result capped at 1.01.
-     * Tests the cap branch.
+     * Golden vector 3: maxWinMultiplier = 1.25 with minCrash = 1.20, no instant crash.
      */
     @Test
     void drawCrashMultiplier_goldenVector_cappedAtMaxWin() {
-        // Cap at 1.01x, no instant crash, tiny house edge
-        GameConfig capConfig = buildConfig(0.0, 0.01, 1.01);
+        GameConfig capConfig = buildConfig(0.0, 0.01, 1.25);
 
-        // Find a seed that produces u < (1 - 0.01) / 1.01 ≈ 0.98, which gives raw > 1.01
-        // With a tiny cap like 1.01, most u values give raw >> 1.01, so cap kicks in often
         BigDecimal result = crashMath.drawCrashMultiplier(SERVER_HEX, CLIENT, NONCE, capConfig);
 
         assertThat(result)
                 .as("result must not exceed maxWinMultiplier")
-                .isLessThanOrEqualTo(BigDecimal.valueOf(1.01));
-        assertThat(result).isGreaterThanOrEqualTo(BigDecimal.ONE);
+                .isLessThanOrEqualTo(BigDecimal.valueOf(1.25));
+        assertThat(result).isGreaterThanOrEqualTo(new BigDecimal("1.20"));
     }
 
     @Test
@@ -190,7 +185,7 @@ class CrashMathServiceTest {
         for (int i = 0; i < 20; i++) {
             String seed = String.format("%02x", i).repeat(32);
             BigDecimal result = crashMath.drawCrashMultiplier(seed, CLIENT, (long) i, defaultConfig);
-            assertThat(result).isBetween(BigDecimal.ONE, BigDecimal.valueOf(100));
+            assertThat(result).isBetween(new BigDecimal("1.20"), BigDecimal.valueOf(100));
         }
     }
 

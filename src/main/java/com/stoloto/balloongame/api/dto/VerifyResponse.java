@@ -13,5 +13,8 @@ public record VerifyResponse(
         long nonce,
         String commitHash,
         BigDecimal crashPoint,
-        String algorithmVersion
+        String algorithmVersion,
+        Integer boostTier,
+        Integer boostTriggerLine,
+        BigDecimal boostMultiplier
 ) {}

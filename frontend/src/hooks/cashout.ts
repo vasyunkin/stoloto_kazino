@@ -28,12 +28,7 @@ export async function requestCashout(): Promise<{ ok: true } | { ok: false; mess
     return { ok: true }
   } catch (err) {
     if (err instanceof ApiError) {
-      // Race: already crashed — refresh public state (no secrets while we only get terminal via state).
-      if (
-        err.code === 'ALREADY_CRASHED' ||
-        err.code === 'ALREADY_CASHED_OUT' ||
-        err.status === 409
-      ) {
+      if (err.code === 'ALREADY_CRASHED' || err.code === 'ALREADY_CASHED_OUT') {
         try {
           const state = await getState(game.gameId, playerId)
           useGameStore.getState().applyPublicState(state)

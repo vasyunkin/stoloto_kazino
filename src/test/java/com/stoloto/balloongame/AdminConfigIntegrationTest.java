@@ -12,6 +12,7 @@ import com.stoloto.balloongame.domain.repository.PlayerRepository;
 import com.stoloto.balloongame.domain.repository.WalletLedgerRepository;
 import com.stoloto.balloongame.service.CrashMathService;
 import com.stoloto.balloongame.service.GameOrchestrator;
+import com.stoloto.balloongame.service.GameSessionCache;
 import com.stoloto.balloongame.service.PlayerService;
 import com.stoloto.balloongame.support.MutableClock;
 import org.junit.jupiter.api.AfterEach;
@@ -79,11 +80,14 @@ class AdminConfigIntegrationTest {
     @Autowired ConfigSnapshotRepository configSnapshotRepository;
     @Autowired GameOrchestrator orchestrator;
     @Autowired CrashMathService crashMath;
+    @Autowired GameSessionCache sessionCache;
 
     @AfterEach
     void resetClockAndGrowthRate() throws Exception {
         clock.useSystemUtc();
-        putConfig("{\"math\":{\"growthRate\":0.065},\"admin\":{\"allowDeposit\":true}}");
+        putConfig("{\"math\":{\"growthRate\":0.065},"
+                + "\"themes\":{\"standard\":{\"growthRate\":0.055},\"lucky\":{\"growthRate\":0.085}},"
+                + "\"admin\":{\"allowDeposit\":true}}");
     }
 
     private void putConfig(String json) throws Exception {
@@ -115,7 +119,7 @@ class AdminConfigIntegrationTest {
     }
 
     private StartGameResponse startOk(String playerId) throws Exception {
-        BetRequest body = new BetRequest(playerId, new BigDecimal("100"), "STANDARD", "AUTO", null);
+        BetRequest body = new BetRequest(playerId, new BigDecimal("100"), "STANDARD", "NONE", null);
         MvcResult result = mockMvc.perform(post("/api/game/start")
                         .header("X-Player-Id", playerId)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -177,7 +181,7 @@ class AdminConfigIntegrationTest {
     @Test
     void putGrowthRate_flyingKeepsOldK_newStartUsesNewR() throws Exception {
         FlyingRound first = flyingRound();
-        putConfig("{\"math\":{\"growthRate\":0.5}}");
+        putConfig("{\"themes\":{\"standard\":{\"growthRate\":0.5}}}");
         FlyingRound second = flyingRound();
 
         Instant later = T0.plusSeconds(1);
@@ -186,7 +190,9 @@ class AdminConfigIntegrationTest {
         GameStateResponse stateA = orchestrator.state(first.gameId(), first.playerId());
         GameStateResponse stateB = orchestrator.state(second.gameId(), second.playerId());
 
-        BigDecimal expectedOld = crashMath.multiplierAt(first.round().getStartedAt(), later, 0.065);
+        double rateOld = sessionCache.get(first.gameId()).orElseThrow()
+                .getConfigSnapshot().getMath().getGrowthRate();
+        BigDecimal expectedOld = crashMath.multiplierAt(first.round().getStartedAt(), later, rateOld);
         BigDecimal expectedNew = crashMath.multiplierAt(second.round().getStartedAt(), later, 0.5);
 
         assertThat(stateA.multiplier()).isEqualByComparingTo(expectedOld);

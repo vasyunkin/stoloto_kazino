@@ -38,6 +38,13 @@ public class Player {
     @Column(name = "balance", nullable = false, precision = 19, scale = 4)
     private BigDecimal balance = BigDecimal.ZERO;
 
+    /**
+     * Remaining AUTO booster rolls. Consumed on start when preference is AUTO.
+     * Replenished on demo deposit (+1, capped).
+     */
+    @Column(name = "booster_charges", nullable = false)
+    private int boosterCharges = 5;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 

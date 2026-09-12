@@ -7,5 +7,6 @@ import java.math.BigDecimal;
  */
 public record BalanceResponse(
         String externalId,
-        BigDecimal balance
+        BigDecimal balance,
+        int boosterCharges
 ) {}

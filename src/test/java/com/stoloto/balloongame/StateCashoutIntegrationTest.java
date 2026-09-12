@@ -67,7 +67,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class StateCashoutIntegrationTest {
 
     private static final Instant T0 = Instant.parse("2026-06-01T12:00:00Z");
-    private static final BigDecimal MIN_FLYING_CRASH = new BigDecimal("1.0500");
+    private static final BigDecimal MIN_FLYING_CRASH = new BigDecimal("1.3500");
 
     @TestConfiguration
     static class TestClockConfig {
@@ -141,7 +141,7 @@ class StateCashoutIntegrationTest {
     private void freezeJustBelowCrash(GameRound round) {
         BigDecimal target = round.getCrashPoint()
                 .subtract(new BigDecimal("0.0200"))
-                .max(BigDecimal.ONE);
+                .max(new BigDecimal("1.2000"));
         freezeAtMultiplier(round, target);
         if (kNow(round).compareTo(round.getCrashPoint()) >= 0) {
             clock.freeze(round.getStartedAt());
@@ -255,7 +255,8 @@ class StateCashoutIntegrationTest {
 
         CashoutResponse cashout = orchestrator.cashout(flying.gameId(), flying.playerId());
         assertThat(cashout.serverSeed()).isEqualTo(flying.round().getServerSeed());
-        assertThat(cashout.multiplierAtCashout()).isLessThan(flying.round().getCrashPoint());
+        // Effective K may exceed crashPoint when booster activated (crash still uses raw K).
+        assertThat(cashout.multiplierAtCashout()).isGreaterThanOrEqualTo(new BigDecimal("1.20"));
 
         BigDecimal expectedWin = new BigDecimal("100")
                 .multiply(cashout.multiplierAtCashout())
@@ -454,15 +455,38 @@ class StateCashoutIntegrationTest {
 
     @Test
     void state_usesConfigSnapshot_notLiveBean() throws Exception {
-        FlyingRound flying = flyingRound();
+        FlyingRound flying = null;
+        for (int i = 0; i < 40; i++) {
+            clock.freeze(T0);
+            String playerId = uid();
+            fund(playerId, "1000.00");
+            BetRequest body = new BetRequest(playerId, new BigDecimal("100"), "STANDARD", "NONE", null);
+            MvcResult startResult = mockMvc.perform(post("/api/game/start")
+                            .header("X-Player-Id", playerId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(body)))
+                    .andExpect(status().isOk())
+                    .andReturn();
+            StartGameResponse start = objectMapper.readValue(
+                    startResult.getResponse().getContentAsString(), StartGameResponse.class);
+            GameRound round = gameRoundRepository.findById(start.gameId()).orElseThrow();
+            if (round.getCrashPoint().compareTo(new BigDecimal("1.3500")) >= 0) {
+                flying = new FlyingRound(playerId, start.gameId(), round);
+                break;
+            }
+        }
+        assertThat(flying).isNotNull();
+
+        double snapshotRate = sessionCache.get(flying.gameId()).orElseThrow()
+                .getConfigSnapshot().getMath().getGrowthRate();
         double original = gameConfig.getMath().getGrowthRate();
         try {
             gameConfig.getMath().setGrowthRate(0.5);
-            freezeAtMultiplier(flying.round(), new BigDecimal("1.0200"));
+            freezeAtMultiplier(flying.round(), new BigDecimal("1.2500"));
 
             GameStateResponse state = orchestrator.state(flying.gameId(), flying.playerId());
             BigDecimal expected = crashMath.multiplierAt(
-                    flying.round().getStartedAt(), clock.instant(), original);
+                    flying.round().getStartedAt(), clock.instant(), snapshotRate);
             assertThat(state.status()).isEqualTo(RoundStatus.FLYING);
             assertThat(state.multiplier()).isEqualByComparingTo(expected);
             BigDecimal ifLiveUsed = crashMath.multiplierAt(

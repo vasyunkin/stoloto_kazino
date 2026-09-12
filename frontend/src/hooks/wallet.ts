@@ -9,31 +9,31 @@ function toNumber(v: number | string): number {
   return Number.isFinite(n) ? n : 0
 }
 
+function applyWallet(balance: number | string, charges: number | undefined) {
+  const { setWallet } = usePlayerStore.getState()
+  setWallet(toNumber(balance), typeof charges === 'number' ? charges : 0)
+  return toNumber(balance)
+}
+
 /**
  * Load balance; if player missing — demo deposit so Hub is playable (F2).
  */
 export async function ensureWallet(autoDepositIfMissing = true): Promise<number> {
-  const { playerId, setBalance } = usePlayerStore.getState()
+  const { playerId } = usePlayerStore.getState()
   try {
     const res = await getBalance(playerId)
-    const bal = toNumber(res.balance)
-    setBalance(bal)
-    return bal
+    return applyWallet(res.balance, res.boosterCharges)
   } catch (err) {
     if (err instanceof ApiError && err.status === 404 && autoDepositIfMissing) {
       const res = await deposit(playerId, DEMO_DEPOSIT)
-      const bal = toNumber(res.newBalance)
-      setBalance(bal)
-      return bal
+      return applyWallet(res.newBalance, res.boosterCharges)
     }
     throw err
   }
 }
 
 export async function demoDeposit(amount = DEMO_DEPOSIT): Promise<number> {
-  const { playerId, setBalance } = usePlayerStore.getState()
+  const { playerId } = usePlayerStore.getState()
   const res = await deposit(playerId, amount)
-  const bal = toNumber(res.newBalance)
-  setBalance(bal)
-  return bal
+  return applyWallet(res.newBalance, res.boosterCharges)
 }

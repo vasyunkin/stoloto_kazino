@@ -182,6 +182,7 @@ class ScoringIntegrationTest {
     void cashout_returnsFinalPointsTotal_matchingDb() throws Exception {
         FlyingRound flying = flyingRound();
         freezeAtLine(flying.round(), 4);
+        ensureCashoutGate(flying.round());
 
         GameStateResponse state = orchestrator.state(flying.gameId(), flying.playerId());
         CashoutResponse cashout = orchestrator.cashout(flying.gameId(), flying.playerId());
@@ -189,8 +190,27 @@ class ScoringIntegrationTest {
         assertThat(cashout.pointsTotal()).isEqualTo(state.pointsTotal());
         GameRound persisted = gameRoundRepository.findById(flying.gameId()).orElseThrow();
         assertThat(persisted.getPointsEarned()).isEqualTo(cashout.pointsTotal());
+        int line = sessionCache.get(flying.gameId()).map(s ->
+                crashMath.lineIndexAt(s.getStartTime(), clock.instant(),
+                        s.getConfigSnapshot().getAscentSpeedLinesPerSec())).orElse(4);
         assertThat(cashout.pointsTotal()).isEqualTo(
-                expectedPoints(sessionCache.get(flying.gameId()).orElseThrow(), 4));
+                expectedPoints(sessionCache.get(flying.gameId()).orElseThrow(), line));
+    }
+
+    /** Advance clock if still below minCashout (theme α can keep K low at early lines). */
+    private void ensureCashoutGate(GameRound round) {
+        GameSession session = sessionCache.get(round.getId()).orElseThrow();
+        double r = session.getConfigSnapshot().getMath().getGrowthRate();
+        BigDecimal min = session.getConfigSnapshot().getMath().getMinCashoutMultiplier();
+        BigDecimal k = crashMath.multiplierAt(round.getStartedAt(), clock.instant(), r);
+        if (k.compareTo(min) < 0) {
+            double t = crashMath.timeAtMultiplier(min.doubleValue(), r);
+            clock.freeze(round.getStartedAt().plusMillis(Math.max(0L, (long) Math.ceil(t * 1000.0))));
+        }
+        assertThat(crashMath.multiplierAt(round.getStartedAt(), clock.instant(), r))
+                .isGreaterThanOrEqualTo(min);
+        assertThat(crashMath.multiplierAt(round.getStartedAt(), clock.instant(), r))
+                .isLessThan(round.getCrashPoint());
     }
 
     @Test

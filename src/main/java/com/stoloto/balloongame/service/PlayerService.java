@@ -1,5 +1,6 @@
 package com.stoloto.balloongame.service;
 
+import com.stoloto.balloongame.api.dto.BalanceResponse;
 import com.stoloto.balloongame.api.dto.DepositResponse;
 import com.stoloto.balloongame.api.exception.GameException;
 import com.stoloto.balloongame.domain.entity.LedgerType;
@@ -44,6 +45,14 @@ public class PlayerService {
     public BigDecimal getBalance(String externalId) {
         return getPlayerOrThrow(externalId).getBalance();
     }
+
+    /** Wallet snapshot for balance API (balance + booster charges). */
+    public BalanceResponse getWallet(String externalId) {
+        Player player = getPlayerOrThrow(externalId);
+        return new BalanceResponse(externalId, player.getBalance(), player.getBoosterCharges());
+    }
+
+    public static final int MAX_BOOSTER_CHARGES = 20;
 
     /**
      * Fetch player or throw PLAYER_NOT_FOUND (404).
@@ -118,11 +127,24 @@ public class PlayerService {
 
         BigDecimal newBalance = player.getBalance().add(amount);
         player.setBalance(newBalance);
+        int charges = Math.min(MAX_BOOSTER_CHARGES, player.getBoosterCharges() + 1);
+        player.setBoosterCharges(charges);
 
         walletLedgerRepository.save(new WalletLedger(player, null, LedgerType.CREDIT_DEPOSIT, amount));
 
-        log.info("Deposit OK: player={} amount={} newBalance={}", externalId, amount, newBalance);
-        return new DepositResponse(externalId, amount, newBalance);
+        log.info("Deposit OK: player={} amount={} newBalance={} boosterCharges={}",
+                externalId, amount, newBalance, charges);
+        return new DepositResponse(externalId, amount, newBalance, charges);
+    }
+
+    /**
+     * Consume one AUTO booster charge. Caller must hold player FOR UPDATE.
+     */
+    public void consumeBoosterCharge(Player player) {
+        if (player.getBoosterCharges() <= 0) {
+            throw GameException.noBoosterCharges();
+        }
+        player.setBoosterCharges(player.getBoosterCharges() - 1);
     }
 
     private void assertDepositAllowed() {

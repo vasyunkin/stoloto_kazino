@@ -66,7 +66,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class WebSocketIntegrationTest {
 
     private static final Instant T0 = Instant.parse("2026-09-12T16:00:00Z");
-    private static final BigDecimal MIN_FLYING_CRASH = new BigDecimal("1.0500");
+    private static final BigDecimal MIN_FLYING_CRASH = new BigDecimal("1.3500");
 
     @TestConfiguration
     static class TestClockConfig {

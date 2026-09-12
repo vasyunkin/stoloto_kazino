@@ -65,6 +65,7 @@ public class GameOrchestrator {
         }
 
         GameConfig snapshot = configService.getSnapshot();
+        snapshot.applyTheme(request.balloonType());
         validateBet(request, snapshot);
 
         String clientSeed = request.clientSeed() == null ? "" : request.clientSeed();
@@ -77,6 +78,12 @@ public class GameOrchestrator {
 
         if (player.getBalance().compareTo(request.betAmount()) < 0) {
             throw GameException.insufficientBalance();
+        }
+
+        boolean wantBooster = request.boosterPreference() != null
+                && !BOOSTER_NONE.equalsIgnoreCase(request.boosterPreference());
+        if (wantBooster) {
+            playerService.consumeBoosterCharge(player);
         }
 
         long nonce = sessionCache.nextNonce();
@@ -199,7 +206,10 @@ public class GameOrchestrator {
                 round.getNonce(),
                 round.getServerSeedHash(),
                 round.getCrashPoint(),
-                provablyFairService.algorithmVersion());
+                provablyFairService.algorithmVersion(),
+                round.getBoostTier(),
+                round.getBoostTriggerLine(),
+                lookupBoostMultiplier(fromJson(round.getGameConfigSnapshot()), round.getBoostTier()));
     }
 
     private GameSession requireOwnedSession(UUID gameId, String xPlayerId) {

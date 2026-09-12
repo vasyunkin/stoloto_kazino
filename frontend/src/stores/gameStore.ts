@@ -64,7 +64,7 @@ export const useGameStore = create<GameStore>((set) => ({
   zone: 'GREEN',
   pointsTotal: 0,
   pointsDelta: 0,
-  betAmount: 50,
+  betAmount: 12,
   balloonType: 'STANDARD',
   boosterPreference: 'AUTO',
   booster: null,

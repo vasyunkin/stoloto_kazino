@@ -54,6 +54,7 @@ export function HubScreen() {
 
   const onSelectTheme = (type: BalloonType) => {
     setBalloonType(type)
+    useGameStore.getState().setBetAmount(type === 'LUCKY' ? 25 : 12)
     setPhase('prefight')
   }
 

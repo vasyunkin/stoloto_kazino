@@ -326,8 +326,10 @@ class StartRoundIntegrationTest {
             gameConfig.getMath().setGrowthRate(0.999);
             assertThat(session.getConfigSnapshot().getMath().getGrowthRate())
                     .as("FLYING session must keep the start-time snapshot (I8)")
-                    .isEqualTo(snapshotRate)
-                    .isEqualTo(originalRate);
+                    .isEqualTo(snapshotRate);
+            assertThat(snapshotRate)
+                    .as("STANDARD theme growthRate applied into snapshot")
+                    .isEqualTo(gameConfig.getThemes().getStandard().getGrowthRate());
             GameRound round = gameRoundRepository.findById(resp.gameId()).orElseThrow();
             assertThat(round.getGameConfigSnapshot()).contains("growthRate");
         } finally {

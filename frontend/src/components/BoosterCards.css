@@ -24,6 +24,10 @@
   gap: 8px;
 }
 
+.booster-grid-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
 .booster-card {
   display: flex;
   flex-direction: column;

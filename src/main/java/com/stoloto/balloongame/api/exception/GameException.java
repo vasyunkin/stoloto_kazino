@@ -3,6 +3,8 @@ package com.stoloto.balloongame.api.exception;
 import lombok.Getter;
 import org.springframework.http.HttpStatus;
 
+import java.math.BigDecimal;
+
 /**
  * Business logic exception that carries an HTTP status and error code.
  * Caught by GlobalExceptionHandler and serialized as ErrorResponse.
@@ -71,5 +73,15 @@ public class GameException extends RuntimeException {
 
     public static GameException forbidden() {
         return new GameException(ErrorCode.FORBIDDEN, "Access denied", HttpStatus.FORBIDDEN);
+    }
+
+    public static GameException cashoutTooEarly(BigDecimal minMultiplier) {
+        return new GameException(ErrorCode.CASHOUT_TOO_EARLY,
+                "Cashout available from " + minMultiplier + "x", HttpStatus.CONFLICT);
+    }
+
+    public static GameException noBoosterCharges() {
+        return new GameException(ErrorCode.NO_BOOSTER_CHARGES,
+                "No booster charges left — choose NONE or deposit for more", HttpStatus.BAD_REQUEST);
     }
 }

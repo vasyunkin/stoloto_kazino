@@ -1,18 +1,24 @@
 import { motion } from 'framer-motion'
+import type { BalloonType } from '../api/types'
 import './BetChips.css'
 
-const PRESETS = [50, 150, 300, 600] as const
+const PRESETS_BY_THEME: Record<BalloonType, readonly number[]> = {
+  STANDARD: [12, 50, 150, 300],
+  LUCKY: [25, 50, 150, 300],
+}
 
 interface BetChipsProps {
   value: number
   balance: number
+  balloonType: BalloonType
   onChange: (n: number) => void
 }
 
-export function BetChips({ value, balance, onChange }: BetChipsProps) {
+export function BetChips({ value, balance, balloonType, onChange }: BetChipsProps) {
+  const presets = PRESETS_BY_THEME[balloonType]
   return (
     <div className="bet-chips" role="group" aria-label="Ставка">
-      {PRESETS.map((n) => {
+      {presets.map((n) => {
         const disabled = n > balance
         return (
           <motion.button

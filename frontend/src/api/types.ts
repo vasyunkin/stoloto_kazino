@@ -16,12 +16,14 @@ export interface ErrorResponse {
 export interface BalanceResponse {
   externalId: string
   balance: number | string
+  boosterCharges: number
 }
 
 export interface DepositResponse {
   externalId: string
   depositedAmount: number | string
   newBalance: number | string
+  boosterCharges: number
 }
 
 export interface StartGameResponse {

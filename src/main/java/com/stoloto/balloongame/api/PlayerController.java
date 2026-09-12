@@ -52,8 +52,7 @@ public class PlayerController {
     @Operation(summary = "Текущий баланс. 404 PLAYER_NOT_FOUND, если игрока ещё не было")
     @GetMapping("/{externalId}/balance")
     public ResponseEntity<BalanceResponse> getBalance(@PathVariable String externalId) {
-        var balance = playerService.getBalance(externalId);
-        return ResponseEntity.ok(new BalanceResponse(externalId, balance));
+        return ResponseEntity.ok(playerService.getWallet(externalId));
     }
 
     /**

@@ -8,5 +8,6 @@ import java.math.BigDecimal;
 public record DepositResponse(
         String externalId,
         BigDecimal depositedAmount,
-        BigDecimal newBalance
+        BigDecimal newBalance,
+        int boosterCharges
 ) {}

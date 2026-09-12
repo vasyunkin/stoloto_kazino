@@ -55,22 +55,37 @@ public class GameConfig {
     @Valid
     private ProvablyFairConfig provablyFair = new ProvablyFairConfig();
 
+    @JsonMerge
+    @Valid
+    private ThemesConfig themes = new ThemesConfig();
+
     // ── Nested configs ────────────────────────────────────────────────────
 
     @Data
     public static class MathConfig {
 
-        /** Exponential growth rate r in K(t) = 1 + (e^(r*t) - 1). */
+        /** Exponential growth rate α in K(t) = e^(α·t). */
         @Positive
         private double growthRate = 0.065;
 
         /** House edge fraction [0, 1). E.g. 0.04 = 4%. */
         @DecimalMin("0.0") @DecimalMax("0.5")
-        private double houseEdge = 0.04;
+        private double houseEdge = 0.08;
 
-        /** Probability of instant crash at 1.00x [0, 1). */
+        /**
+         * Probability of early crash at {@link #minCrashPoint} [0, 1).
+         * Never crashes below minCrashPoint.
+         */
         @DecimalMin("0.0") @DecimalMax("1.0")
-        private double instantCrashRate = 0.03;
+        private double instantCrashRate = 0.08;
+
+        /** Floor for crash draw — cashout button can become active first. */
+        @NotNull @DecimalMin("1.0")
+        private BigDecimal minCrashPoint = new BigDecimal("1.20");
+
+        /** Cashout rejected while raw K is below this (usually equals minCrashPoint). */
+        @NotNull @DecimalMin("1.0")
+        private BigDecimal minCashoutMultiplier = new BigDecimal("1.20");
     }
 
     @Data
@@ -78,7 +93,14 @@ public class GameConfig {
 
         /** Probability that a booster spawns in a round [0, 1]. */
         @DecimalMin("0.0") @DecimalMax("1.0")
-        private double spawnProbability = 0.70;
+        private double spawnProbability = 0.45;
+
+        /**
+         * Line pick bias: triggerLine = floor(roll^power * crashLine).
+         * power &gt; 1 favours lower altitude lines.
+         */
+        @Positive
+        private double lineBiasPower = 2.0;
 
         @Valid
         @NotEmpty
@@ -94,7 +116,7 @@ public class GameConfig {
         @NotBlank
         private String name;
 
-        /** Win multiplier applied to score on activation (BigDecimal — no double in DTO path, TD-06). */
+        /** Multiplier applied to payout K and to booster points bonus. */
         @NotNull
         @Positive
         private BigDecimal multiplier;
@@ -154,6 +176,73 @@ public class GameConfig {
         private String devFixedServerSeed;
     }
 
+    @Data
+    public static class ThemesConfig {
+
+        @JsonMerge
+        @Valid
+        private ThemeProfile standard = ThemeProfile.standardDefaults();
+
+        @JsonMerge
+        @Valid
+        private ThemeProfile lucky = ThemeProfile.luckyDefaults();
+    }
+
+    @Data
+    public static class ThemeProfile {
+
+        @NotNull @Positive
+        private BigDecimal minBetAmount;
+
+        @NotNull @Positive
+        private BigDecimal maxBetAmount;
+
+        @Positive
+        private double growthRate;
+
+        @NotNull @Positive
+        private BigDecimal maxWinMultiplier;
+
+        @Positive
+        private int greenLevels;
+
+        @Positive
+        private int redLevels;
+
+        public static ThemeProfile standardDefaults() {
+            ThemeProfile t = new ThemeProfile();
+            t.minBetAmount = new BigDecimal("12.0");
+            t.maxBetAmount = new BigDecimal("5000.0");
+            t.growthRate = 0.055;
+            t.maxWinMultiplier = new BigDecimal("50.0");
+            t.greenLevels = 9;
+            t.redLevels = 6;
+            return t;
+        }
+
+        public static ThemeProfile luckyDefaults() {
+            ThemeProfile t = new ThemeProfile();
+            t.minBetAmount = new BigDecimal("25.0");
+            t.maxBetAmount = new BigDecimal("10000.0");
+            t.growthRate = 0.085;
+            t.maxWinMultiplier = new BigDecimal("100.0");
+            t.greenLevels = 9;
+            t.redLevels = 12;
+            return t;
+        }
+
+        public ThemeProfile copy() {
+            ThemeProfile t = new ThemeProfile();
+            t.minBetAmount = this.minBetAmount;
+            t.maxBetAmount = this.maxBetAmount;
+            t.growthRate = this.growthRate;
+            t.maxWinMultiplier = this.maxWinMultiplier;
+            t.greenLevels = this.greenLevels;
+            t.redLevels = this.redLevels;
+            return t;
+        }
+    }
+
     // ── Deep copy (used in S4 to snapshot config at round start) ─────────
 
     /**
@@ -177,10 +266,13 @@ public class GameConfig {
         m.growthRate = this.math.growthRate;
         m.houseEdge = this.math.houseEdge;
         m.instantCrashRate = this.math.instantCrashRate;
+        m.minCrashPoint = this.math.minCrashPoint;
+        m.minCashoutMultiplier = this.math.minCashoutMultiplier;
         copy.math = m;
 
         BoostersConfig b = new BoostersConfig();
         b.spawnProbability = this.boosters.spawnProbability;
+        b.lineBiasPower = this.boosters.lineBiasPower;
         List<BoosterTier> tiers = new ArrayList<>();
         for (BoosterTier t : this.boosters.tiers) {
             BoosterTier tc = new BoosterTier();
@@ -208,6 +300,24 @@ public class GameConfig {
         pf.devFixedServerSeed = this.provablyFair.devFixedServerSeed;
         copy.provablyFair = pf;
 
+        ThemesConfig th = new ThemesConfig();
+        th.standard = this.themes.standard.copy();
+        th.lucky = this.themes.lucky.copy();
+        copy.themes = th;
+
         return copy;
+    }
+
+    /**
+     * Merges theme profile into this snapshot (mutates). Call once at round start before math.
+     */
+    public void applyTheme(String balloonType) {
+        ThemeProfile profile = "LUCKY".equals(balloonType) ? themes.getLucky() : themes.getStandard();
+        admin.setMinBetAmount(profile.getMinBetAmount());
+        admin.setMaxBetAmount(profile.getMaxBetAmount());
+        admin.setMaxWinMultiplier(profile.getMaxWinMultiplier());
+        math.setGrowthRate(profile.getGrowthRate());
+        greenLevels = profile.getGreenLevels();
+        redLevels = profile.getRedLevels();
     }
 }

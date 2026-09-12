@@ -31,15 +31,19 @@ Partial merge JSON. Ключ админки в JSON **не** отдаётся и
 | `redLevels` | 12 | `@Positive` | Высота красной зоны |
 | `pointsPerLine` | 10 | `@Positive` | Очки за новую линию |
 | `ascentSpeedLinesPerSec` | 1.5 | `@Positive` | Скорость набора линий |
-| `math.growthRate` | 0.065 | `@Positive` | \(r\) в \(K(t)=e^{rt}\) (эквивалент формулы в коде) |
-| `math.houseEdge` | 0.04 | `[0, 0.5]` | House edge PF / crash draw |
-| `math.instantCrashRate` | 0.03 | `[0, 1]` | Шанс краша на 1.00x |
-| `boosters.spawnProbability` | 0.70 | `[0, 1]` | Шанс спавна бустера |
-| `boosters.tiers[]` | 3 тира | непустой список; weight/multiplier `@Positive` | Веса и множители очков бустера |
+| `math.growthRate` | 0.065 | `@Positive` | \(α\) в \(K(t)=e^{αt}\) (темы перекрывают на start) |
+| `math.houseEdge` | 0.08 | `[0, 0.5]` | House edge PF / crash draw |
+| `math.instantCrashRate` | 0.08 | `[0, 1]` | Шанс раннего краша на **minCrashPoint** |
+| `math.minCrashPoint` | 1.20 | `≥ 1` | Пол краша; cashout успевает стать активным |
+| `math.minCashoutMultiplier` | 1.20 | `≥ 1` | Cashout раньше → `CASHOUT_TOO_EARLY` |
+| `themes.standard` / `lucky` | см. YAML | — | min/max bet, α, maxWin, green/red levels |
+| `boosters.spawnProbability` | 0.45 | `[0, 1]` | Шанс спавна бустера |
+| `boosters.lineBiasPower` | 2.0 | `@Positive` | >1 → чаще низкие линии триггера |
+| `boosters.tiers[]` | 3 тира | weight/multiplier `@Positive` | Множитель **K** и очков |
 | `scoring.redZoneMultiplier` | 1.0 | `≥ 0` | Множитель очков в RED |
-| `admin.minBetAmount` / `maxBetAmount` | 10 / 10000 | `@Positive` | Лимиты ставки |
-| `admin.maxWinMultiplier` | 100 | `@Positive` | Cap crash multiplier |
-| `admin.allowDeposit` | true | boolean | Демо-deposit; runtime через `ConfigService` (S10) |
+| `admin.minBetAmount` / `maxBetAmount` | fallback | `@Positive` | Перекрываются темой |
+| `admin.maxWinMultiplier` | 100 | `@Positive` | Cap (тема может снизить) |
+| `admin.allowDeposit` | true | boolean | Демо-deposit; +1 booster charge (cap 20) |
 
 Пример:
 

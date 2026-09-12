@@ -74,6 +74,9 @@ public class RoundLifecycleService {
             }
             applyScoring(current, scoredLine);
 
+            // Crash uses raw K; payout/display may include booster after activation.
+            BigDecimal effectiveK = effectiveMultiplier(current, k);
+
             if (k.compareTo(current.getCrashPoint()) >= 0) {
                 int piece = awardPuzzle(current, RoundStatus.CRASHED, null);
                 persistCrash(current, now, piece);
@@ -89,13 +92,17 @@ public class RoundLifecycleService {
             }
 
             if (intent == ResolveIntent.CASHOUT) {
+                BigDecimal minCashout = current.getConfigSnapshot().getMath().getMinCashoutMultiplier();
+                if (minCashout != null && k.compareTo(minCashout) < 0) {
+                    throw GameException.cashoutTooEarly(minCashout);
+                }
                 BigDecimal win = current.getBetAmount()
-                        .multiply(k)
+                        .multiply(effectiveK)
                         .setScale(MONEY_SCALE, RoundingMode.HALF_UP);
-                int piece = awardPuzzle(current, RoundStatus.CASHED_OUT, k);
-                persistCashout(current, k, win, now, piece);
+                int piece = awardPuzzle(current, RoundStatus.CASHED_OUT, effectiveK);
+                persistCashout(current, effectiveK, win, now, piece);
                 current.setStatus(RoundStatus.CASHED_OUT);
-                current.setCashoutMultiplier(k);
+                current.setCashoutMultiplier(effectiveK);
                 current.setWinAmount(win);
                 current.setEndedAt(now);
                 current.setPuzzlePieceIndex(piece);
@@ -104,10 +111,21 @@ public class RoundLifecycleService {
                 return viewOfTerminal(current);
             }
 
-            return flyingView(current, k, line);
+            return flyingView(current, effectiveK, line);
         } finally {
             lock.unlock();
         }
+    }
+
+    /**
+     * After booster activation, payout multiplier is raw K × boost tier multiplier.
+     * Crash detection always uses raw K (caller).
+     */
+    public static BigDecimal effectiveMultiplier(GameSession session, BigDecimal rawK) {
+        if (!session.isBoostActivated() || session.getBoostMultiplier() == null) {
+            return rawK;
+        }
+        return rawK.multiply(session.getBoostMultiplier()).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
     }
 
     private RoundView flyingView(GameSession session, BigDecimal k, int line) {

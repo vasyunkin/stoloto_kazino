@@ -16,13 +16,13 @@ const themes: Array<{
   {
     type: 'LUCKY',
     title: 'Красный шар',
-    subtitle: '12 уровней · от 25 ◎',
+    subtitle: 'от 25 ◎ · быстрее · до 100x · 12 риск-уровней',
     tone: 'red',
   },
   {
     type: 'STANDARD',
     title: 'Зеленый шар',
-    subtitle: '9 уровней · от 12 ◎',
+    subtitle: 'от 12 ◎ · спокойнее · до 50x · 6 риск-уровней',
     tone: 'green',
   },
 ]

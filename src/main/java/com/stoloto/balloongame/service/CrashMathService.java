@@ -23,8 +23,9 @@ import java.time.Instant;
  * <pre>
  *   h = HMAC-SHA256(serverSeedBytes, clientSeed + ":" + nonce)
  *   u = first52bits(h) / 2^52          // ∈ [0, 1)
- *   if u &lt; instantCrashRate → crashPoint = 1.00
- *   else crashPoint = min(maxWin, max(1.00, (1 - houseEdge) / u))
+ *   floor = minCrashPoint (default 1.20)
+ *   if u &lt; instantCrashRate → crashPoint = floor
+ *   else crashPoint = min(maxWin, max(floor, (1 - houseEdge) / u))
  * </pre>
  *
  * <p><b>I2:</b> crash point is drawn once at round start and never recalculated.
@@ -127,8 +128,8 @@ public class CrashMathService {
      * <ol>
      *   <li>{@code h = HMAC-SHA256(serverSeedBytes, (clientSeed + ":" + nonce).bytes)}</li>
      *   <li>{@code u = first52bits(h) / 2^52}  — unit interval [0, 1)</li>
-     *   <li>if {@code u < instantCrashRate} → {@code crashPoint = 1.0000}</li>
-     *   <li>else {@code crashPoint = min(maxWin, max(1.0, (1 - houseEdge) / u))}</li>
+     *   <li>if {@code u < instantCrashRate} → {@code crashPoint = minCrashPoint}</li>
+     *   <li>else {@code crashPoint = min(maxWin, max(minCrashPoint, (1 - houseEdge) / u))}</li>
      * </ol>
      *
      * <p><b>I2:</b> call exactly once at round start; result stored in DB.
@@ -137,7 +138,7 @@ public class CrashMathService {
      * @param clientSeed    player seed (empty string if none)
      * @param nonce         round nonce
      * @param config        the round's immutable {@code configSnapshot}
-     * @return crash multiplier, scale 4, HALF_UP; always ≥ 1.0000
+     * @return crash multiplier, scale 4, HALF_UP; always ≥ {@code minCrashPoint}
      */
     public BigDecimal drawCrashMultiplier(String serverSeedHex, String clientSeed,
                                           long nonce, GameConfig config) {
@@ -169,18 +170,23 @@ public class CrashMathService {
 
     /**
      * Applies the crash-point formula given u ∈ (0, 1).
+     * Never returns below {@code math.minCrashPoint} (default 1.20).
      */
     public BigDecimal computeCrashPoint(double u, GameConfig config) {
         GameConfig.MathConfig math = config.getMath();
+        BigDecimal floor = math.getMinCrashPoint() != null ? math.getMinCrashPoint() : ONE;
+        double floorD = floor.doubleValue();
         double maxWin = config.getAdmin().getMaxWinMultiplier().doubleValue();
+        if (maxWin < floorD) {
+            maxWin = floorD;
+        }
 
         if (u < math.getInstantCrashRate()) {
-            // Instant crash — balloon crashes at exactly 1.00x (player loses bet)
-            return ONE.setScale(SCALE, RoundingMode.HALF_UP);
+            return floor.setScale(SCALE, RoundingMode.HALF_UP);
         }
 
         double raw = (1.0 - math.getHouseEdge()) / u;
-        double capped = Math.min(maxWin, Math.max(1.0, raw));
+        double capped = Math.min(maxWin, Math.max(floorD, raw));
         return BigDecimal.valueOf(capped).setScale(SCALE, RoundingMode.HALF_UP);
     }
 }

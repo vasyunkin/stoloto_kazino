@@ -65,7 +65,9 @@ export function FlightScreen() {
   }, [terminal, status, gameId, reloadHistory])
 
   const potentialWin = betAmount * displayK
-  const cashoutDisabled = !flying || isCashoutPending
+  const minCashout = 1.2
+  const cashoutDisabled =
+    !flying || isCashoutPending || multiplier < minCashout
 
   const onCashout = async () => {
     if (cashoutDisabled) return
@@ -134,7 +136,7 @@ export function FlightScreen() {
           disabled={cashoutDisabled}
           onClick={onCashout}
           animate={
-            flying && !isCashoutPending
+            flying && !isCashoutPending && multiplier >= minCashout
               ? {
                   scale: [1, 1.03, 1],
                   boxShadow: [
@@ -145,9 +147,13 @@ export function FlightScreen() {
                 }
               : { scale: 1 }
           }
-          transition={flying ? { repeat: Infinity, duration: 1.4 } : undefined}
+          transition={flying && multiplier >= minCashout ? { repeat: Infinity, duration: 1.4 } : undefined}
         >
-          {isCashoutPending ? 'Забираю…' : 'Забрать'}
+          {isCashoutPending
+            ? 'Забираю…'
+            : flying && multiplier < minCashout
+              ? `С ${minCashout.toFixed(2)}x`
+              : 'Забрать'}
         </motion.button>
       </footer>
 

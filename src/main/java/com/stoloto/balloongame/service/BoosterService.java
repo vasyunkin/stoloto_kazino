@@ -70,9 +70,16 @@ public class BoosterService {
         GameConfig.BoosterTier tier = selectTier(
                 hashToUnitInterval(serverSeedHex + ":booster:tier"), bc.getTiers());
 
-        // Step 4: trigger line — uniformly random in [0, crashLine)
+        // Step 4: trigger line — biased toward lower altitudes (lineBiasPower > 1)
         double lineRoll = hashToUnitInterval(serverSeedHex + ":booster:line");
-        int triggerLine = (int) (lineRoll * crashLine); // [0, crashLine - 1] inclusive
+        double power = bc.getLineBiasPower() <= 0 ? 2.0 : bc.getLineBiasPower();
+        int triggerLine = (int) (Math.pow(lineRoll, power) * crashLine);
+        if (triggerLine >= crashLine) {
+            triggerLine = crashLine - 1;
+        }
+        if (triggerLine < 0) {
+            triggerLine = 0;
+        }
 
         return Optional.of(new BoosterResult(
                 tier.getTier(), tier.getName(), tier.getMultiplier(), triggerLine));

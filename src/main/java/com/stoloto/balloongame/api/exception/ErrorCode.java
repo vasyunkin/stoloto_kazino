@@ -18,5 +18,7 @@ public enum ErrorCode {
     FORBIDDEN,
     VALIDATION_ERROR,
     RATE_LIMITED,            // 429 — start/cashout spam (optional filter)
+    CASHOUT_TOO_EARLY,       // 409 — K below minCashoutMultiplier
+    NO_BOOSTER_CHARGES,      // 400 — AUTO requested with zero charges
     INTERNAL_ERROR
 }

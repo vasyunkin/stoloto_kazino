@@ -60,7 +60,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class RecoveryVerifyIntegrationTest {
 
     private static final Instant T0 = Instant.parse("2026-08-01T12:00:00Z");
-    private static final BigDecimal MIN_FLYING_CRASH = new BigDecimal("1.0500");
+    private static final BigDecimal MIN_FLYING_CRASH = new BigDecimal("1.3500");
 
     @TestConfiguration
     static class TestClockConfig {
@@ -111,6 +111,20 @@ class RecoveryVerifyIntegrationTest {
             }
         }
         throw new AssertionError("Could not draw crashPoint >= " + MIN_FLYING_CRASH);
+    }
+
+    private void freezeForCashout(GameRound round) {
+        BigDecimal target = round.getCrashPoint()
+                .subtract(new BigDecimal("0.0200"))
+                .max(new BigDecimal("1.2000"));
+        if (target.compareTo(round.getCrashPoint()) >= 0) {
+            target = new BigDecimal("1.2000");
+        }
+        double r = sessionCache.get(round.getId())
+                .map(s -> s.getConfigSnapshot().getMath().getGrowthRate())
+                .orElse(0.055);
+        double t = crashMathService.timeAtMultiplier(target.doubleValue(), r);
+        clock.freeze(round.getStartedAt().plusMillis(Math.max(0L, (long) Math.floor(t * 1000.0))));
     }
 
     private StartGameResponse startOk(String playerId) throws Exception {
@@ -183,6 +197,7 @@ class RecoveryVerifyIntegrationTest {
     @Test
     void verify_afterCashout_matchesIndependentCrashAndCommit() throws Exception {
         FlyingRound flying = flyingRound();
+        freezeForCashout(flying.round());
         orchestrator.cashout(flying.gameId(), flying.playerId());
 
         MvcResult result = mockMvc.perform(get("/api/game/verify/" + flying.gameId())
@@ -215,6 +230,7 @@ class RecoveryVerifyIntegrationTest {
     @Test
     void verify_foreignPlayer_returns403() throws Exception {
         FlyingRound flying = flyingRound();
+        freezeForCashout(flying.round());
         orchestrator.cashout(flying.gameId(), flying.playerId());
 
         mockMvc.perform(get("/api/game/verify/" + flying.gameId())
@@ -234,6 +250,7 @@ class RecoveryVerifyIntegrationTest {
     @Test
     void state_rebuildsTerminalSessionAfterCacheEvict() throws Exception {
         FlyingRound flying = flyingRound();
+        freezeForCashout(flying.round());
         orchestrator.cashout(flying.gameId(), flying.playerId());
         sessionCache.evict(flying.gameId());
 
@@ -245,6 +262,7 @@ class RecoveryVerifyIntegrationTest {
     @Test
     void cache_terminalTtlEviction_stillServesStateFromDb() throws Exception {
         FlyingRound flying = flyingRound();
+        freezeForCashout(flying.round());
         orchestrator.cashout(flying.gameId(), flying.playerId());
 
         GameSession session = sessionCache.get(flying.gameId()).orElseThrow();
