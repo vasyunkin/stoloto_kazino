@@ -56,9 +56,13 @@ class BalloonGameApplicationTests {
             for (String table : new String[]{"player", "game_round", "wallet_ledger", "config_snapshot"}) {
                 ResultSet rs = conn.getMetaData().getTables(null, null, table, new String[]{"TABLE"});
                 assertThat(rs.next())
-                        .as("Table '%s' must exist after Flyway V1 migration", table)
+                        .as("Table '%s' must exist after Flyway migration", table)
                         .isTrue();
             }
+            ResultSet cols = conn.getMetaData().getColumns(null, null, "game_round", "puzzle_piece_index");
+            assertThat(cols.next())
+                    .as("game_round.puzzle_piece_index must exist after Flyway V2")
+                    .isTrue();
         }
     }
 

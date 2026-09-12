@@ -67,7 +67,8 @@
 			<version>${springdoc.version}</version>
 		</dependency>
 
-		<!-- ─── WebSocket (резерв для финала) ───────────────────────── -->
+		<!-- ─── WebSocket: reserved for S14 (push tick). Do NOT remove. ─ -->
+		<!-- MVP transport remains HTTP polling; STOMP/hub code lands in S14. -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-websocket</artifactId>

@@ -8,10 +8,12 @@ import org.springframework.boot.testcontainers.service.connection.ServiceConnect
 import org.springframework.http.HttpHeaders;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -19,7 +21,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * S9 — OpenAPI contract is published; CORS whitelist (not *) for local frontend.
+ * S9 — OpenAPI + CORS. S13 — actuator health must not leak PF secrets (I7).
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -82,5 +84,28 @@ class OpenApiSmokeTest {
                         .header(HttpHeaders.ORIGIN, "https://evil.example")
                         .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST"))
                 .andExpect(header().doesNotExist(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN));
+    }
+
+    @Test
+    void actuatorHealth_isUp_andDoesNotLeakSeeds() throws Exception {
+        MvcResult health = mockMvc.perform(get("/actuator/health"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("UP"))
+                .andReturn();
+        String healthJson = health.getResponse().getContentAsString();
+        assertThat(healthJson)
+                .doesNotContain("serverSeed")
+                .doesNotContain("server_seed")
+                .doesNotContain("crashPoint")
+                .doesNotContain("crash_point");
+
+        MvcResult info = mockMvc.perform(get("/actuator/info"))
+                .andExpect(status().isOk())
+                .andReturn();
+        String infoJson = info.getResponse().getContentAsString();
+        assertThat(infoJson)
+                .doesNotContain("serverSeed")
+                .doesNotContain("server_seed")
+                .doesNotContain("crashPoint");
     }
 }
