@@ -70,7 +70,7 @@ Content-Type: application/json
 ## 4. Чеклист ограничений (сдаточный)
 
 - [ ] **Single-JVM.** Активные раунды в `ConcurrentHashMap`. Второй инстанс не видит чужой FLYING → 410 / recovery VOID.
-- [ ] **Транспорт MVP = HTTP polling** 100–250 ms. WebSocket **запланирован (S14)**; зависимость `spring-boot-starter-websocket` уже в `pom.xml` (код канала ещё не подключён).
+- [ ] **Транспорт:** HTTP polling 100–250 ms **и** STOMP WebSocket (S14). Endpoint `ws://…/ws`, topic `/topic/game/{gameId}`, header `X-Player-Id`. Payload — `PublicGameState` без seed/crashPoint. REST polling не убираем.
 - [ ] **Restart:** все `FLYING` → `VOID` + `CREDIT_REFUND`. Полёт из БД не продолжается.
 - [ ] **Deposit:** флаг `admin.allowDeposit` через runtime snapshot (`ConfigService`), не «только YAML до рестарта».
 - [ ] **Rate limit:** 40 / 10 с на start и cashout; in-memory; в тестах выключен. Не кластерный.

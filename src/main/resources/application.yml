@@ -67,6 +67,8 @@ app:
     enabled: true
     capacity: 40
     window-seconds: 10
+  ws:
+    tick-interval-ms: 200
 
 # ── Game Configuration (runtime-configurable via PUT /api/admin/config) ──
 game:

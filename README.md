@@ -145,6 +145,9 @@ sequenceDiagram
 
 На `start` и `cashout` стоит простой rate limit (40 запросов / 10 с на игрока) — антиспам, не защита игровой логики.
 
-**WebSocket** в `pom.xml` уже подключён как зависимость под слайс **S14** (push tick). Сейчас клиент должен poll'ить `GET /state`. REST polling после появления WS **не** убираем.
+**WebSocket (S14).** STOMP endpoint: `ws://localhost:8080/ws` (SockJS: `/ws-sockjs`).  
+CONNECT с native-header `X-Player-Id`, подписка на `/topic/game/{gameId}` (только владелец раунда).  
+Пуш каждые ~200 ms: `{ "type": "tick"|"crash"|"cashout"|"void", "state": PublicGameState }` — **без** `crashPoint`/`serverSeed`.  
+REST polling `GET /state` остаётся fallback.
 
 ---

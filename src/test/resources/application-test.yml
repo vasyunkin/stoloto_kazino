@@ -8,3 +8,5 @@ game:
 app:
   rate-limit:
     enabled: false            # flyingRound() may POST /start dozens of times
+  ws:
+    tick-interval-ms: 100

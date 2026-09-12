@@ -6,6 +6,7 @@ import com.stoloto.balloongame.api.dto.BetRequest;
 import com.stoloto.balloongame.api.dto.BoosterStateDto;
 import com.stoloto.balloongame.api.dto.CashoutResponse;
 import com.stoloto.balloongame.api.dto.GameStateResponse;
+import com.stoloto.balloongame.api.dto.PublicGameState;
 import com.stoloto.balloongame.api.dto.StartGameResponse;
 import com.stoloto.balloongame.api.dto.VerifyResponse;
 import com.stoloto.balloongame.api.exception.GameException;
@@ -149,6 +150,22 @@ public class GameOrchestrator {
         return toStateResponse(view);
     }
 
+    /**
+     * Ownership gate for STOMP SUBSCRIBE (I6). Does not advance lifecycle.
+     */
+    public void assertOwnedSession(UUID gameId, String xPlayerId) {
+        requireOwnedSession(gameId, xPlayerId);
+    }
+
+    /**
+     * Public projection for WebSocket ticks — same resolve path as REST state (I3), no PF secrets.
+     */
+    public PublicGameState resolvePublicState(UUID gameId, String xPlayerId) {
+        GameSession session = requireOwnedSession(gameId, xPlayerId);
+        RoundView view = lifecycle.resolve(session, ResolveIntent.STATE_ONLY);
+        return toPublicState(view);
+    }
+
     public CashoutResponse cashout(UUID gameId, String xPlayerId) {
         GameSession session = requireOwnedSession(gameId, xPlayerId);
         RoundView view = lifecycle.resolve(session, ResolveIntent.CASHOUT);
@@ -239,9 +256,30 @@ public class GameOrchestrator {
     }
 
     private GameStateResponse toStateResponse(RoundView view) {
+        PublicGameState pub = toPublicState(view);
         GameSession session = view.session();
         boolean flying = view.status() == RoundStatus.FLYING;
         return new GameStateResponse(
+                pub.gameId(),
+                pub.status(),
+                pub.multiplier(),
+                pub.lineIndex(),
+                pub.zone(),
+                pub.pointsTotal(),
+                pub.booster(),
+                flying ? null : session.getCrashPoint(),
+                flying ? null : session.getServerSeedHex(),
+                pub.winAmount(),
+                pub.puzzlePieceIndex());
+    }
+
+    /**
+     * Maps a resolve tick to the secret-free public model used by WebSocket (S14).
+     */
+    public PublicGameState toPublicState(RoundView view) {
+        GameSession session = view.session();
+        boolean flying = view.status() == RoundStatus.FLYING;
+        return new PublicGameState(
                 session.getGameId(),
                 view.status(),
                 view.multiplier(),
@@ -249,8 +287,6 @@ public class GameOrchestrator {
                 view.zone(),
                 view.pointsTotal(),
                 boosterDto(session),
-                flying ? null : session.getCrashPoint(),
-                flying ? null : session.getServerSeedHex(),
                 view.status() == RoundStatus.CASHED_OUT ? session.getWinAmount() : null,
                 flying ? null : session.getPuzzlePieceIndex());
     }
