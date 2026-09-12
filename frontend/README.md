@@ -34,4 +34,4 @@ npm run dev
 
 ## Текущий слайс
 
-**F4** закрыт (Pixi + WS/poll + lerp). Дальше **F5** — cashout / result.
+**F5** закрыт (cashout + result/puzzle). Дальше **F6** — history strip, polish.

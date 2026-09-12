@@ -38,6 +38,13 @@ export interface GameStore {
     winAmount?: number | string | null
     puzzlePieceIndex?: number | null
   }) => void
+  /** Apply cashout API result — never store serverSeed (FI7). */
+  applyCashoutResult: (s: {
+    multiplierAtCashout: number | string
+    winAmount: number | string
+    pointsTotal: number
+    puzzlePieceIndex: number | null
+  }) => void
   beginRound: (gameId: string, commitHash: string, betAmount: number, startedAt: string) => void
   resetToHub: () => void
 }
@@ -106,6 +113,18 @@ export const useGameStore = create<GameStore>((set) => ({
       phase: s.status === 'FLYING' ? 'flight' : 'result',
       isCashoutPending: s.status === 'FLYING' ? state.isCashoutPending : false,
     })),
+
+  applyCashoutResult: (s) =>
+    set({
+      status: 'CASHED_OUT',
+      phase: 'result',
+      multiplier: num(s.multiplierAtCashout, 1),
+      winAmount: num(s.winAmount),
+      pointsTotal: s.pointsTotal,
+      pointsDelta: 0,
+      puzzlePieceIndex: s.puzzlePieceIndex,
+      isCashoutPending: false,
+    }),
 
   resetToHub: () =>
     set({

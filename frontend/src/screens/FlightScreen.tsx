@@ -2,15 +2,18 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 import { Header } from '../components/Header'
 import { HelpModal } from '../components/HelpModal'
+import { ResultModal } from '../components/ResultModal'
+import { requestCashout } from '../hooks/cashout'
 import { useDisplayMultiplier } from '../hooks/useDisplayMultiplier'
 import { useGameTransport } from '../hooks/useGameTransport'
+import { ensureWallet } from '../hooks/wallet'
 import { BalloonStage } from '../pixi/BalloonStage'
 import { useGameStore } from '../stores/gameStore'
 import { usePlayerStore } from '../stores/playerStore'
 import './FlightScreen.css'
 
 /**
- * F4 — Pixi stage + STOMP/poll transport. Cashout action → F5.
+ * F5 — cashout + result modal; Pixi/transport from F4.
  */
 export function FlightScreen() {
   const balance = usePlayerStore((s) => s.balance)
@@ -25,14 +28,18 @@ export function FlightScreen() {
   const booster = useGameStore((s) => s.booster)
   const winAmount = useGameStore((s) => s.winAmount)
   const puzzlePieceIndex = useGameStore((s) => s.puzzlePieceIndex)
+  const multiplier = useGameStore((s) => s.multiplier)
   const resetToHub = useGameStore((s) => s.resetToHub)
 
   const flying = status === 'FLYING'
+  const terminal = status === 'CRASHED' || status === 'CASHED_OUT' || status === 'VOID'
   useGameTransport(Boolean(gameId) && flying)
 
   const displayK = useDisplayMultiplier()
   const [helpOpen, setHelpOpen] = useState(false)
   const [hintGone, setHintGone] = useState(false)
+  const [cashoutError, setCashoutError] = useState<string | null>(null)
+  const [resultOpen, setResultOpen] = useState(false)
 
   useEffect(() => {
     if (!flying) return
@@ -40,9 +47,29 @@ export function FlightScreen() {
     return () => window.clearTimeout(t)
   }, [flying, gameId])
 
+  useEffect(() => {
+    if (!terminal) {
+      setResultOpen(false)
+      return
+    }
+    // Short beat for crash particles / cashout settle, then modal.
+    const delay = status === 'CRASHED' ? 480 : 180
+    const t = window.setTimeout(() => setResultOpen(true), delay)
+    void ensureWallet(false)
+    return () => window.clearTimeout(t)
+  }, [terminal, status, gameId])
+
   const potentialWin = betAmount * displayK
   const cashoutDisabled = !flying || isCashoutPending
-  const terminal = status === 'CRASHED' || status === 'CASHED_OUT' || status === 'VOID'
+
+  const onCashout = async () => {
+    if (cashoutDisabled) return
+    setCashoutError(null)
+    const res = await requestCashout()
+    if (!res.ok) {
+      setCashoutError(res.message)
+    }
+  }
 
   return (
     <div className="flight-screen">
@@ -82,21 +109,10 @@ export function FlightScreen() {
             </p>
           )}
 
-          {terminal && (
-            <motion.div
-              className={`flight-terminal status-${status}`}
-              initial={{ opacity: 0, scale: 0.96 }}
-              animate={{ opacity: 1, scale: 1 }}
-            >
-              {status === 'CRASHED' && <strong>Шар лопнул!</strong>}
-              {status === 'CASHED_OUT' && <strong>Забрал!</strong>}
-              {status === 'VOID' && <strong>Раунд VOID</strong>}
-              {winAmount != null && <span>+{Number(winAmount).toFixed(0)} ◎</span>}
-              {puzzlePieceIndex != null && <span>пазл #{puzzlePieceIndex}</span>}
-              <button type="button" className="flight-again" onClick={resetToHub}>
-                В лобби
-              </button>
-            </motion.div>
+          {cashoutError && (
+            <p className="flight-cashout-error" role="alert">
+              {cashoutError}
+            </p>
           )}
         </div>
       </div>
@@ -108,9 +124,20 @@ export function FlightScreen() {
           <span className="flight-pts">★ {pointsTotal}</span>
           {pointsDelta > 0 && <span className="flight-delta">+{pointsDelta}</span>}
         </div>
-        <button type="button" className="cashout-btn" disabled={cashoutDisabled}>
-          Забрать
-        </button>
+        <motion.button
+          type="button"
+          className="cashout-btn"
+          disabled={cashoutDisabled}
+          onClick={onCashout}
+          animate={
+            flying && !isCashoutPending
+              ? { scale: [1, 1.03, 1], boxShadow: ['0 0 0 rgba(46,204,113,0)', '0 0 18px rgba(46,204,113,0.55)', '0 0 0 rgba(46,204,113,0)'] }
+              : { scale: 1 }
+          }
+          transition={flying ? { repeat: Infinity, duration: 1.4 } : undefined}
+        >
+          {isCashoutPending ? 'Забираю…' : 'Забрать'}
+        </motion.button>
       </footer>
 
       {commitHash && (
@@ -118,6 +145,17 @@ export function FlightScreen() {
           commit {commitHash.slice(0, 12)}…
         </p>
       )}
+
+      <ResultModal
+        open={resultOpen && terminal}
+        status={status}
+        betAmount={betAmount}
+        multiplier={multiplier}
+        winAmount={winAmount}
+        pointsTotal={pointsTotal}
+        puzzlePieceIndex={puzzlePieceIndex}
+        onAgain={resetToHub}
+      />
 
       <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>

@@ -106,6 +106,18 @@
   cursor: pointer;
 }
 
+.flight-cashout-error {
+  margin-top: auto;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: rgba(214, 40, 40, 0.92);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.85rem;
+  pointer-events: auto;
+}
+
 .flight-footer {
   display: grid;
   grid-template-columns: 1fr 1.1fr;

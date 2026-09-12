@@ -60,14 +60,18 @@ export function BalloonStage({ balloonType }: BalloonStageProps) {
       const scale = new Graphics()
       const boosterMark = new Graphics()
       const balloon = new Graphics()
+      const burst = new Graphics()
+      let burstLife = 0
+      let lastBalloonX = 0
+      let lastBalloonY = 0
+      let crashed = status === 'CRASHED'
 
-      world.addChild(sky, scale, boosterMark, balloon)
+      world.addChild(sky, scale, boosterMark, balloon, burst)
 
       const paintSky = (w: number, h: number) => {
         sky.clear()
         sky.rect(0, 0, w, h)
         sky.fill({ color: 0x4fa3c8, alpha: 0.001 })
-        // soft bands for depth
         for (let i = 0; i < 6; i++) {
           const y = (h / 6) * i
           sky.rect(0, y, w, h / 6 + 2)
@@ -78,7 +82,10 @@ export function BalloonStage({ balloonType }: BalloonStageProps) {
       const balloonColor = balloonType === 'LUCKY' ? 0xd62828 : 0x2e9b4f
 
       const drawBalloon = (x: number, y: number) => {
+        lastBalloonX = x
+        lastBalloonY = y
         balloon.clear()
+        if (crashed) return
         balloon.ellipse(x, y, 34, 42)
         balloon.fill({ color: balloonColor })
         balloon.ellipse(x - 10, y - 12, 10, 14)
@@ -91,6 +98,22 @@ export function BalloonStage({ balloonType }: BalloonStageProps) {
         balloon.lineTo(x, y + 70)
         balloon.lineTo(x - 10, y + 58)
         balloon.fill({ color: 0xc4a574 })
+      }
+
+      const drawBurst = (dt: number) => {
+        burst.clear()
+        if (burstLife <= 0) return
+        burstLife = Math.max(0, burstLife - dt)
+        const t = burstLife / 450
+        const shards = 12
+        for (let i = 0; i < shards; i++) {
+          const ang = (Math.PI * 2 * i) / shards
+          const dist = (1 - t) * 70
+          const x = lastBalloonX + Math.cos(ang) * dist
+          const y = lastBalloonY + Math.sin(ang) * dist
+          burst.circle(x, y, 4 + t * 5)
+          burst.fill({ color: i % 2 === 0 ? balloonColor : 0xffe566, alpha: t })
+        }
       }
 
       const drawScale = (w: number, h: number, currentLine: number) => {
@@ -124,28 +147,39 @@ export function BalloonStage({ balloonType }: BalloonStageProps) {
         }
       }
 
-      const layout = () => {
+      const layout = (dt = 16) => {
         const w = app!.screen.width
         const h = app!.screen.height
         paintSky(w, h)
         drawScale(w, h, lineIndex)
-        // Map K ~1..20 to ascent; clamp for display
         const progress = Math.min(Math.max((displayK - 1) / 12, 0), 1)
         const y = h - 100 - progress * (h - 180)
         const x = w * 0.55
         drawBalloon(x, y)
+        drawBurst(dt)
       }
 
       unsub = useGameStore.subscribe((s) => {
         targetK = s.multiplier
         lineIndex = s.lineIndex
+        const prev = status
         status = s.status
         boosterLine = s.booster?.triggerLine ?? null
-        if (status !== 'FLYING') {
+        if (status === 'CRASHED' && prev !== 'CRASHED') {
+          crashed = true
+          burstLife = 450
+          // brief ticker for burst even after terminal
+          app?.ticker.start()
+        }
+        if (status === 'CASHED_OUT') {
+          crashed = false
+          burstLife = 0
+        }
+        if (status !== 'FLYING' && burstLife <= 0) {
           displayK = targetK
           layout()
           app?.ticker.stop()
-        } else if (document.visibilityState === 'visible') {
+        } else if (document.visibilityState === 'visible' && status === 'FLYING') {
           app?.ticker.start()
         }
       })
@@ -159,11 +193,14 @@ export function BalloonStage({ balloonType }: BalloonStageProps) {
         } else {
           displayK = targetK
         }
-        layout()
+        layout(ticker.deltaMS)
+        if (status !== 'FLYING' && burstLife <= 0) {
+          app?.ticker.stop()
+        }
       })
 
       layout()
-      if (document.visibilityState === 'hidden' || status !== 'FLYING') {
+      if (document.visibilityState === 'hidden' || (status !== 'FLYING' && burstLife <= 0)) {
         app.ticker.stop()
       }
     })().catch(() => {
