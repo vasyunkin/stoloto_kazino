@@ -65,4 +65,10 @@ public class GameSession {
 
     @Setter
     private volatile Instant endedAt;
+
+    /**
+     * Puzzle piece for this round after terminal CRASHED/CASHED_OUT (S12). Null while FLYING.
+     */
+    @Setter
+    private volatile Integer puzzlePieceIndex;
 }

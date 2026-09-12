@@ -44,6 +44,7 @@ public class RoundLifecycleService {
     private final PlayerService playerService;
     private final GameRoundRepository gameRoundRepository;
     private final ScoringService scoringService;
+    private final PuzzleService puzzleService;
 
     public RoundView resolve(GameSession session, ResolveIntent intent) {
         ReentrantLock lock = sessionCache.lockFor(session.getGameId());
@@ -73,11 +74,13 @@ public class RoundLifecycleService {
             applyScoring(current, scoredLine);
 
             if (k.compareTo(current.getCrashPoint()) >= 0) {
-                persistCrash(current, now);
+                int piece = awardPuzzle(current, RoundStatus.CRASHED, null);
+                persistCrash(current, now, piece);
                 current.setStatus(RoundStatus.CRASHED);
                 current.setEndedAt(now);
+                current.setPuzzlePieceIndex(piece);
                 // I7: no serverSeed / crashPoint in logs.
-                log.info("Round crashed: gameId={}", current.getGameId());
+                log.info("Round crashed: gameId={} puzzlePiece={}", current.getGameId(), piece);
                 if (intent == ResolveIntent.CASHOUT) {
                     throw GameException.alreadyCrashed();
                 }
@@ -88,12 +91,15 @@ public class RoundLifecycleService {
                 BigDecimal win = current.getBetAmount()
                         .multiply(k)
                         .setScale(MONEY_SCALE, RoundingMode.HALF_UP);
-                persistCashout(current, k, win, now);
+                int piece = awardPuzzle(current, RoundStatus.CASHED_OUT, k);
+                persistCashout(current, k, win, now, piece);
                 current.setStatus(RoundStatus.CASHED_OUT);
                 current.setCashoutMultiplier(k);
                 current.setWinAmount(win);
                 current.setEndedAt(now);
-                log.info("Cashout OK: gameId={} win={}", current.getGameId(), win);
+                current.setPuzzlePieceIndex(piece);
+                log.info("Cashout OK: gameId={} win={} puzzlePiece={}",
+                        current.getGameId(), win, piece);
                 return viewOfTerminal(current);
             }
 
@@ -156,7 +162,16 @@ public class RoundLifecycleService {
                 session.getBoostTriggerLine());
     }
 
-    private void persistCrash(GameSession session, Instant endedAt) {
+    private int awardPuzzle(GameSession session, RoundStatus terminalStatus, BigDecimal cashoutK) {
+        if (session.getPuzzlePieceIndex() != null) {
+            return session.getPuzzlePieceIndex();
+        }
+        return puzzleService.roll(session.getServerSeedHex(), terminalStatus, cashoutK)
+                .orElseThrow(() -> new IllegalStateException(
+                        "Puzzle roll empty for terminal status " + terminalStatus));
+    }
+
+    private void persistCrash(GameSession session, Instant endedAt, int puzzlePiece) {
         transactionTemplate.executeWithoutResult(status -> {
             GameRound round = gameRoundRepository.findById(session.getGameId())
                     .orElseThrow(GameException::gameNotFound);
@@ -166,11 +181,14 @@ public class RoundLifecycleService {
             round.setStatus(RoundStatus.CRASHED);
             round.setEndedAt(endedAt);
             round.setPointsEarned(session.getPointsEarned());
+            if (round.getPuzzlePieceIndex() == null) {
+                round.setPuzzlePieceIndex(puzzlePiece);
+            }
         });
     }
 
     private void persistCashout(GameSession session, BigDecimal multiplier,
-                                BigDecimal win, Instant endedAt) {
+                                BigDecimal win, Instant endedAt, int puzzlePiece) {
         transactionTemplate.executeWithoutResult(status -> {
             // FIRST DB call in this write transaction — player row lock (I5).
             var player = playerRepository.findByExternalIdForUpdate(session.getPlayerId())
@@ -186,6 +204,9 @@ public class RoundLifecycleService {
             round.setWinAmount(win);
             round.setEndedAt(endedAt);
             round.setPointsEarned(session.getPointsEarned());
+            if (round.getPuzzlePieceIndex() == null) {
+                round.setPuzzlePieceIndex(puzzlePiece);
+            }
         });
     }
 

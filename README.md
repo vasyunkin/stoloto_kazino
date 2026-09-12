@@ -96,6 +96,7 @@ sequenceDiagram
 4. **Cashout.** Пока статус `FLYING` и \(K < crashPoint\), `POST /api/game/cashout/{gameId}` фиксирует выигрыш `bet × K`. Повторный cashout — ошибка. Гонка cashout/crash сериализуется локом на раунд.
 5. **Проверка честности.** После `CRASHED` / `CASHED_OUT` (или `VOID` после рестарта сервера) `GET /api/game/verify/{gameId}` отдаёт seed и `crashPoint`. Пока шар летит — `409`.
 6. **История.** `GET /api/game/history` — публичная лента завершённых раундов (`CRASHED` / `CASHED_OUT` / `VOID`), без `serverSeed` / `crashPoint` и без id игрока. Параметр `limit` (по умолчанию 20, максимум 100). `X-Player-Id` не нужен.
+7. **Пазл.** После `CRASHED` / `CASHED_OUT` в state/cashout появляется `puzzlePieceIndex` (0–23). Кусок считается из `SHA-256(serverSeed + ":" + status + ":" + outcomeKey)` — исход раунда влияет на фрагмент. На `VOID` пазл не выдаётся. Баланс от пазла не меняется.
 
 Чужой `gameId` или несовпадение `X-Player-Id` с `playerId` ставки → **403**, не 404: UUID чужих раундов не палим.
 

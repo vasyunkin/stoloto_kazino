@@ -158,7 +158,8 @@ public class GameOrchestrator {
                 done.getCashoutMultiplier(),
                 done.getWinAmount(),
                 view.pointsTotal(),
-                done.getServerSeedHex());
+                done.getServerSeedHex(),
+                done.getPuzzlePieceIndex());
     }
 
     /**
@@ -232,6 +233,7 @@ public class GameOrchestrator {
                         && round.getStatus().isTerminal())
                 .pointsEarned(round.getPointsEarned())
                 .linesPassedSnapshot(0)
+                .puzzlePieceIndex(round.getPuzzlePieceIndex())
                 .build();
         return session;
     }
@@ -249,7 +251,8 @@ public class GameOrchestrator {
                 boosterDto(session),
                 flying ? null : session.getCrashPoint(),
                 flying ? null : session.getServerSeedHex(),
-                view.status() == RoundStatus.CASHED_OUT ? session.getWinAmount() : null);
+                view.status() == RoundStatus.CASHED_OUT ? session.getWinAmount() : null,
+                flying ? null : session.getPuzzlePieceIndex());
     }
 
     private BoosterStateDto boosterDto(GameSession session) {

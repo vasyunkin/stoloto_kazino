@@ -11,10 +11,10 @@ import java.util.UUID;
  * {@code GET /api/game/state/{gameId}}.
  *
  * <p>I1: {@code crashPoint} and {@code serverSeed} are null (omitted from JSON)
- * while {@code status = FLYING}.
+ * while {@code status = FLYING}. {@code puzzlePieceIndex} only after terminal win/loss (S12).
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
-@Schema(description = "Пока FLYING: crashPoint и serverSeed отсутствуют. Poll 100–250 ms")
+@Schema(description = "Пока FLYING: crashPoint, serverSeed и puzzlePieceIndex отсутствуют. Poll 100–250 ms")
 public record GameStateResponse(
         UUID gameId,
         RoundStatus status,
@@ -25,5 +25,6 @@ public record GameStateResponse(
         BoosterStateDto booster,
         BigDecimal crashPoint,
         String serverSeed,
-        BigDecimal winAmount
+        BigDecimal winAmount,
+        Integer puzzlePieceIndex
 ) {}

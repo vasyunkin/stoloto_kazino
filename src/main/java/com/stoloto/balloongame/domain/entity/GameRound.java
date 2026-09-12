@@ -97,4 +97,11 @@ public class GameRound {
 
     @Column(name = "ended_at")
     private Instant endedAt;
+
+    /**
+     * Puzzle fragment index awarded on CRASHED / CASHED_OUT (S12). Null while FLYING / VOID.
+     * Not a wallet credit — no ledger impact (I5).
+     */
+    @Column(name = "puzzle_piece_index")
+    private Integer puzzlePieceIndex;
 }
