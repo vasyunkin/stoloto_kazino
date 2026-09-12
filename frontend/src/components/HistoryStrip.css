@@ -1,0 +1,61 @@
+.history-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.history-title {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.88);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+.history-empty {
+  margin: 0;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.65);
+  font-weight: 600;
+}
+
+.history-row {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+.history-pill {
+  flex: 0 0 auto;
+  padding: 7px 11px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.9);
+  color: #142033;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+}
+
+.history-pill.tone-hot {
+  background: linear-gradient(180deg, #ffe08a, #ffb020);
+  color: #5a3200;
+}
+
+.history-pill.tone-win {
+  background: rgba(255, 255, 255, 0.92);
+  color: #1d3557;
+}
+
+.history-pill.tone-crash {
+  background: rgba(255, 107, 90, 0.95);
+  color: #fff;
+}
+
+.history-pill.tone-void {
+  background: rgba(148, 163, 184, 0.95);
+  color: #0f172a;
+}

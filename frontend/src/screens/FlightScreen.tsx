@@ -2,9 +2,12 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 import { Header } from '../components/Header'
 import { HelpModal } from '../components/HelpModal'
+import { HistoryStrip } from '../components/HistoryStrip'
 import { ResultModal } from '../components/ResultModal'
 import { requestCashout } from '../hooks/cashout'
+import { markFlightOnboardingSeen, shouldShowFlightOnboarding } from '../hooks/onboarding'
 import { useDisplayMultiplier } from '../hooks/useDisplayMultiplier'
+import { useGameHistory } from '../hooks/useGameHistory'
 import { useGameTransport } from '../hooks/useGameTransport'
 import { ensureWallet } from '../hooks/wallet'
 import { BalloonStage } from '../pixi/BalloonStage'
@@ -12,9 +15,7 @@ import { useGameStore } from '../stores/gameStore'
 import { usePlayerStore } from '../stores/playerStore'
 import './FlightScreen.css'
 
-/**
- * F5 — cashout + result modal; Pixi/transport from F4.
- */
+/** F5/F6 — cashout, result, history strip, one-shot onboarding. */
 export function FlightScreen() {
   const balance = usePlayerStore((s) => s.balance)
   const gameId = useGameStore((s) => s.gameId)
@@ -34,30 +35,34 @@ export function FlightScreen() {
   const flying = status === 'FLYING'
   const terminal = status === 'CRASHED' || status === 'CASHED_OUT' || status === 'VOID'
   useGameTransport(Boolean(gameId) && flying)
+  const { items: history, reload: reloadHistory } = useGameHistory(20)
 
   const displayK = useDisplayMultiplier()
   const [helpOpen, setHelpOpen] = useState(false)
-  const [hintGone, setHintGone] = useState(false)
+  const [showHint, setShowHint] = useState(() => shouldShowFlightOnboarding())
   const [cashoutError, setCashoutError] = useState<string | null>(null)
   const [resultOpen, setResultOpen] = useState(false)
 
   useEffect(() => {
-    if (!flying) return
-    const t = window.setTimeout(() => setHintGone(true), 4000)
+    if (!flying || !showHint) return
+    const t = window.setTimeout(() => {
+      setShowHint(false)
+      markFlightOnboardingSeen()
+    }, 4200)
     return () => window.clearTimeout(t)
-  }, [flying, gameId])
+  }, [flying, gameId, showHint])
 
   useEffect(() => {
     if (!terminal) {
       setResultOpen(false)
       return
     }
-    // Short beat for crash particles / cashout settle, then modal.
     const delay = status === 'CRASHED' ? 480 : 180
     const t = window.setTimeout(() => setResultOpen(true), delay)
     void ensureWallet(false)
+    void reloadHistory()
     return () => window.clearTimeout(t)
-  }, [terminal, status, gameId])
+  }, [terminal, status, gameId, reloadHistory])
 
   const potentialWin = betAmount * displayK
   const cashoutDisabled = !flying || isCashoutPending
@@ -66,9 +71,7 @@ export function FlightScreen() {
     if (cashoutDisabled) return
     setCashoutError(null)
     const res = await requestCashout()
-    if (!res.ok) {
-      setCashoutError(res.message)
-    }
+    if (!res.ok) setCashoutError(res.message)
   }
 
   return (
@@ -79,18 +82,19 @@ export function FlightScreen() {
         onBack={resetToHub}
         onHelp={() => setHelpOpen(true)}
       />
+      <HistoryStrip items={history} />
 
       <div className="flight-stage">
         <BalloonStage balloonType={balloonType} />
 
         <div className="flight-overlay">
           <AnimatePresence>
-            {!hintGone && flying && (
+            {showHint && flying && (
               <motion.p
                 className="flight-hint"
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
+                initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -6 }}
               >
                 Нажимай «Забрать», пока шарик не лопнул!
               </motion.p>
@@ -131,7 +135,14 @@ export function FlightScreen() {
           onClick={onCashout}
           animate={
             flying && !isCashoutPending
-              ? { scale: [1, 1.03, 1], boxShadow: ['0 0 0 rgba(46,204,113,0)', '0 0 18px rgba(46,204,113,0.55)', '0 0 0 rgba(46,204,113,0)'] }
+              ? {
+                  scale: [1, 1.03, 1],
+                  boxShadow: [
+                    '0 0 0 rgba(46,204,113,0)',
+                    '0 0 18px rgba(46,204,113,0.55)',
+                    '0 0 0 rgba(46,204,113,0)',
+                  ],
+                }
               : { scale: 1 }
           }
           transition={flying ? { repeat: Infinity, duration: 1.4 } : undefined}

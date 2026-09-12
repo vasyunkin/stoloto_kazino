@@ -1,20 +1,33 @@
 # Воздушный Шар — Frontend
 
-React-клиент к Spring backend. Спека: [`.specs/3-frontend-technical-spec.md`](../.specs/3-frontend-technical-spec.md), слайсы: [`.specs/4-frontend-implementation-slices.md`](../.specs/4-frontend-implementation-slices.md).
+React-клиент к Spring backend.
+
+| Документ | Путь |
+|----------|------|
+| Техспека FE | [`.specs/3-frontend-technical-spec.md`](../.specs/3-frontend-technical-spec.md) |
+| Слайсы F1–F6 | [`.specs/4-frontend-implementation-slices.md`](../.specs/4-frontend-implementation-slices.md) |
+| Макеты | [`.specs/assets/mockups/`](../.specs/assets/mockups/) |
+| Backend | [корневой README](../README.md), Swagger `:8080/swagger-ui.html` |
 
 ## Стек
 
 | | |
 |---|---|
 | UI | React 19 + TypeScript + Vite |
-| Canvas | PixiJS 8 |
+| Canvas | PixiJS 8 (lerp K, crash burst) |
 | State | Zustand |
 | UI motion | Framer Motion |
-| Realtime | `@stomp/stompjs` → `/ws` (fallback REST poll) |
+| Realtime | `@stomp/stompjs` → `/ws`, stale → REST poll 200 ms |
 
 ## Запуск
 
-Нужен backend на `http://localhost:8080` (`docker compose up` из корня репо).
+Нужен backend на `http://localhost:8080`:
+
+```bash
+# из корня репо
+docker compose up --build
+# или postgres + ./mvnw spring-boot:run
+```
 
 ```bash
 cd frontend
@@ -22,16 +35,25 @@ npm install
 npm run dev
 ```
 
-Откроется `http://localhost:5173`. Vite проксирует `/api`, `/actuator`, `/ws` на `:8080`.
+UI: [http://localhost:5173](http://localhost:5173). Vite проксирует `/api`, `/actuator`, `/ws`.
 
-Опционально прямой API без proxy: `VITE_API_BASE=http://localhost:8080 npm run dev` (тогда нужен CORS — уже есть для 5173).
+Опционально: `VITE_API_BASE=http://localhost:8080 npm run dev`.
+
+## Demo path
+
+1. Hub — авто-deposit новому `playerId`, баланс в header.
+2. Выбери **Красный** (`LUCKY`) / **Зелёный** (`STANDARD`) шар.
+3. Prefight — ставка, карточка бустера (`NONE`/`AUTO`), **Начать**.
+4. Flight — Pixi + K; **Забрать** или дождись crash.
+5. Result — win/lose + пазл (не на VOID).
+6. History pills / рейтинг — без `crashPoint`/`serverSeed`.
 
 ## Скрипты
 
 - `npm run dev` — разработка
-- `npm run build` — production bundle
-- `npm run preview` — раздача `dist/`
+- `npm run build` — production
+- `npm run preview` — `dist/`
 
-## Текущий слайс
+## Слайсы
 
-**F5** закрыт (cashout + result/puzzle). Дальше **F6** — history strip, polish.
+**F1–F6 закрыты.** Дальше — ассеты/тюнинг по жюри, без смены API.

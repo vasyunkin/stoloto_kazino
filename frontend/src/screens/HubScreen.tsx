@@ -4,9 +4,11 @@ import { ApiError } from '../api/client'
 import type { BalloonType } from '../api/types'
 import { Header } from '../components/Header'
 import { HelpModal } from '../components/HelpModal'
+import { HistoryStrip } from '../components/HistoryStrip'
 import { LeaderboardBanner } from '../components/LeaderboardBanner'
 import { LeaderboardSheet } from '../components/LeaderboardSheet'
 import { ThemeCards } from '../components/ThemeCards'
+import { useGameHistory } from '../hooks/useGameHistory'
 import { demoDeposit, ensureWallet } from '../hooks/wallet'
 import { useGameStore } from '../stores/gameStore'
 import { usePlayerStore } from '../stores/playerStore'
@@ -18,6 +20,7 @@ export function HubScreen() {
   const balloonType = useGameStore((s) => s.balloonType)
   const setBalloonType = useGameStore((s) => s.setBalloonType)
   const setPhase = useGameStore((s) => s.setPhase)
+  const { items: history, reload: reloadHistory } = useGameHistory(24)
 
   const [busy, setBusy] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -43,10 +46,11 @@ export function HubScreen() {
       .finally(() => {
         if (!cancelled) setBusy(false)
       })
+    void reloadHistory()
     return () => {
       cancelled = true
     }
-  }, [playerId])
+  }, [playerId, reloadHistory])
 
   const onSelectTheme = (type: BalloonType) => {
     setBalloonType(type)
@@ -68,6 +72,7 @@ export function HubScreen() {
   return (
     <div className="hub-screen">
       <Header balance={balance} onHelp={() => setHelpOpen(true)} />
+      <HistoryStrip items={history} />
 
       <motion.section
         className="hub-hero"

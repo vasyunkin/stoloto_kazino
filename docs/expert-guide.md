@@ -114,4 +114,4 @@ pieceIndex = unsigned(SHA-256(material)[0..3]) % 24
 |------|------------|
 | `.specs/0-backend-technical-spec.md` | Архитектура, API, схема БД, PF |
 | `.specs/1-implementation-slices.md` | S1–S9 + инварианты I1–I8 |
-| `.specs/2-post-s9-backlog-and-slices.md` | Техдолг, S10+ (history, puzzle, WS…) |
+| `.specs/2-post-s9-backlog-and-slices.md` | Техдолг, S10–S15; product UX backlog §3.6 (бустеры, \(K_0\), темы) |
