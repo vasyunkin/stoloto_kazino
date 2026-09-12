@@ -1,0 +1,26 @@
+.bet-chips {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.bet-chip {
+  min-height: 48px;
+  border: 2px solid rgba(255, 255, 255, 0.55);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.82);
+  color: #142033;
+  font-weight: 800;
+  font-size: 1.05rem;
+  cursor: pointer;
+}
+
+.bet-chip.is-selected {
+  border-color: #2ecc71;
+  box-shadow: 0 0 0 3px rgba(46, 204, 113, 0.28);
+}
+
+.bet-chip:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

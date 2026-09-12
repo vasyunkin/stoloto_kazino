@@ -1,0 +1,159 @@
+.flight-screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+.flight-stage {
+  flex: 1;
+  position: relative;
+  min-height: 360px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, #6bb7d8 0%, #2a6285 55%, #1a4060 100%);
+  overflow: hidden;
+}
+
+.flight-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+  padding: 12px 10px;
+}
+
+.flight-overlay .flight-again {
+  pointer-events: auto;
+}
+
+.flight-hint {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #142033;
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-align: center;
+  max-width: 280px;
+}
+
+.flight-readout {
+  text-align: center;
+  margin-top: 10px;
+}
+
+.flight-win {
+  font-size: clamp(2.2rem, 9vw, 3rem);
+  font-weight: 800;
+  color: #ffe566;
+  text-shadow: 0 3px 0 #b8860b, 0 8px 18px rgba(0, 0, 0, 0.35);
+  line-height: 1;
+}
+
+.flight-k {
+  margin-top: 4px;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #fff3a8;
+}
+
+.flight-booster {
+  margin: 8px 0 0;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.35);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.flight-terminal {
+  margin-top: auto;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: rgba(15, 20, 36, 0.9);
+  color: #fff;
+  font-weight: 700;
+  pointer-events: auto;
+}
+
+.flight-terminal.status-CRASHED {
+  border: 2px solid #ff6b5a;
+}
+
+.flight-terminal.status-CASHED_OUT {
+  border: 2px solid #4ae087;
+}
+
+.flight-again {
+  margin-top: 4px;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: #2ecc71;
+  color: #08301a;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.flight-footer {
+  display: grid;
+  grid-template-columns: 1fr 1.1fr;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.flight-stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(18, 24, 48, 0.88);
+  font-weight: 700;
+}
+
+.flight-pts {
+  margin-left: auto;
+}
+
+.flight-delta {
+  color: #4ae087;
+}
+
+.cashout-btn {
+  min-height: 56px;
+  border: 0;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #4ae087, #2ecc71);
+  color: #08301a;
+  font-size: 1.15rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+}
+
+.cashout-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.flight-commit {
+  margin: 0;
+  text-align: center;
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.65);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}

@@ -1,0 +1,94 @@
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(6, 20, 36, 0.55);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 16px;
+}
+
+.sheet-panel {
+  width: min(430px, 100%);
+  max-height: min(70dvh, 560px);
+  overflow: auto;
+  border-radius: 24px 24px 18px 18px;
+  background: #f7f9fc;
+  color: var(--text);
+  padding: 16px 16px 20px;
+  box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.25);
+}
+
+.sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.sheet-head h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.sheet-close {
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  background: #e8ecf3;
+  font-size: 1.4rem;
+  cursor: pointer;
+}
+
+.sheet-muted {
+  color: var(--muted);
+  margin: 8px 0;
+}
+
+.sheet-error {
+  color: var(--red);
+  margin: 8px 0;
+  font-weight: 700;
+}
+
+.lb-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.lb-list li {
+  display: grid;
+  grid-template-columns: 36px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #eef2f8;
+  font-weight: 700;
+}
+
+.lb-rank {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #1d3557;
+  color: #fff;
+  font-size: 0.85rem;
+}
+
+.lb-id {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lb-pts {
+  color: var(--green);
+}

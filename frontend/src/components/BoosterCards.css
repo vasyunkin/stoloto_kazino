@@ -1,0 +1,79 @@
+.booster-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.booster-head h3 {
+  margin: 0;
+  color: #fff;
+  font-size: 1.05rem;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+.booster-note {
+  margin: 4px 0 0;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.78);
+  font-weight: 600;
+}
+
+.booster-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.booster-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 6px;
+  border-radius: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.82);
+  color: #142033;
+  cursor: pointer;
+}
+
+.booster-card.is-selected {
+  border-color: #fff;
+  box-shadow: 0 0 0 3px rgba(46, 204, 113, 0.45);
+}
+
+.booster-piece {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  clip-path: polygon(0 20%, 35% 0, 70% 18%, 100% 8%, 100% 100%, 0 100%);
+}
+
+.tone-amber .booster-piece {
+  background: linear-gradient(135deg, #ffe08a, #f0b429);
+}
+
+.tone-blue .booster-piece {
+  background: linear-gradient(135deg, #8ec5ff, #3b82f6);
+}
+
+.tone-pink .booster-piece {
+  background: linear-gradient(135deg, #ffb4d0, #ec4899);
+}
+
+.tone-brown .booster-piece {
+  background: linear-gradient(135deg, #d6b48a, #92400e);
+}
+
+.booster-label {
+  font-weight: 800;
+  font-size: 0.78rem;
+  text-align: center;
+  line-height: 1.15;
+}
+
+.booster-hint {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #5a6578;
+}

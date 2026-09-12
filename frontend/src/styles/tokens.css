@@ -1,0 +1,20 @@
+/** Design tokens — Hub / mobile chrome (Spec 3 §6). */
+:root {
+  --bg: #0b3d5c;
+  --bg-deep: #06283d;
+  --sand: #e8c98a;
+  --chrome: rgba(18, 24, 48, 0.88);
+  --glass: rgba(255, 255, 255, 0.78);
+  --glass-border: rgba(255, 255, 255, 0.55);
+  --text: #142033;
+  --text-inv: #f7f9fc;
+  --muted: #5a6578;
+  --red: #d62828;
+  --green: #2e9b4f;
+  --accent: #2ecc71;
+  --yellow: #ffd54a;
+  --trophy: #e6a817;
+  --radius-card: 22px;
+  --shadow-card: 0 10px 28px rgba(8, 30, 50, 0.18);
+  font-family: 'Nunito', 'Trebuchet MS', sans-serif;
+}

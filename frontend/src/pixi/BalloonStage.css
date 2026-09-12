@@ -1,0 +1,13 @@
+.pixi-host {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+.pixi-host canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}

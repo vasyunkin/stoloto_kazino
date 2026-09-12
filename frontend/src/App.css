@@ -1,0 +1,37 @@
+@import './styles/tokens.css';
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  min-height: 100dvh;
+  color: var(--text-inv);
+  background:
+    radial-gradient(ellipse 120% 80% at 50% -10%, #7ec8e8 0%, transparent 55%),
+    linear-gradient(180deg, #4fa3c8 0%, #2f7ea8 28%, #1f6b8a 52%, #0f4d6a 78%, #0a3550 100%);
+  font-family: 'Nunito', 'Trebuchet MS', sans-serif;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app-shell {
+  max-width: 430px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  padding: max(10px, env(safe-area-inset-top)) 14px max(14px, env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+}
+
+.app-shell.phase-flight,
+.app-shell.phase-result {
+  background: transparent;
+}

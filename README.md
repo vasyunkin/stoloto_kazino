@@ -1,26 +1,25 @@
 # Воздушный Шар
 
-Backend crash-игры для хакатона. Игрок ставит деньги, шар поднимается, коэффициент \(K(t)\) растёт экспоненциально. Нужно забрать выигрыш (**cashout**) до краша. Параллельно копятся очки за линии высоты и бустер.
+Crash-игра для хакатона: backend (Spring) + frontend (React / PixiJS). Игрок ставит деньги, шар поднимается, коэффициент \(K(t)\) растёт экспоненциально. Нужно забрать выигрыш (**cashout**) до краша. Параллельно копятся очки за линии высоты и бустер.
 
 Исход раунда считается **на сервере до старта полёта** и не пересчитывается. Пока шар в воздухе, API не отдаёт точку краша и seed — это можно проверить только после конца раунда (Provably Fair).
 
-Фронтенд в этот репозиторий не входит. Контракт — этот README и OpenAPI.  
-Для жюри / тюнинга параметров: [docs/expert-guide.md](docs/expert-guide.md).
+- Backend API: этот README + OpenAPI (`/swagger-ui.html`).
+- Frontend: каталог [`frontend/`](frontend/README.md); спека `.specs/3-frontend-technical-spec.md`.
+- Жюри / тюнинг: [docs/expert-guide.md](docs/expert-guide.md).
 
 ---
 
 ## Стек
 
-| | |
-|---|---|
-| Язык | Java 21 |
-| Фреймворк | Spring Boot 3.4 (Maven) |
-| БД | PostgreSQL 16, миграции Flyway |
-| Деньги | `BigDecimal` + таблица `wallet_ledger`, без `double` |
-| Активный раунд | in-memory `GameSession` + PostgreSQL как источник правды |
-| Документация API | springdoc OpenAPI 3 + Swagger UI |
-| Тесты | JUnit 5, Testcontainers |
-| Запуск | Docker Compose |
+| | Backend | Frontend |
+|---|---|---|
+| Язык | Java 21 | TypeScript |
+| Фреймворк | Spring Boot 3.4 (Maven) | React 19 + Vite |
+| State / canvas | in-memory `GameSession` | Zustand + PixiJS 8 |
+| UI motion | — | Framer Motion |
+| Realtime | STOMP `/ws` + REST poll | `@stomp/stompjs` + poll fallback |
+| БД | PostgreSQL 16, Flyway | — |
 
 Авторизации как в проде нет: игрок передаётся заголовком `X-Player-Id`, админка — `X-Admin-Key`. Spring Security не подключён.
 
@@ -52,6 +51,18 @@ Compose сначала поднимает Postgres, ждёт healthcheck, зат
 6. Этот `gameId` вставляете в **state / cashout / verify**. Execute на примере из Swagger даст 403/404 — такой игры нет.
 
 Остановка: `Ctrl+C`, затем при необходимости `docker compose down`. Данные Postgres лежат в volume `postgres-data`.
+
+### Frontend (Vite)
+
+В отдельном терминале (backend уже на `:8080`):
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+UI: [http://localhost:5173](http://localhost:5173). Подробнее: [`frontend/README.md`](frontend/README.md).
 
 ### Backend локально, БД в Docker
 
