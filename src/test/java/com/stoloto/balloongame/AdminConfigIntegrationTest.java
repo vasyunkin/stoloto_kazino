@@ -5,8 +5,11 @@ import com.stoloto.balloongame.api.dto.BetRequest;
 import com.stoloto.balloongame.api.dto.GameStateResponse;
 import com.stoloto.balloongame.api.dto.StartGameResponse;
 import com.stoloto.balloongame.domain.entity.GameRound;
+import com.stoloto.balloongame.domain.entity.Player;
 import com.stoloto.balloongame.domain.repository.ConfigSnapshotRepository;
 import com.stoloto.balloongame.domain.repository.GameRoundRepository;
+import com.stoloto.balloongame.domain.repository.PlayerRepository;
+import com.stoloto.balloongame.domain.repository.WalletLedgerRepository;
 import com.stoloto.balloongame.service.CrashMathService;
 import com.stoloto.balloongame.service.GameOrchestrator;
 import com.stoloto.balloongame.service.PlayerService;
@@ -41,6 +44,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * S8 — admin runtime config. X-Admin-Key required. I8: PUT must not move a FLYING round.
+ * S10 — allowDeposit via ConfigService snapshot; malformed JSON codes by path.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -69,6 +73,8 @@ class AdminConfigIntegrationTest {
     @Autowired ObjectMapper objectMapper;
     @Autowired MutableClock clock;
     @Autowired PlayerService playerService;
+    @Autowired PlayerRepository playerRepository;
+    @Autowired WalletLedgerRepository walletLedgerRepository;
     @Autowired GameRoundRepository gameRoundRepository;
     @Autowired ConfigSnapshotRepository configSnapshotRepository;
     @Autowired GameOrchestrator orchestrator;
@@ -77,7 +83,7 @@ class AdminConfigIntegrationTest {
     @AfterEach
     void resetClockAndGrowthRate() throws Exception {
         clock.useSystemUtc();
-        putConfig("{\"math\":{\"growthRate\":0.065}}");
+        putConfig("{\"math\":{\"growthRate\":0.065},\"admin\":{\"allowDeposit\":true}}");
     }
 
     private void putConfig(String json) throws Exception {
@@ -186,5 +192,49 @@ class AdminConfigIntegrationTest {
         assertThat(stateA.multiplier()).isEqualByComparingTo(expectedOld);
         assertThat(stateB.multiplier()).isEqualByComparingTo(expectedNew);
         assertThat(stateA.multiplier()).isNotEqualByComparingTo(stateB.multiplier());
+    }
+
+    // ── S10: allowDeposit via ConfigService + JSON error codes ────────────
+
+    @Test
+    void putAllowDepositFalse_depositReturns403_andNoLedger() throws Exception {
+        String playerId = uid();
+        playerService.deposit(playerId, new BigDecimal("100.00"));
+        Player player = playerRepository.findByExternalId(playerId).orElseThrow();
+        long ledgerBefore = walletLedgerRepository.countByPlayerId(player.getId());
+
+        putConfig("{\"admin\":{\"allowDeposit\":false}}");
+
+        mockMvc.perform(post("/api/players/{id}/deposit", playerId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\":50.00}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("DEPOSIT_NOT_ALLOWED"));
+
+        assertThat(walletLedgerRepository.countByPlayerId(player.getId())).isEqualTo(ledgerBefore);
+        assertThat(playerService.getBalance(playerId)).isEqualByComparingTo("100.00");
+    }
+
+    @Test
+    void putAllowDepositTrue_depositReturns200() throws Exception {
+        String playerId = uid();
+        putConfig("{\"admin\":{\"allowDeposit\":false}}");
+        putConfig("{\"admin\":{\"allowDeposit\":true}}");
+
+        mockMvc.perform(post("/api/players/{id}/deposit", playerId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\":75.00}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.newBalance").value(75.00));
+    }
+
+    @Test
+    void postGameStart_invalidJson_returnsVALIDATION_ERROR_notConfigCode() throws Exception {
+        mockMvc.perform(post("/api/game/start")
+                        .header("X-Player-Id", uid())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{not-json"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
     }
 }

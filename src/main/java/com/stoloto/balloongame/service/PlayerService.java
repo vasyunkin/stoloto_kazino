@@ -2,7 +2,6 @@ package com.stoloto.balloongame.service;
 
 import com.stoloto.balloongame.api.dto.DepositResponse;
 import com.stoloto.balloongame.api.exception.GameException;
-import com.stoloto.balloongame.config.GameConfig;
 import com.stoloto.balloongame.domain.entity.LedgerType;
 import com.stoloto.balloongame.domain.entity.Player;
 import com.stoloto.balloongame.domain.entity.WalletLedger;
@@ -10,7 +9,9 @@ import com.stoloto.balloongame.domain.repository.PlayerRepository;
 import com.stoloto.balloongame.domain.repository.WalletLedgerRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -31,7 +32,9 @@ public class PlayerService {
 
     private final PlayerRepository playerRepository;
     private final WalletLedgerRepository walletLedgerRepository;
-    private final GameConfig gameConfig;
+    private final ConfigService configService;
+    /** Proxy for @Transactional self-invocation (deposit guard runs outside write-TX). */
+    private final ObjectProvider<PlayerService> self;
 
     // ── Read operations ───────────────────────────────────────────────────
 
@@ -72,53 +75,60 @@ public class PlayerService {
     /**
      * Deposit funds into player wallet.
      *
-     * <p>Guards (checked before DB lock):
+     * <p>Guards run <strong>outside</strong> the write transaction (S10 / Spec 2):
      * <ul>
-     *   <li>game.admin.allow-deposit must be true (controlled by GameConfig / admin PUT later)</li>
-     *   <li>amount > 0</li>
+     *   <li>{@code ConfigService} snapshot {@code admin.allowDeposit} must be true</li>
+     *   <li>amount &gt; 0</li>
      * </ul>
+     * Reject path must not acquire a player lock or write ledger.
      *
      * <p>Flow (I5):
      * <ol>
-     *   <li>Validate allow-deposit flag and amount.</li>
-     *   <li>Acquire PESSIMISTIC_WRITE lock on player row (creates player if not exists).</li>
-     *   <li>Add amount to player.balance.</li>
-     *   <li>Insert CREDIT_DEPOSIT ledger entry.</li>
+     *   <li>Validate allow-deposit flag (runtime snapshot) and amount.</li>
+     *   <li>Write-TX: lock player → credit balance → {@code CREDIT_DEPOSIT} ledger.</li>
      * </ol>
      *
      * @param externalId player identifier
      * @param amount     positive deposit amount
      * @return DepositResponse with new balance
      */
-    @Transactional
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public DepositResponse deposit(String externalId, BigDecimal amount) {
-        // Guard: deposit must be enabled in config
-        if (!gameConfig.getAdmin().isAllowDeposit()) {
-            throw GameException.depositNotAllowed();
-        }
-
-        // Guard: positive amount (DepositRequest @DecimalMin is also validated at controller)
+        assertDepositAllowed();
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw GameException.invalidBet("Deposit amount must be positive");
         }
+        return self.getObject().depositInTransaction(externalId, amount);
+    }
+
+    /**
+     * Money write path for deposit. First DB call must be {@code FOR UPDATE} (I5).
+     */
+    @Transactional
+    public DepositResponse depositInTransaction(String externalId, BigDecimal amount) {
+        // Defense in depth if admin flipped the flag between guard and TX entry.
+        assertDepositAllowed();
 
         // Acquire PESSIMISTIC_WRITE lock as the FIRST DB call in this transaction.
         // Must NOT call findByExternalId() before this — that would put a stale entity into
         // Hibernate L1 cache, and findByExternalIdForUpdate would then return the cached
         // (stale) balance instead of re-reading fresh committed data from PostgreSQL.
-        // With no prior L1 cache entry, SELECT FOR UPDATE fetches the latest row and serialises
-        // concurrent deposits on the same player (I5).
         Player player = playerRepository.findByExternalIdForUpdate(externalId)
                 .orElseGet(() -> playerRepository.saveAndFlush(new Player(externalId)));
 
         BigDecimal newBalance = player.getBalance().add(amount);
         player.setBalance(newBalance);
 
-        // Ledger entry (I5 — every change has a record)
         walletLedgerRepository.save(new WalletLedger(player, null, LedgerType.CREDIT_DEPOSIT, amount));
 
         log.info("Deposit OK: player={} amount={} newBalance={}", externalId, amount, newBalance);
         return new DepositResponse(externalId, amount, newBalance);
+    }
+
+    private void assertDepositAllowed() {
+        if (!configService.getSnapshot().getAdmin().isAllowDeposit()) {
+            throw GameException.depositNotAllowed();
+        }
     }
 
     /**

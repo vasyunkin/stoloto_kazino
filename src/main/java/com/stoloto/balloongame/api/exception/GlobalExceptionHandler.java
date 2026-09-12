@@ -1,5 +1,6 @@
 package com.stoloto.balloongame.api.exception;
 
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -28,12 +29,25 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse(ex.getErrorCode(), ex.getMessage()));
     }
 
+    /**
+     * Malformed JSON: admin config keeps {@code CONFIG_VALIDATION_FAILED} (S8);
+     * all other endpoints use {@code VALIDATION_ERROR} (S10).
+     */
     @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<ErrorResponse> handleUnreadable(HttpMessageNotReadableException ex) {
-        log.warn("Malformed JSON: {}", ex.getMostSpecificCause().getMessage());
+    public ResponseEntity<ErrorResponse> handleUnreadable(HttpMessageNotReadableException ex,
+                                                          HttpServletRequest request) {
+        log.warn("Malformed JSON on {}: {}", request.getRequestURI(),
+                ex.getMostSpecificCause().getMessage());
+        ErrorCode code = isAdminConfigPath(request.getRequestURI())
+                ? ErrorCode.CONFIG_VALIDATION_FAILED
+                : ErrorCode.VALIDATION_ERROR;
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponse(ErrorCode.CONFIG_VALIDATION_FAILED, "Invalid JSON"));
+                .body(new ErrorResponse(code, "Invalid JSON"));
+    }
+
+    private static boolean isAdminConfigPath(String uri) {
+        return uri != null && uri.startsWith("/api/admin/");
     }
 
     @ExceptionHandler(MissingRequestHeaderException.class)
