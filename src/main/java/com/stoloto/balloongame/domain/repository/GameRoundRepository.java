@@ -2,11 +2,13 @@ package com.stoloto.balloongame.domain.repository;
 
 import com.stoloto.balloongame.domain.entity.GameRound;
 import com.stoloto.balloongame.domain.entity.RoundStatus;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -42,4 +44,16 @@ public interface GameRoundRepository extends JpaRepository<GameRound, UUID> {
             @Param("oldStatus") RoundStatus oldStatus,
             @Param("newStatus") RoundStatus newStatus
     );
+
+    /**
+     * Public history (S11): terminal rounds only, single table — no JOIN on player.
+     * Order: ended_at DESC NULLS LAST, then started_at DESC.
+     */
+    @Query("""
+            SELECT r FROM GameRound r
+            WHERE r.status IN :statuses
+            ORDER BY r.endedAt DESC NULLS LAST, r.startedAt DESC
+            """)
+    List<GameRound> findTerminalHistory(@Param("statuses") Collection<RoundStatus> statuses,
+                                        Pageable pageable);
 }

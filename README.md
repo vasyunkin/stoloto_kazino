@@ -95,6 +95,7 @@ sequenceDiagram
 3. **Полёт.** Клиент опрашивает `GET /api/game/state/{gameId}` каждые **100–250 ms**. Сервер считает множитель одной функцией от времени старта. Когда \(K\) догоняет заранее посчитанный `crashPoint`, статус становится `CRASHED`, ставка сгорает.
 4. **Cashout.** Пока статус `FLYING` и \(K < crashPoint\), `POST /api/game/cashout/{gameId}` фиксирует выигрыш `bet × K`. Повторный cashout — ошибка. Гонка cashout/crash сериализуется локом на раунд.
 5. **Проверка честности.** После `CRASHED` / `CASHED_OUT` (или `VOID` после рестарта сервера) `GET /api/game/verify/{gameId}` отдаёт seed и `crashPoint`. Пока шар летит — `409`.
+6. **История.** `GET /api/game/history` — публичная лента завершённых раундов (`CRASHED` / `CASHED_OUT` / `VOID`), без `serverSeed` / `crashPoint` и без id игрока. Параметр `limit` (по умолчанию 20, максимум 100). `X-Player-Id` не нужен.
 
 Чужой `gameId` или несовпадение `X-Player-Id` с `playerId` ставки → **403**, не 404: UUID чужих раундов не палим.
 
@@ -112,9 +113,10 @@ sequenceDiagram
 | `GET` | `/api/game/state/{gameId}` | Polling полёта |
 | `POST` | `/api/game/cashout/{gameId}` | Забрать выигрыш |
 | `GET` | `/api/game/verify/{gameId}` | Раскрыть PF после конца раунда |
+| `GET` | `/api/game/history` | Лента завершённых раундов (без секретов) |
 | `GET`/`PUT` | `/api/admin/config` | Тюнинг математики без пересборки |
 
-Заголовок `X-Player-Id` обязателен на всех `/api/game/**` и должен совпадать с `playerId` в теле `start`.
+Заголовок `X-Player-Id` обязателен на `/api/game/start|state|cashout|verify` и должен совпадать с `playerId` в теле `start`. Для `GET /api/game/history` заголовок не нужен.
 
 Ошибки всегда в одном виде: `{ "code", "message", "timestamp", "details"? }`. Частые коды: `INSUFFICIENT_BALANCE` (402), `FORBIDDEN` (403), `ALREADY_CRASHED` / `ALREADY_CASHED_OUT` (409), `ROUND_NOT_TERMINAL` (409), `ROUND_EXPIRED` (410), `RATE_LIMITED` (429).
 

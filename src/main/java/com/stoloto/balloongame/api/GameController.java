@@ -3,8 +3,10 @@ package com.stoloto.balloongame.api;
 import com.stoloto.balloongame.api.dto.BetRequest;
 import com.stoloto.balloongame.api.dto.CashoutResponse;
 import com.stoloto.balloongame.api.dto.GameStateResponse;
+import com.stoloto.balloongame.api.dto.HistoryItemResponse;
 import com.stoloto.balloongame.api.dto.StartGameResponse;
 import com.stoloto.balloongame.api.dto.VerifyResponse;
+import com.stoloto.balloongame.service.GameHistoryService;
 import com.stoloto.balloongame.service.GameOrchestrator;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -19,8 +21,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -30,10 +34,10 @@ import java.util.UUID;
 @RequestMapping("/api/game")
 @RequiredArgsConstructor
 @Tag(name = "Game", description = "Сначала POST /start — он создаёт раунд и возвращает gameId. UUID в примерах Swagger — заглушка.")
-@SecurityRequirement(name = "PlayerId")
 public class GameController {
 
     private final GameOrchestrator orchestrator;
+    private final GameHistoryService historyService;
 
     /**
      * POST /api/game/start
@@ -42,6 +46,7 @@ public class GameController {
      * Response never includes crashPoint or serverSeed (I1).
      */
     @Operation(summary = "Начать раунд: списать ставку, вернуть gameId и commitHash (без crashPoint)")
+    @SecurityRequirement(name = "PlayerId")
     @PostMapping("/start")
     public ResponseEntity<StartGameResponse> start(
             @Parameter(hidden = true)
@@ -54,6 +59,7 @@ public class GameController {
      * GET /api/game/state/{gameId} — polling. Secrets only after terminal status (I1).
      */
     @Operation(summary = "Состояние раунда. Poll каждые 100–250 ms. Секреты только после CRASHED/CASHED_OUT")
+    @SecurityRequirement(name = "PlayerId")
     @GetMapping("/state/{gameId}")
     public ResponseEntity<GameStateResponse> state(
             @Parameter(hidden = true)
@@ -67,6 +73,7 @@ public class GameController {
      * POST /api/game/cashout/{gameId} — credit win if still FLYING and K &lt; crashPoint.
      */
     @Operation(summary = "Зафиксировать выигрыш, если шар ещё в полёте и K < crashPoint")
+    @SecurityRequirement(name = "PlayerId")
     @PostMapping("/cashout/{gameId}")
     public ResponseEntity<CashoutResponse> cashout(
             @Parameter(hidden = true)
@@ -80,6 +87,7 @@ public class GameController {
      * GET /api/game/verify/{gameId} — PF reveal after CRASHED / CASHED_OUT / VOID.
      */
     @Operation(summary = "Provably Fair: seed и crashPoint после конца раунда")
+    @SecurityRequirement(name = "PlayerId")
     @GetMapping("/verify/{gameId}")
     public ResponseEntity<VerifyResponse> verify(
             @Parameter(hidden = true)
@@ -87,5 +95,17 @@ public class GameController {
             @Parameter(description = "Скопировать из ответа POST /start. Пример 3fa85f64-... — не настоящая игра.")
             @PathVariable UUID gameId) {
         return ResponseEntity.ok(orchestrator.verify(gameId, xPlayerId));
+    }
+
+    /**
+     * GET /api/game/history — public feed of terminal rounds (S11, variant A: no player id).
+     * No {@code X-Player-Id}. No secrets. No JOIN on player.
+     */
+    @Operation(summary = "Лента завершённых раундов (CRASHED/CASHED_OUT/VOID). Без seed/crashPoint и без id игрока")
+    @GetMapping("/history")
+    public ResponseEntity<List<HistoryItemResponse>> history(
+            @Parameter(description = "Max items, default 20, max 100")
+            @RequestParam(required = false) Integer limit) {
+        return ResponseEntity.ok(historyService.history(limit));
     }
 }

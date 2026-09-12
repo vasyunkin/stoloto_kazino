@@ -43,6 +43,7 @@ class OpenApiSmokeTest {
                 .andExpect(jsonPath("$.paths['/api/game/state/{gameId}']").exists())
                 .andExpect(jsonPath("$.paths['/api/game/cashout/{gameId}']").exists())
                 .andExpect(jsonPath("$.paths['/api/game/verify/{gameId}']").exists())
+                .andExpect(jsonPath("$.paths['/api/game/history']").exists())
                 .andExpect(jsonPath("$.paths['/api/players/{externalId}/deposit']").exists())
                 .andExpect(jsonPath("$.paths['/api/admin/config']").exists());
     }
