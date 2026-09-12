@@ -94,9 +94,10 @@ public class GameConfig {
         @NotBlank
         private String name;
 
-        /** Win multiplier applied to score on activation. */
+        /** Win multiplier applied to score on activation (BigDecimal — no double in DTO path, TD-06). */
+        @NotNull
         @Positive
-        private double multiplier;
+        private BigDecimal multiplier;
 
         /** Relative weight for weighted random selection. */
         @Positive
@@ -143,6 +144,14 @@ public class GameConfig {
 
         @NotBlank
         private String hashAlgorithm = "SHA-256";
+
+        /**
+         * Optional fixed server seed (lowercase hex) for reproducible demos.
+         * Honoured only when Spring profile {@code dev} or {@code test} is active (S15).
+         * Never set a prod default. Excluded from admin JSON (I7-adjacent).
+         */
+        @JsonIgnore
+        private String devFixedServerSeed;
     }
 
     // ── Deep copy (used in S4 to snapshot config at round start) ─────────
@@ -196,6 +205,7 @@ public class GameConfig {
         ProvablyFairConfig pf = new ProvablyFairConfig();
         pf.serverSeedLengthBytes = this.provablyFair.serverSeedLengthBytes;
         pf.hashAlgorithm = this.provablyFair.hashAlgorithm;
+        pf.devFixedServerSeed = this.provablyFair.devFixedServerSeed;
         copy.provablyFair = pf;
 
         return copy;

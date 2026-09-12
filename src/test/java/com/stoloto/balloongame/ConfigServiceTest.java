@@ -94,7 +94,7 @@ class ConfigServiceTest {
         GameConfig.BoosterTier t = new GameConfig.BoosterTier();
         t.setTier(n);
         t.setName(name);
-        t.setMultiplier(mult);
+        t.setMultiplier(java.math.BigDecimal.valueOf(mult));
         t.setProbabilityWeight(w);
         return t;
     }

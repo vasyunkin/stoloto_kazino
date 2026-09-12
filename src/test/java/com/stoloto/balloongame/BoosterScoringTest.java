@@ -83,7 +83,7 @@ class BoosterScoringTest {
         BoosterResult br = result.get();
         assertThat(br.tier()).isIn(1, 2, 3);
         assertThat(br.name()).isNotBlank();
-        assertThat(br.multiplier()).isGreaterThan(0);
+        assertThat(br.multiplier()).isGreaterThan(BigDecimal.ZERO);
         assertThat(br.triggerLine()).isGreaterThanOrEqualTo(0);
     }
 
@@ -198,20 +198,20 @@ class BoosterScoringTest {
     @Test
     void boosterBonus_correctForTier1Multiplier() {
         // Tier 1: multiplier 1.5, pointsPerLine=10 → bonus = round(10 × 1.5) = 15
-        BoosterResult booster = new BoosterResult(1, "Standard Flame", 1.5, 3);
+        BoosterResult booster = new BoosterResult(1, "Standard Flame", new BigDecimal("1.5"), 3);
         assertThat(scoringService.boosterBonus(booster, config)).isEqualTo(15);
     }
 
     @Test
     void boosterBonus_correctForTier3Multiplier() {
         // Tier 3: multiplier 3.0, pointsPerLine=10 → bonus = 30
-        BoosterResult booster = new BoosterResult(3, "Nitro Thruster", 3.0, 5);
+        BoosterResult booster = new BoosterResult(3, "Nitro Thruster", new BigDecimal("3.0"), 5);
         assertThat(scoringService.boosterBonus(booster, config)).isEqualTo(30);
     }
 
     @Test
     void isBoosterActivating_activatesWhenLineReached() {
-        BoosterResult booster = new BoosterResult(1, "Flame", 1.5, 5);
+        BoosterResult booster = new BoosterResult(1, "Flame", new BigDecimal("1.5"), 5);
         assertThat(scoringService.isBoosterActivating(booster, 4, false)).isFalse();
         assertThat(scoringService.isBoosterActivating(booster, 5, false)).isTrue();
         assertThat(scoringService.isBoosterActivating(booster, 6, false)).isTrue();
@@ -219,7 +219,7 @@ class BoosterScoringTest {
 
     @Test
     void isBoosterActivating_notTwice_whenAlreadyActive() {
-        BoosterResult booster = new BoosterResult(1, "Flame", 1.5, 5);
+        BoosterResult booster = new BoosterResult(1, "Flame", new BigDecimal("1.5"), 5);
         assertThat(scoringService.isBoosterActivating(booster, 5, true)).isFalse();
     }
 
@@ -263,7 +263,7 @@ class BoosterScoringTest {
         GameConfig.BoosterTier t = new GameConfig.BoosterTier();
         t.setTier(tier);
         t.setName(name);
-        t.setMultiplier(mult);
+        t.setMultiplier(BigDecimal.valueOf(mult));
         t.setProbabilityWeight(weight);
         return t;
     }

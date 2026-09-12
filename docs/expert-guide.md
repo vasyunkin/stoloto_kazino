@@ -73,7 +73,7 @@ Content-Type: application/json
 - [ ] **Транспорт:** HTTP polling 100–250 ms **и** STOMP WebSocket (S14). Endpoint `ws://…/ws`, topic `/topic/game/{gameId}`, header `X-Player-Id`. Payload — `PublicGameState` без seed/crashPoint. REST polling не убираем.
 - [ ] **Restart:** все `FLYING` → `VOID` + `CREDIT_REFUND`. Полёт из БД не продолжается.
 - [ ] **Deposit:** флаг `admin.allowDeposit` через runtime snapshot (`ConfigService`), не «только YAML до рестарта».
-- [ ] **Rate limit:** 40 / 10 с на start и cashout; in-memory; в тестах выключен. Не кластерный.
+- [ ] **Rate limit:** 40 / 10 с на start и cashout; in-memory; eviction просроченных ключей (S15); в тестах выключен. Не кластерный.
 - [ ] **I1:** пока `FLYING`, нет `crashPoint` / `serverSeed` (и нет `puzzlePieceIndex`).
 - [ ] **I8:** летящий раунд читает только snapshot со start, не live PUT.
 - [ ] **Verify:** только terminal; иначе 409 `ROUND_NOT_TERMINAL`.
@@ -81,6 +81,7 @@ Content-Type: application/json
 - [ ] **Cashout ≠ «долететь до взрыва» на сервере:** статус сразу `CASHED_OUT`; визуальный долёт — задача фронта.
 - [ ] **Nonce** процесс-локальный; после рестарта может пересечься — PF уникален новым `serverSeed`.
 - [ ] **429** пишет rate-limit filter своим JSON (не через `GlobalExceptionHandler`).
+- [ ] **Fixed seed:** только profiles `dev`/`test` + `game.provably-fair.dev-fixed-server-seed`; в prod не включать.
 
 ---
 
@@ -89,6 +90,8 @@ Content-Type: application/json
 Алгоритм: **`crash-v1`**.  
 На start клиент получает `commitHash`. После конца раунда `GET /verify`: `serverSeed`, `clientSeed`, `nonce`, `crashPoint`.  
 Проверка: `SHA-256(serverSeed|clientSeed|nonce) == commitHash`, затем пересчёт crash по HMAC (детали в verify / Spec 0).
+
+Демо с фиксированным seed: `--spring.profiles.active=dev` и `game.provably-fair.dev-fixed-server-seed` (64 hex). См. `application-dev.yml`.
 
 ---
 

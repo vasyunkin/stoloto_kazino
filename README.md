@@ -98,6 +98,7 @@ sequenceDiagram
 5. **Проверка честности.** После `CRASHED` / `CASHED_OUT` (или `VOID` после рестарта сервера) `GET /api/game/verify/{gameId}` отдаёт seed и `crashPoint`. Пока шар летит — `409`.
 6. **История.** `GET /api/game/history` — публичная лента завершённых раундов (`CRASHED` / `CASHED_OUT` / `VOID`), без `serverSeed` / `crashPoint` и без id игрока. Параметр `limit` (по умолчанию 20, максимум 100). `X-Player-Id` не нужен.
 7. **Пазл.** После `CRASHED` / `CASHED_OUT` в state/cashout появляется `puzzlePieceIndex` (0–23). Кусок считается из `SHA-256(serverSeed + ":" + status + ":" + outcomeKey)` — исход раунда влияет на фрагмент. На `VOID` пазл не выдаётся. Баланс от пазла не меняется.
+8. **Рейтинг.** `GET /api/players/leaderboard` — сумма `points_earned` по игрокам, без балансов и PF-секретов.
 
 Чужой `gameId` или несовпадение `X-Player-Id` с `playerId` ставки → **403**, не 404: UUID чужих раундов не палим.
 
@@ -111,8 +112,9 @@ sequenceDiagram
 |-------|------|--------|
 | `POST` | `/api/players/{id}/deposit` | Демо-пополнение, создаёт игрока |
 | `GET` | `/api/players/{id}/balance` | Баланс |
+| `GET` | `/api/players/leaderboard` | Рейтинг по сумме очков (S15) |
 | `POST` | `/api/game/start` | Ставка, новый раунд |
-| `GET` | `/api/game/state/{gameId}` | Polling полёта |
+| `GET` | `/api/game/state/{gameId}` | Polling полёта (`pointsDelta` — прирост за тик) |
 | `POST` | `/api/game/cashout/{gameId}` | Забрать выигрыш |
 | `GET` | `/api/game/verify/{gameId}` | Раскрыть PF после конца раунда |
 | `GET` | `/api/game/history` | Лента завершённых раундов (без секретов) |
@@ -143,7 +145,10 @@ sequenceDiagram
 
 Уже летящий раунд **не** подхватывает новый `growthRate`: у него снимок конфига со старта. Ключ админки в JSON не отдаётся и через PUT не меняется.
 
-На `start` и `cashout` стоит простой rate limit (40 запросов / 10 с на игрока) — антиспам, не защита игровой логики.
+На `start` и `cashout` стоит простой rate limit (40 запросов / 10 с на игрока) — антиспам, не защита игровой логики; просроченные ключи вычищаются из in-memory map (S15).
+
+**Dev fixed-seed (S15).** Только с `--spring.profiles.active=dev` (или `test`):  
+`game.provably-fair.dev-fixed-server-seed` = 64 hex-символа. В prod без этих профилей значение приводит к отказу старта раунда. Пример — `application-dev.yml`.
 
 **WebSocket (S14).** STOMP endpoint: `ws://localhost:8080/ws` (SockJS: `/ws-sockjs`).  
 CONNECT с native-header `X-Player-Id`, подписка на `/topic/game/{gameId}` (только владелец раунда).  

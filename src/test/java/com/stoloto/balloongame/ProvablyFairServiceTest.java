@@ -145,4 +145,39 @@ class ProvablyFairServiceTest {
         // Different calls → different server seeds (SecureRandom)
         assertThat(s1.serverSeedHex()).isNotEqualTo(s2.serverSeedHex());
     }
+
+    @Test
+    void generateSecrets_usesFixedSeed_whenProfileDevAndConfigured() {
+        org.springframework.mock.env.MockEnvironment env = new org.springframework.mock.env.MockEnvironment();
+        env.setActiveProfiles("dev");
+        ProvablyFairService withEnv = new ProvablyFairService(env);
+        pfConfig.setDevFixedServerSeed(SERVER_SEED_HEX);
+
+        RoundSecrets a = withEnv.generateSecrets(CLIENT_SEED, NONCE, pfConfig);
+        RoundSecrets b = withEnv.generateSecrets(CLIENT_SEED, NONCE, pfConfig);
+
+        assertThat(a.serverSeedHex()).isEqualTo(SERVER_SEED_HEX);
+        assertThat(b.serverSeedHex()).isEqualTo(SERVER_SEED_HEX);
+        assertThat(a.commitHash()).isEqualTo(b.commitHash());
+    }
+
+    @Test
+    void generateSecrets_rejectsFixedSeed_outsideDevOrTestProfile() {
+        org.springframework.mock.env.MockEnvironment env = new org.springframework.mock.env.MockEnvironment();
+        env.setActiveProfiles("prod");
+        ProvablyFairService withEnv = new ProvablyFairService(env);
+        pfConfig.setDevFixedServerSeed(SERVER_SEED_HEX);
+
+        assertThatThrownBy(() -> withEnv.generateSecrets(CLIENT_SEED, NONCE, pfConfig))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("dev/test");
+    }
+
+    @Test
+    void generateSecrets_rejectsFixedSeed_whenNoEnvironment() {
+        pfConfig.setDevFixedServerSeed(SERVER_SEED_HEX);
+        assertThatThrownBy(() -> pf.generateSecrets(CLIENT_SEED, NONCE, pfConfig))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("dev/test");
+    }
 }

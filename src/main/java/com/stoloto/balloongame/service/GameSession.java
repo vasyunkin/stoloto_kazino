@@ -57,6 +57,14 @@ public class GameSession {
     @Builder.Default
     private volatile int pointsEarned = 0;
 
+    /**
+     * Points awarded on the last {@code resolve} scoring pass (S15 VFX {@code pointsDelta}).
+     * 0 when no new lines / booster and on terminal re-read.
+     */
+    @Setter
+    @Builder.Default
+    private volatile int lastPointsDelta = 0;
+
     @Setter
     private volatile BigDecimal cashoutMultiplier;
 

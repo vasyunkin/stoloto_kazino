@@ -117,3 +117,6 @@ game:
   provably-fair:
     server-seed-length-bytes: 32
     hash-algorithm: SHA-256
+    # S15: set only under spring.profiles.active=dev|test (see application-dev.yml).
+    # Never enable a fixed seed in production.
+    # dev-fixed-server-seed:

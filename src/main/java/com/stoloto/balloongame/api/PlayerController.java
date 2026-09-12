@@ -3,6 +3,8 @@ package com.stoloto.balloongame.api;
 import com.stoloto.balloongame.api.dto.BalanceResponse;
 import com.stoloto.balloongame.api.dto.DepositRequest;
 import com.stoloto.balloongame.api.dto.DepositResponse;
+import com.stoloto.balloongame.api.dto.LeaderboardEntryResponse;
+import com.stoloto.balloongame.service.LeaderboardService;
 import com.stoloto.balloongame.service.PlayerService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -10,6 +12,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 /**
  * Wallet API — get balance and deposit funds.
@@ -25,6 +29,19 @@ import org.springframework.web.bind.annotation.*;
 public class PlayerController {
 
     private final PlayerService playerService;
+    private final LeaderboardService leaderboardService;
+
+    /**
+     * GET /api/players/leaderboard
+     *
+     * Public ranking by sum of round points. No secrets / balances.
+     */
+    @Operation(summary = "Рейтинг по сумме очков за раунды (S15). Без балансов и PF-секретов")
+    @GetMapping("/leaderboard")
+    public ResponseEntity<List<LeaderboardEntryResponse>> leaderboard(
+            @RequestParam(required = false) Integer limit) {
+        return ResponseEntity.ok(leaderboardService.leaderboard(limit));
+    }
 
     /**
      * GET /api/players/{externalId}/balance

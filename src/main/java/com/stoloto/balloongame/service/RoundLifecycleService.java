@@ -56,6 +56,7 @@ public class RoundLifecycleService {
                 if (intent == ResolveIntent.CASHOUT) {
                     throw terminalCashoutException(current.getStatus());
                 }
+                current.setLastPointsDelta(0);
                 return viewOfTerminal(current);
             }
 
@@ -112,7 +113,8 @@ public class RoundLifecycleService {
     private RoundView flyingView(GameSession session, BigDecimal k, int line) {
         GameConfigSnapshotLines lines = GameConfigSnapshotLines.from(session);
         String zone = crashMath.zoneFor(line, lines.green(), lines.red());
-        return new RoundView(session, RoundStatus.FLYING, k, line, zone, session.getPointsEarned());
+        return new RoundView(session, RoundStatus.FLYING, k, line, zone,
+                session.getPointsEarned(), session.getLastPointsDelta());
     }
 
     private RoundView viewOfTerminal(GameSession session) {
@@ -126,7 +128,8 @@ public class RoundLifecycleService {
                 && session.getCashoutMultiplier() != null
                 ? session.getCashoutMultiplier()
                 : session.getCrashPoint();
-        return new RoundView(session, session.getStatus(), display, line, zone, session.getPointsEarned());
+        return new RoundView(session, session.getStatus(), display, line, zone,
+                session.getPointsEarned(), session.getLastPointsDelta());
     }
 
     /**
@@ -144,6 +147,7 @@ public class RoundLifecycleService {
             session.setBoostActivated(true);
         }
 
+        session.setLastPointsDelta(delta);
         session.setPointsEarned(session.getPointsEarned() + delta);
         session.setLinesPassedSnapshot(Math.max(session.getLinesPassedSnapshot(), currentLine));
     }
@@ -152,9 +156,9 @@ public class RoundLifecycleService {
         if (session.getBoostTier() == null || session.getBoostTriggerLine() == null) {
             return null;
         }
-        double multiplier = session.getBoostMultiplier() != null
-                ? session.getBoostMultiplier().doubleValue()
-                : 1.0;
+        BigDecimal multiplier = session.getBoostMultiplier() != null
+                ? session.getBoostMultiplier()
+                : BigDecimal.ONE;
         return new BoosterResult(
                 session.getBoostTier(),
                 "booster",

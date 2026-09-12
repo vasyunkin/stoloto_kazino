@@ -3,6 +3,9 @@ package com.stoloto.balloongame.service;
 import com.stoloto.balloongame.config.GameConfig;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+
 /**
  * Idempotent points calculation for a single polling tick or cashout (§6.3).
  *
@@ -70,8 +73,11 @@ public class ScoringService {
      * @return additional points to award
      */
     public int boosterBonus(BoosterResult booster, GameConfig config) {
-        // §6.2: bonus = pointsPerLine × boostTierMultiplier (rounded)
-        return (int) Math.round(config.getPointsPerLine() * booster.multiplier());
+        // §6.2: bonus = pointsPerLine × boostTierMultiplier (HALF_UP, TD-06 BigDecimal)
+        return BigDecimal.valueOf(config.getPointsPerLine())
+                .multiply(booster.multiplier())
+                .setScale(0, RoundingMode.HALF_UP)
+                .intValue();
     }
 
     /**

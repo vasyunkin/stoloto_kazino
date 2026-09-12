@@ -12,6 +12,7 @@ import java.util.UUID;
  *
  * <p>I1: {@code crashPoint} and {@code serverSeed} are null (omitted from JSON)
  * while {@code status = FLYING}. {@code puzzlePieceIndex} only after terminal win/loss (S12).
+ * {@code pointsDelta} is the increment on this poll for VFX (S15).
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @Schema(description = "Пока FLYING: crashPoint, serverSeed и puzzlePieceIndex отсутствуют. Poll 100–250 ms")
@@ -22,6 +23,7 @@ public record GameStateResponse(
         int lineIndex,
         String zone,
         int pointsTotal,
+        int pointsDelta,
         BoosterStateDto booster,
         BigDecimal crashPoint,
         String serverSeed,

@@ -1,0 +1,9 @@
+# Local / demo profile: enable with --spring.profiles.active=dev
+#
+# Optional deterministic PF (S15). Only honoured when profile is `dev` or `test`.
+# Never set this in production defaults.
+#
+# game:
+#   provably-fair:
+#     # 32 bytes → 64 hex chars
+#     dev-fixed-server-seed: ababababababababababababababababababababababababababababababababab

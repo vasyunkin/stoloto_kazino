@@ -128,13 +128,33 @@ class ScoringIntegrationTest {
     private int expectedPoints(GameSession session, int line) {
         int linePts = scoringService.pointsForNewLines(0, line, session.getConfigSnapshot());
         if (session.getBoostTriggerLine() != null && line >= session.getBoostTriggerLine()) {
-            linePts += (int) Math.round(
-                    session.getConfigSnapshot().getPointsPerLine()
-                            * (session.getBoostMultiplier() == null
-                            ? 1.0
-                            : session.getBoostMultiplier().doubleValue()));
+            BigDecimal mult = session.getBoostMultiplier() == null
+                    ? BigDecimal.ONE
+                    : session.getBoostMultiplier();
+            linePts += BigDecimal.valueOf(session.getConfigSnapshot().getPointsPerLine())
+                    .multiply(mult)
+                    .setScale(0, java.math.RoundingMode.HALF_UP)
+                    .intValue();
         }
         return linePts;
+    }
+
+    @Test
+    void state_pointsDelta_awardedOnNewLines_zeroOnRepeatPoll() throws Exception {
+        FlyingRound flying = flyingRound();
+        freezeAtLine(flying.round(), 2);
+        GameStateResponse early = orchestrator.state(flying.gameId(), flying.playerId());
+        assertThat(early.pointsDelta()).isEqualTo(early.pointsTotal());
+        assertThat(early.pointsDelta()).isPositive();
+
+        GameStateResponse repeat = orchestrator.state(flying.gameId(), flying.playerId());
+        assertThat(repeat.pointsTotal()).isEqualTo(early.pointsTotal());
+        assertThat(repeat.pointsDelta()).isZero();
+
+        freezeAtLine(flying.round(), 4);
+        GameStateResponse later = orchestrator.state(flying.gameId(), flying.playerId());
+        assertThat(later.pointsDelta()).isEqualTo(later.pointsTotal() - early.pointsTotal());
+        assertThat(later.pointsDelta()).isPositive();
     }
 
     @Test
@@ -153,6 +173,7 @@ class ScoringIntegrationTest {
             assertThat(poll.pointsTotal())
                     .as("poll %s must not add points without new lines", i)
                     .isEqualTo(first.pointsTotal());
+            assertThat(poll.pointsDelta()).isZero();
             assertThat(poll.lineIndex()).isEqualTo(3);
         }
     }

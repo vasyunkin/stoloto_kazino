@@ -122,7 +122,7 @@ public class GameOrchestrator {
                 .commitHash(secrets.commitHash())
                 .boostTier(booster.map(BoosterResult::tier).orElse(null))
                 .boostTriggerLine(booster.map(BoosterResult::triggerLine).orElse(null))
-                .boostMultiplier(booster.map(b -> BigDecimal.valueOf(b.multiplier())).orElse(null))
+                .boostMultiplier(booster.map(BoosterResult::multiplier).orElse(null))
                 .configSnapshot(snapshot)
                 .createdAt(startedAt)
                 .status(RoundStatus.FLYING)
@@ -266,6 +266,7 @@ public class GameOrchestrator {
                 pub.lineIndex(),
                 pub.zone(),
                 pub.pointsTotal(),
+                pub.pointsDelta(),
                 pub.booster(),
                 flying ? null : session.getCrashPoint(),
                 flying ? null : session.getServerSeedHex(),
@@ -286,6 +287,7 @@ public class GameOrchestrator {
                 view.lineIndex(),
                 view.zone(),
                 view.pointsTotal(),
+                view.pointsDelta(),
                 boosterDto(session),
                 view.status() == RoundStatus.CASHED_OUT ? session.getWinAmount() : null,
                 flying ? null : session.getPuzzlePieceIndex());
@@ -318,7 +320,7 @@ public class GameOrchestrator {
         }
         return snapshot.getBoosters().getTiers().stream()
                 .filter(t -> t.getTier() == tier)
-                .map(t -> BigDecimal.valueOf(t.getMultiplier()))
+                .map(GameConfig.BoosterTier::getMultiplier)
                 .findFirst()
                 .orElse(null);
     }

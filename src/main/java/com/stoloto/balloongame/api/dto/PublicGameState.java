@@ -11,6 +11,8 @@ import java.util.UUID;
  *
  * <p><strong>I1:</strong> this type must never declare {@code crashPoint} or {@code serverSeed}
  * fields — absence is enforced by architecture tests, not {@code @JsonIgnore}.
+ *
+ * <p>{@code pointsDelta} — points awarded on this tick for VFX (S15); 0 on repeat poll.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record PublicGameState(
@@ -20,6 +22,7 @@ public record PublicGameState(
         int lineIndex,
         String zone,
         int pointsTotal,
+        int pointsDelta,
         BoosterStateDto booster,
         BigDecimal winAmount,
         Integer puzzlePieceIndex
