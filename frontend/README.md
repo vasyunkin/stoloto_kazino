@@ -21,12 +21,24 @@ React-клиент к Spring backend.
 
 ## Запуск
 
+### Docker (рекомендуется для демо)
+
+Из корня репо:
+
+```bash
+docker compose up --build
+```
+
+UI: [http://localhost:3000](http://localhost:3000) (nginx + прокси `/api` `/ws` на backend).
+
+### Локально (Vite HMR)
+
 Нужен backend на `http://localhost:8080`:
 
 ```bash
 # из корня репо
-docker compose up --build
-# или postgres + ./mvnw spring-boot:run
+docker compose up --build postgres backend
+# или только postgres + ./mvnw spring-boot:run
 ```
 
 ```bash

@@ -27,14 +27,15 @@ Crash-игра для хакатона: backend (Spring) + frontend (React / Pix
 
 ## Как запустить
 
-Нужны **Docker Desktop** (на Apple Silicon это нормально) и свободные порты **8080** (API) и **5433** (Postgres на хосте).
+Нужны **Docker Desktop** (на Apple Silicon это нормально) и свободные порты **3000** (UI), **8080** (API) и **5433** (Postgres на хосте).
 
 ```bash
 docker compose up --build
 ```
 
-Compose сначала поднимает Postgres, ждёт healthcheck, затем backend. Готовность:
+Compose поднимает Postgres → backend → frontend (nginx со сборкой Vite). Готовность:
 
+- **Игра (UI):** [http://localhost:3000](http://localhost:3000) — nginx проксирует `/api`, `/ws`
 - API: [http://localhost:8080/actuator/health](http://localhost:8080/actuator/health)
 - Swagger UI: [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
 - OpenAPI JSON: [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs)
@@ -52,9 +53,9 @@ Compose сначала поднимает Postgres, ждёт healthcheck, зат
 
 Остановка: `Ctrl+C`, затем при необходимости `docker compose down`. Данные Postgres лежат в volume `postgres-data`.
 
-### Frontend (Vite)
+### Frontend локально (Vite HMR)
 
-В отдельном терминале (backend уже на `:8080`):
+Если правите UI без пересборки образа — backend уже на `:8080`:
 
 ```bash
 cd frontend
@@ -62,7 +63,7 @@ npm install
 npm run dev
 ```
 
-UI: [http://localhost:5173](http://localhost:5173). Подробнее: [`frontend/README.md`](frontend/README.md).
+UI: [http://localhost:5173](http://localhost:5173). Vite проксирует `/api`, `/actuator`, `/ws`. Подробнее: [`frontend/README.md`](frontend/README.md).
 
 ### Backend локально, БД в Docker
 
