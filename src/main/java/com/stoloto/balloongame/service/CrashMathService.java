@@ -16,7 +16,7 @@ import java.time.Instant;
  * <h3>Multiplier over time (I3 — single function):</h3>
  * <pre>
  *   K(t) = e^(r · t)       K(0) = 1, monotonically increasing
- *   t in seconds, r = game.math.growth-rate (default 0.065)
+ *   t in seconds, r = game.math.growth-rate (default 0.0433)
  * </pre>
  *
  * <h3>Crash-point derivation (§6.1):</h3>

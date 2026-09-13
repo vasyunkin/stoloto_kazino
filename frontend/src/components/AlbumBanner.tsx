@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import { playClickSfx } from '../audio/clickSfx'
+import { hoverHandlers } from '../audio/sfxHandlers'
 import { PUZZLE_SLOT_COUNT, usePuzzleAlbumStore } from '../stores/puzzleAlbumStore'
 import './AlbumBanner.css'
 
@@ -15,6 +16,7 @@ export function AlbumBanner({ onOpen }: AlbumBannerProps) {
       type="button"
       className="album-banner"
       whileTap={{ scale: 0.99 }}
+      {...hoverHandlers()}
       onClick={() => {
         playClickSfx()
         onOpen()

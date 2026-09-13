@@ -66,7 +66,7 @@ public class GameConfig {
 
         /** Exponential growth rate α in K(t) = e^(α·t). */
         @Positive
-        private double growthRate = 0.065;
+        private double growthRate = 0.0433;
 
         /** House edge fraction [0, 1). E.g. 0.04 = 4%. */
         @DecimalMin("0.0") @DecimalMax("0.5")
@@ -223,7 +223,7 @@ public class GameConfig {
             ThemeProfile t = new ThemeProfile();
             t.minBetAmount = new BigDecimal("12.0");
             t.maxBetAmount = new BigDecimal("5000.0");
-            t.growthRate = 0.055;
+            t.growthRate = 0.0367;
             t.maxWinMultiplier = new BigDecimal("50.0");
             t.greenLevels = 9;
             t.redLevels = 6;
@@ -234,7 +234,7 @@ public class GameConfig {
             ThemeProfile t = new ThemeProfile();
             t.minBetAmount = new BigDecimal("25.0");
             t.maxBetAmount = new BigDecimal("10000.0");
-            t.growthRate = 0.085;
+            t.growthRate = 0.0567;
             t.maxWinMultiplier = new BigDecimal("100.0");
             t.greenLevels = 9;
             t.redLevels = 12;

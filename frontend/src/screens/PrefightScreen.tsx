@@ -6,7 +6,8 @@ import { BetChips } from '../components/BetChips'
 import { BoosterCards, type BoosterCardId } from '../components/BoosterCards'
 import { Header } from '../components/Header'
 import { HelpModal } from '../components/HelpModal'
-import { playClickSfx } from '../audio/clickSfx'
+import { playErrorSfx, playStartSfx } from '../audio/clickSfx'
+import { disabledPressHandlers, hoverHandlers } from '../audio/sfxHandlers'
 import { ensureWallet } from '../hooks/wallet'
 import { useGameStore } from '../stores/gameStore'
 import { usePlayerStore } from '../stores/playerStore'
@@ -58,8 +59,11 @@ export function PrefightScreen() {
   )
 
   const onStart = async () => {
-    if (!canStart) return
-    playClickSfx()
+    if (!canStart) {
+      playErrorSfx()
+      return
+    }
+    playStartSfx()
     setStarting(true)
     setError(null)
     try {
@@ -72,6 +76,7 @@ export function PrefightScreen() {
       beginRound(res.gameId, res.commitHash, betAmount, res.startedAt)
       await ensureWallet(false)
     } catch (err) {
+      playErrorSfx()
       if (err instanceof ApiError) {
         if (err.code === 'INSUFFICIENT_BALANCE') {
           setError('Недостаточно средств — пополни баланс на Hub')
@@ -135,6 +140,8 @@ export function PrefightScreen() {
           type="button"
           className="start-btn"
           disabled={!canStart}
+          {...hoverHandlers()}
+          {...disabledPressHandlers(!canStart)}
           onClick={onStart}
         >
           {starting ? 'Старт…' : 'Начать'}

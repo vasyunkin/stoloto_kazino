@@ -1,6 +1,7 @@
 import { motion, useReducedMotion } from 'framer-motion'
 import type { BalloonType } from '../api/types'
-import { playClickSfx } from '../audio/clickSfx'
+import { playThemeSelectSfx } from '../audio/clickSfx'
+import { hoverHandlers } from '../audio/sfxHandlers'
 import './ThemeCards.css'
 
 interface ThemeCardsProps {
@@ -53,8 +54,9 @@ export function ThemeCards({ selected, onSelect }: ThemeCardsProps) {
               aria-selected={active}
               className={`theme-card tone-${t.tone}${active ? ' is-selected' : ''}`}
               whileTap={{ scale: 0.985 }}
+              {...hoverHandlers()}
               onClick={() => {
-                playClickSfx()
+                playThemeSelectSfx()
                 onSelect(t.type)
               }}
             >

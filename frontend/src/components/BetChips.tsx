@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import type { BalloonType } from '../api/types'
 import { playClickSfx } from '../audio/clickSfx'
+import { disabledPressHandlers } from '../audio/sfxHandlers'
 import './BetChips.css'
 
 const PRESETS_BY_THEME: Record<BalloonType, readonly number[]> = {
@@ -28,7 +29,9 @@ export function BetChips({ value, balance, balloonType, onChange }: BetChipsProp
             className={`bet-chip${value === n ? ' is-selected' : ''}`}
             disabled={disabled}
             whileTap={disabled ? undefined : { scale: 0.96 }}
+            {...disabledPressHandlers(disabled)}
             onClick={() => {
+              if (disabled) return
               playClickSfx()
               onChange(n)
             }}

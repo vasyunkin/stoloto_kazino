@@ -1,8 +1,8 @@
 import { useSettingsStore } from '../stores/settingsStore'
 
 /**
- * Victorian steampunk SFX via Web Audio (noise + filters, not beepy squares).
- * Spec 5 V1/V5 — mute via settingsStore.
+ * Victorian steampunk UI / game SFX (Web Audio noise + filters).
+ * Mute: settingsStore.sfxMuted
  */
 
 let ctx: AudioContext | null = null
@@ -40,6 +40,12 @@ function withAudio(run: (audio: AudioContext, t0: number) => void): void {
     })
 }
 
+/** Skip hover SFX on touch / coarse pointers. */
+function allowHoverSfx(): boolean {
+  if (typeof window === 'undefined') return false
+  return window.matchMedia('(hover: hover) and (pointer: fine)').matches
+}
+
 function envGain(
   audio: AudioContext,
   t0: number,
@@ -54,14 +60,13 @@ function envGain(
   const g = audio.createGain()
   const start = t0 + delay
   g.gain.setValueAtTime(0.0001, start)
-  g.gain.exponentialRampToValueAtTime(peak, start + attack)
-  if (hold > 0) g.gain.setValueAtTime(peak, start + attack + hold)
+  g.gain.exponentialRampToValueAtTime(Math.max(peak, 0.0002), start + attack)
+  if (hold > 0) g.gain.setValueAtTime(Math.max(peak, 0.0002), start + attack + hold)
   g.gain.exponentialRampToValueAtTime(0.0001, start + attack + hold + decay)
   g.connect(audio.destination)
   return g
 }
 
-/** Band-limited noise burst (steam, fabric, spray). */
 function noiseBurst(
   audio: AudioContext,
   t0: number,
@@ -97,7 +102,6 @@ function noiseBurst(
   src.stop(start + attack + dur + 0.05)
 }
 
-/** Quiet sine/triangle partial (metal ring, brass). */
 function partial(
   audio: AudioContext,
   t0: number,
@@ -132,69 +136,209 @@ function partial(
   osc.stop(start + attack + dur + 0.04)
 }
 
-/**
- * Brass / iron latch — short metallic tick for UI buttons.
- * (Not a square-wave beep.)
- */
-export function playClickSfx(): void {
+/** Very quiet paper/wood rustle — desktop hover only. */
+export function playHoverSfx(): void {
+  if (!allowHoverSfx()) return
   withAudio((audio, t0) => {
-    // Transient “strike”
     noiseBurst(audio, t0, {
-      dur: 0.045,
-      peak: 0.22,
+      dur: 0.035,
+      peak: 0.028,
       type: 'bandpass',
-      freq: 3200,
-      q: 4.5,
-      attack: 0.001,
+      freq: 2100,
+      q: 0.8,
+      attack: 0.004,
     })
-    // Resonant metal ring
-    partial(audio, t0, { freq: 1850, freqEnd: 920, dur: 0.09, peak: 0.07, type: 'triangle' })
-    partial(audio, t0, { freq: 2780, freqEnd: 1400, dur: 0.07, peak: 0.045, type: 'sine', delay: 0.004 })
-    // Soft body thump of a lever
-    partial(audio, t0, { freq: 140, freqEnd: 70, dur: 0.06, peak: 0.05, type: 'sine' })
   })
 }
 
 /**
- * Burner valve + escaping steam (booster).
+ * Default UI tap — dull wood / bakelite (ordinary buttons).
+ * Kept as playClickSfx for existing call sites.
  */
-export function playBoosterSfx(): void {
+export function playClickSfx(): void {
   withAudio((audio, t0) => {
-    // Valve clank
+    // Soft wooden body
+    partial(audio, t0, { freq: 180, freqEnd: 95, dur: 0.05, peak: 0.07, type: 'sine', attack: 0.001 })
+    // Dull mid knock (not metallic ring)
     noiseBurst(audio, t0, {
-      dur: 0.04,
+      dur: 0.028,
+      peak: 0.09,
+      type: 'lowpass',
+      freq: 900,
+      q: 0.7,
+      attack: 0.001,
+    })
+    noiseBurst(audio, t0, {
+      dur: 0.02,
+      peak: 0.05,
+      type: 'bandpass',
+      freq: 1400,
+      q: 2.2,
+      attack: 0.001,
+    })
+  })
+}
+
+/** Low “thud / bulp” — insufficient balance, disabled, API error. */
+export function playErrorSfx(): void {
+  withAudio((audio, t0) => {
+    partial(audio, t0, { freq: 95, freqEnd: 48, dur: 0.14, peak: 0.12, type: 'sine', attack: 0.008 })
+    noiseBurst(audio, t0, {
+      dur: 0.1,
+      peak: 0.08,
+      type: 'lowpass',
+      freq: 220,
+      q: 1.2,
+      attack: 0.01,
+    })
+  })
+}
+
+/** Theme switch — heavy folio page + soft copper dial. */
+export function playThemeSelectSfx(): void {
+  withAudio((audio, t0) => {
+    // Paper / parchment flip
+    noiseBurst(audio, t0, {
+      dur: 0.12,
+      peak: 0.1,
+      type: 'bandpass',
+      freq: 1600,
+      q: 0.65,
+      attack: 0.012,
+    })
+    noiseBurst(audio, t0, {
+      dur: 0.09,
+      peak: 0.06,
+      delay: 0.04,
+      type: 'highpass',
+      freq: 3200,
+      q: 0.7,
+      attack: 0.02,
+    })
+    // Copper knob tick
+    partial(audio, t0, {
+      freq: 620,
+      freqEnd: 410,
+      dur: 0.06,
+      peak: 0.04,
+      delay: 0.07,
+      type: 'triangle',
+      attack: 0.002,
+    })
+  })
+}
+
+/** «Начать» — spring wind + steam valve crack. */
+export function playStartSfx(): void {
+  withAudio((audio, t0) => {
+    // Coil spring tension (rising scrape)
+    noiseBurst(audio, t0, {
+      dur: 0.16,
+      peak: 0.09,
+      type: 'bandpass',
+      freq: 2400,
+      q: 3.5,
+      attack: 0.02,
+    })
+    partial(audio, t0, {
+      freq: 220,
+      freqEnd: 480,
+      dur: 0.18,
+      peak: 0.05,
+      type: 'triangle',
+      attack: 0.03,
+    })
+    // Valve opens — steam puff
+    noiseBurst(audio, t0, {
+      dur: 0.28,
+      peak: 0.11,
+      delay: 0.12,
+      type: 'highpass',
+      freq: 3800,
+      q: 0.55,
+      attack: 0.025,
+    })
+    partial(audio, t0, {
+      freq: 160,
+      freqEnd: 90,
+      dur: 0.12,
+      peak: 0.06,
+      delay: 0.12,
+      type: 'sine',
+      attack: 0.01,
+    })
+  })
+}
+
+/** «Забрать» press — telegraph key / latch (before server confirms). */
+export function playCashoutArmSfx(): void {
+  withAudio((audio, t0) => {
+    // Sharp mechanical latch
+    noiseBurst(audio, t0, {
+      dur: 0.035,
       peak: 0.18,
       type: 'highpass',
-      freq: 2400,
+      freq: 1800,
+      q: 0.9,
+      attack: 0.0008,
+    })
+    // Telegraph key clack
+    partial(audio, t0, { freq: 980, freqEnd: 520, dur: 0.07, peak: 0.08, type: 'triangle', attack: 0.001 })
+    partial(audio, t0, { freq: 210, freqEnd: 120, dur: 0.06, peak: 0.07, type: 'sine', attack: 0.001 })
+    noiseBurst(audio, t0, {
+      dur: 0.04,
+      peak: 0.07,
+      delay: 0.015,
+      type: 'bandpass',
+      freq: 1200,
+      q: 4,
+      attack: 0.001,
+    })
+  })
+}
+
+/** Success after cashout — coin / satisfying mechanical “чиньк”. */
+export function playCashoutSfx(): void {
+  withAudio((audio, t0) => {
+    partial(audio, t0, { freq: 1240, dur: 0.12, peak: 0.09, type: 'sine', attack: 0.002 })
+    partial(audio, t0, { freq: 1860, dur: 0.16, peak: 0.06, delay: 0.04, type: 'sine', attack: 0.002 })
+    partial(audio, t0, { freq: 2480, dur: 0.1, peak: 0.035, delay: 0.08, type: 'triangle', attack: 0.002 })
+    noiseBurst(audio, t0, {
+      dur: 0.05,
+      peak: 0.05,
+      type: 'bandpass',
+      freq: 4500,
+      q: 2,
+      attack: 0.001,
+    })
+  })
+}
+
+/** Burner valve + steam (booster activate). */
+export function playBoosterSfx(): void {
+  withAudio((audio, t0) => {
+    noiseBurst(audio, t0, {
+      dur: 0.04,
+      peak: 0.14,
+      type: 'highpass',
+      freq: 2200,
       q: 0.8,
       attack: 0.001,
     })
-    partial(audio, t0, { freq: 420, freqEnd: 180, dur: 0.08, peak: 0.06, type: 'triangle' })
-    // Steam hiss (long, airy)
     noiseBurst(audio, t0, {
-      dur: 0.55,
-      peak: 0.14,
+      dur: 0.5,
+      peak: 0.12,
       delay: 0.03,
       type: 'bandpass',
-      freq: 4200,
+      freq: 4000,
       q: 0.55,
       attack: 0.04,
     })
-    noiseBurst(audio, t0, {
-      dur: 0.4,
-      peak: 0.08,
-      delay: 0.08,
-      type: 'highpass',
-      freq: 6000,
-      q: 0.7,
-      attack: 0.06,
-    })
-    // Low furnace rumble
     partial(audio, t0, {
       freq: 70,
       freqEnd: 48,
-      dur: 0.45,
-      peak: 0.07,
+      dur: 0.4,
+      peak: 0.06,
       delay: 0.02,
       type: 'sine',
       attack: 0.05,
@@ -202,120 +346,41 @@ export function playBoosterSfx(): void {
   })
 }
 
-/**
- * Atomizer / cologne “пшик” on successful cashout — genteel Victorian.
- */
-export function playCashoutSfx(): void {
-  withAudio((audio, t0) => {
-    // Pump click
-    noiseBurst(audio, t0, {
-      dur: 0.03,
-      peak: 0.12,
-      type: 'bandpass',
-      freq: 1600,
-      q: 3,
-      attack: 0.001,
-    })
-    // Fine mist spray
-    noiseBurst(audio, t0, {
-      dur: 0.28,
-      peak: 0.11,
-      delay: 0.02,
-      type: 'highpass',
-      freq: 5500,
-      q: 0.6,
-      attack: 0.015,
-    })
-    noiseBurst(audio, t0, {
-      dur: 0.22,
-      peak: 0.07,
-      delay: 0.05,
-      type: 'bandpass',
-      freq: 9000,
-      q: 0.9,
-      attack: 0.02,
-    })
-    // Tiny brass chime under the spray
-    partial(audio, t0, {
-      freq: 880,
-      freqEnd: 1320,
-      dur: 0.22,
-      peak: 0.04,
-      delay: 0.04,
-      type: 'sine',
-      attack: 0.01,
-    })
-  })
-}
-
-/**
- * Balloon burst: rubber pop + fabric tear + brief foul vapor release.
- */
+/** Balloon pop + fabric + vapor. */
 export function playCrashSfx(): void {
   withAudio((audio, t0) => {
-    // Sharp pop transient
     noiseBurst(audio, t0, {
       dur: 0.05,
-      peak: 0.35,
+      peak: 0.32,
       type: 'highpass',
-      freq: 800,
+      freq: 700,
       q: 0.5,
       attack: 0.0008,
     })
-    // Rubber membrane snap (pitch dive)
     partial(audio, t0, {
       freq: 220,
       freqEnd: 45,
       dur: 0.18,
-      peak: 0.16,
+      peak: 0.15,
       type: 'triangle',
       attack: 0.001,
     })
-    partial(audio, t0, {
-      freq: 380,
-      freqEnd: 60,
-      dur: 0.14,
-      peak: 0.08,
-      type: 'sine',
-      attack: 0.001,
-    })
-    // Fabric / silk tear
     noiseBurst(audio, t0, {
       dur: 0.22,
-      peak: 0.12,
+      peak: 0.11,
       delay: 0.02,
       type: 'bandpass',
       freq: 2800,
       q: 1.8,
       attack: 0.01,
     })
-    // Escaping gas whoosh
     noiseBurst(audio, t0, {
-      dur: 0.45,
-      peak: 0.1,
+      dur: 0.4,
+      peak: 0.09,
       delay: 0.04,
       type: 'bandpass',
       freq: 900,
       q: 0.7,
-      attack: 0.03,
-    })
-    // Short “reek / belch” of foul air — low, muffled (Victorian comedy beat)
-    noiseBurst(audio, t0, {
-      dur: 0.2,
-      peak: 0.09,
-      delay: 0.12,
-      type: 'lowpass',
-      freq: 280,
-      q: 1.1,
-      attack: 0.04,
-    })
-    partial(audio, t0, {
-      freq: 95,
-      freqEnd: 55,
-      dur: 0.18,
-      peak: 0.06,
-      delay: 0.14,
-      type: 'sine',
       attack: 0.03,
     })
   })

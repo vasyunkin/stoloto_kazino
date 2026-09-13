@@ -10,7 +10,8 @@ import { LeaderboardBanner } from '../components/LeaderboardBanner'
 import { LeaderboardSheet } from '../components/LeaderboardSheet'
 import { PuzzleAlbumSheet } from '../components/PuzzleAlbumSheet'
 import { ThemeCards } from '../components/ThemeCards'
-import { playClickSfx } from '../audio/clickSfx'
+import { playClickSfx, playErrorSfx } from '../audio/clickSfx'
+import { disabledPressHandlers, hoverHandlers } from '../audio/sfxHandlers'
 import { useGameHistory } from '../hooks/useGameHistory'
 import { demoDeposit, ensureWallet } from '../hooks/wallet'
 import { useGameStore } from '../stores/gameStore'
@@ -75,6 +76,7 @@ export function HubScreen() {
     try {
       await demoDeposit(500)
     } catch (err) {
+      playErrorSfx()
       setError(err instanceof ApiError ? err.message : 'Deposit failed')
     } finally {
       setDepositBusy(false)
@@ -121,6 +123,8 @@ export function HubScreen() {
             className="deposit-btn"
             onClick={onDeposit}
             disabled={depositBusy || busy}
+            {...hoverHandlers()}
+            {...disabledPressHandlers(depositBusy || busy)}
           >
             {depositBusy ? 'Пополняю…' : 'Пополнить +500'}
           </button>

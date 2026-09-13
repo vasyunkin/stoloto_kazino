@@ -85,8 +85,8 @@ class AdminConfigIntegrationTest {
     @AfterEach
     void resetClockAndGrowthRate() throws Exception {
         clock.useSystemUtc();
-        putConfig("{\"math\":{\"growthRate\":0.065},"
-                + "\"themes\":{\"standard\":{\"growthRate\":0.055},\"lucky\":{\"growthRate\":0.085}},"
+        putConfig("{\"math\":{\"growthRate\":0.0433},"
+                + "\"themes\":{\"standard\":{\"growthRate\":0.0367},\"lucky\":{\"growthRate\":0.0567}},"
                 + "\"admin\":{\"allowDeposit\":true}}");
     }
 

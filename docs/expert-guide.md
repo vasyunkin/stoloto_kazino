@@ -31,7 +31,7 @@ Partial merge JSON. Ключ админки в JSON **не** отдаётся и
 | `redLevels` | 12 | `@Positive` | Высота красной зоны |
 | `pointsPerLine` | 10 | `@Positive` | Очки за новую линию |
 | `ascentSpeedLinesPerSec` | 1.5 | `@Positive` | Скорость набора линий |
-| `math.growthRate` | 0.065 | `@Positive` | \(α\) в \(K(t)=e^{αt}\) (темы перекрывают на start) |
+| `math.growthRate` | 0.0433 | `@Positive` | \(α\) в \(K(t)=e^{αt}\) (темы перекрывают на start; ~1.5× медленнее прежнего 0.065) |
 | `math.houseEdge` | 0.08 | `[0, 0.5]` | House edge PF / crash draw |
 | `math.instantCrashRate` | 0.08 | `[0, 1]` | Шанс instant-краша на **minCrashPoint** (класс. 1.00x) |
 | `math.minCrashPoint` | 1.00 | `≥ 1` | Пол краша (классика Aviator-style) |

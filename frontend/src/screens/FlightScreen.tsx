@@ -2,10 +2,12 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import {
   playBoosterSfx,
+  playCashoutArmSfx,
   playCashoutSfx,
-  playClickSfx,
   playCrashSfx,
+  playErrorSfx,
 } from '../audio/clickSfx'
+import { disabledPressHandlers, hoverHandlers } from '../audio/sfxHandlers'
 import { Header } from '../components/Header'
 import { HelpModal } from '../components/HelpModal'
 import { HistoryStrip } from '../components/HistoryStrip'
@@ -109,11 +111,17 @@ export function FlightScreen() {
     !flying || isCashoutPending || multiplier < minCashout
 
   const onCashout = async () => {
-    if (cashoutDisabled) return
-    playClickSfx()
+    if (cashoutDisabled) {
+      playErrorSfx()
+      return
+    }
+    playCashoutArmSfx()
     setCashoutError(null)
     const res = await requestCashout()
-    if (!res.ok) setCashoutError(res.message)
+    if (!res.ok) {
+      playErrorSfx()
+      setCashoutError(res.message)
+    }
   }
 
   return (
@@ -179,6 +187,8 @@ export function FlightScreen() {
           type="button"
           className="cashout-btn"
           disabled={cashoutDisabled}
+          {...hoverHandlers()}
+          {...disabledPressHandlers(cashoutDisabled)}
           onClick={onCashout}
           animate={
             flying && !isCashoutPending && multiplier >= minCashout
