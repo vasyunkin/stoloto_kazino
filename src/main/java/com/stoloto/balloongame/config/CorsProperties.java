@@ -18,7 +18,9 @@ public class CorsProperties {
             "http://localhost:*",
             "http://127.0.0.1:*",
             "https://*.trycloudflare.com",
-            "https://*.cloudflaretunnel.com"
+            "https://*.cloudflaretunnel.com",
+            "https://smart-stock.site",
+            "https://www.smart-stock.site"
     ));
 
     /**
@@ -29,6 +31,8 @@ public class CorsProperties {
             "http://localhost:3000",
             "http://localhost:5173",
             "http://127.0.0.1:3000",
-            "http://127.0.0.1:5173"
+            "http://127.0.0.1:5173",
+            "https://smart-stock.site",
+            "https://www.smart-stock.site"
     ));
 }

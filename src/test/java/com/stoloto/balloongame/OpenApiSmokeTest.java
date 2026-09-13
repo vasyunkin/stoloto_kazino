@@ -79,6 +79,16 @@ class OpenApiSmokeTest {
     }
 
     @Test
+    void cors_preflight_allowsSmartStockSite() throws Exception {
+        mockMvc.perform(options("/api/game/start")
+                        .header(HttpHeaders.ORIGIN, "https://smart-stock.site")
+                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST")
+                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "Content-Type, X-Player-Id"))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "https://smart-stock.site"));
+    }
+
+    @Test
     void cors_preflight_rejectsUnknownOrigin() throws Exception {
         mockMvc.perform(options("/api/game/start")
                         .header(HttpHeaders.ORIGIN, "https://evil.example")

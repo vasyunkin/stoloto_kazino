@@ -66,7 +66,7 @@ docs/presentation.pdf   ← опционально слайды для жюри
 ![Демо Воздушный Шар](docs/demo.gif)
 -->
 
-**Live demo:** Docker-стек выше (или вставьте сюда URL туннеля / Cloudflare, когда задеплоите).
+**Live demo:** [https://smart-stock.site](https://smart-stock.site) — CORS и SockJS whitelist уже включают этот origin (и `www`). Локально по-прежнему Docker-стек ниже.
 
 ---
 
