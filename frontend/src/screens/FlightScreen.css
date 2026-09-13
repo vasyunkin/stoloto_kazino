@@ -17,6 +17,14 @@
   box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.25);
 }
 
+.pixi-fallback {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 70% 40% at 50% 20%, rgba(196, 163, 90, 0.15), transparent 60%),
+    linear-gradient(180deg, #5a6e7a 0%, #3a4a52 45%, #2a2118 100%);
+}
+
 .flight-overlay {
   position: absolute;
   inset: 0;

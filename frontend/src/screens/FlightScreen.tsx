@@ -1,6 +1,11 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { useEffect, useState } from 'react'
-import { playClickSfx } from '../audio/clickSfx'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import {
+  playBoosterSfx,
+  playCashoutSfx,
+  playClickSfx,
+  playCrashSfx,
+} from '../audio/clickSfx'
 import { Header } from '../components/Header'
 import { HelpModal } from '../components/HelpModal'
 import { HistoryStrip } from '../components/HistoryStrip'
@@ -12,11 +17,15 @@ import { useDisplayMultiplier } from '../hooks/useDisplayMultiplier'
 import { useGameHistory } from '../hooks/useGameHistory'
 import { useGameTransport } from '../hooks/useGameTransport'
 import { ensureWallet } from '../hooks/wallet'
-import { BalloonStage } from '../pixi/BalloonStage'
 import { useGameStore } from '../stores/gameStore'
 import { usePlayerStore } from '../stores/playerStore'
 import { usePuzzleAlbumStore } from '../stores/puzzleAlbumStore'
 import './FlightScreen.css'
+
+/** Spec 5 V5 — code-split Pixi so Hub/Prefight stay light. */
+const BalloonStage = lazy(() =>
+  import('../pixi/BalloonStage').then((m) => ({ default: m.BalloonStage })),
+)
 
 /** F5/F6 — cashout, result, history strip, one-shot onboarding. */
 export function FlightScreen() {
@@ -78,6 +87,22 @@ export function FlightScreen() {
     collectPiece(playerId, puzzlePieceIndex, gameId)
   }, [status, puzzlePieceIndex, playerId, gameId, collectPiece])
 
+  // Spec 5 V5 — game SFX (respect mute)
+  const prevStatus = useRef(status)
+  useEffect(() => {
+    const prev = prevStatus.current
+    prevStatus.current = status
+    if (prev === 'FLYING' && status === 'CRASHED') playCrashSfx()
+    if (prev === 'FLYING' && status === 'CASHED_OUT') playCashoutSfx()
+  }, [status])
+
+  const prevBoosterOn = useRef(false)
+  useEffect(() => {
+    const on = Boolean(booster?.activated)
+    if (on && !prevBoosterOn.current) playBoosterSfx()
+    prevBoosterOn.current = on
+  }, [booster?.activated])
+
   const potentialWin = betAmount * displayK
   const minCashout = 1.01
   const cashoutDisabled =
@@ -102,7 +127,9 @@ export function FlightScreen() {
       <HistoryStrip items={history} />
 
       <div className="flight-stage">
-        <BalloonStage balloonType={balloonType} />
+        <Suspense fallback={<div className="pixi-fallback" aria-hidden />}>
+          <BalloonStage balloonType={balloonType} />
+        </Suspense>
 
         <div className="flight-overlay">
           <AnimatePresence>
