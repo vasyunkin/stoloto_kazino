@@ -73,19 +73,22 @@ public class GameConfig {
         private double houseEdge = 0.08;
 
         /**
-         * Probability of early crash at {@link #minCrashPoint} [0, 1).
-         * Never crashes below minCrashPoint.
+         * Probability of instant crash at {@link #minCrashPoint} [0, 1).
+         * Classic: often ~3–8% at 1.00x.
          */
         @DecimalMin("0.0") @DecimalMax("1.0")
         private double instantCrashRate = 0.08;
 
-        /** Floor for crash draw — cashout button can become active first. */
+        /** Floor for crash draw (classic: 1.00). */
         @NotNull @DecimalMin("1.0")
-        private BigDecimal minCrashPoint = new BigDecimal("1.20");
+        private BigDecimal minCrashPoint = new BigDecimal("1.00");
 
-        /** Cashout rejected while raw K is below this (usually equals minCrashPoint). */
+        /**
+         * Cashout rejected while raw K is below this (classic: 1.01).
+         * May be slightly above {@link #minCrashPoint} so instant 1.00 busts before cashout unlocks.
+         */
         @NotNull @DecimalMin("1.0")
-        private BigDecimal minCashoutMultiplier = new BigDecimal("1.20");
+        private BigDecimal minCashoutMultiplier = new BigDecimal("1.01");
     }
 
     @Data

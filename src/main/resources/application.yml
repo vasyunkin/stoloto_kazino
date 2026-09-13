@@ -89,10 +89,10 @@ game:
   # Crash Math: K(t) = e^(α·t)
   math:
     growth-rate: 0.065        # Default α (overridden per theme at round start)
-    house-edge: 0.08          # 8% house edge — tighter than demo 4%
-    instant-crash-rate: 0.08  # Early crash at min-crash-point more often
-    min-crash-point: 1.20     # Floor — cashout activates at same threshold
-    min-cashout-multiplier: 1.20
+    house-edge: 0.08          # 8% house edge
+    instant-crash-rate: 0.08  # Chance of instant crash at 1.00x
+    min-crash-point: 1.00     # Classic: can bust at 1.00
+    min-cashout-multiplier: 1.01  # Cashout from 1.01x (no free +20% wait)
 
   # Theme profiles (merged into round snapshot on start)
   themes:

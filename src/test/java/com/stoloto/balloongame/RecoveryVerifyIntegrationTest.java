@@ -116,9 +116,9 @@ class RecoveryVerifyIntegrationTest {
     private void freezeForCashout(GameRound round) {
         BigDecimal target = round.getCrashPoint()
                 .subtract(new BigDecimal("0.0200"))
-                .max(new BigDecimal("1.2000"));
+                .max(new BigDecimal("1.0100"));
         if (target.compareTo(round.getCrashPoint()) >= 0) {
-            target = new BigDecimal("1.2000");
+            target = new BigDecimal("1.0100");
         }
         double r = sessionCache.get(round.getId())
                 .map(s -> s.getConfigSnapshot().getMath().getGrowthRate())

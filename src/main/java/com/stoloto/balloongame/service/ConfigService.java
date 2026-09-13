@@ -94,15 +94,16 @@ public class ConfigService {
             throw GameException.configValidationFailed("minBetAmount must be <= maxBetAmount");
         }
         var math = config.getMath();
-        if (math.getMinCrashPoint() != null && math.getMinCashoutMultiplier() != null
-                && math.getMinCashoutMultiplier().compareTo(math.getMinCrashPoint()) > 0) {
-            throw GameException.configValidationFailed(
-                    "minCashoutMultiplier must be <= minCrashPoint");
-        }
         if (math.getMinCrashPoint() != null
                 && math.getMinCrashPoint().compareTo(admin.getMaxWinMultiplier()) > 0) {
             throw GameException.configValidationFailed(
                     "minCrashPoint must be <= maxWinMultiplier");
+        }
+        if (math.getMinCashoutMultiplier() != null
+                && math.getMinCrashPoint() != null
+                && math.getMinCashoutMultiplier().compareTo(admin.getMaxWinMultiplier()) > 0) {
+            throw GameException.configValidationFailed(
+                    "minCashoutMultiplier must be <= maxWinMultiplier");
         }
     }
 }

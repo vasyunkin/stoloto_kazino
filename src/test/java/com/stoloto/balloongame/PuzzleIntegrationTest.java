@@ -115,7 +115,7 @@ class PuzzleIntegrationTest {
     private void freezeJustBelowCrash(GameRound round) {
         BigDecimal target = round.getCrashPoint()
                 .subtract(new BigDecimal("0.0200"))
-                .max(new BigDecimal("1.2000"));
+                .max(new BigDecimal("1.0100"));
         freezeAtMultiplier(round, target);
         if (kNow(round).compareTo(round.getCrashPoint()) >= 0) {
             clock.freeze(round.getStartedAt());

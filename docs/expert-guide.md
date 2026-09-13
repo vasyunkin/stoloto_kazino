@@ -33,9 +33,9 @@ Partial merge JSON. Ключ админки в JSON **не** отдаётся и
 | `ascentSpeedLinesPerSec` | 1.5 | `@Positive` | Скорость набора линий |
 | `math.growthRate` | 0.065 | `@Positive` | \(α\) в \(K(t)=e^{αt}\) (темы перекрывают на start) |
 | `math.houseEdge` | 0.08 | `[0, 0.5]` | House edge PF / crash draw |
-| `math.instantCrashRate` | 0.08 | `[0, 1]` | Шанс раннего краша на **minCrashPoint** |
-| `math.minCrashPoint` | 1.20 | `≥ 1` | Пол краша; cashout успевает стать активным |
-| `math.minCashoutMultiplier` | 1.20 | `≥ 1` | Cashout раньше → `CASHOUT_TOO_EARLY` |
+| `math.instantCrashRate` | 0.08 | `[0, 1]` | Шанс instant-краша на **minCrashPoint** (класс. 1.00x) |
+| `math.minCrashPoint` | 1.00 | `≥ 1` | Пол краша (классика Aviator-style) |
+| `math.minCashoutMultiplier` | 1.01 | `≥ 1` | Cashout раньше → `CASHOUT_TOO_EARLY` (может быть &gt; minCrash) |
 | `themes.standard` / `lucky` | см. YAML | — | min/max bet, α, maxWin, green/red levels |
 | `boosters.spawnProbability` | 0.45 | `[0, 1]` | Шанс спавна бустера |
 | `boosters.lineBiasPower` | 2.0 | `@Positive` | >1 → чаще низкие линии триггера |

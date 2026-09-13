@@ -65,7 +65,7 @@ export function FlightScreen() {
   }, [terminal, status, gameId, reloadHistory])
 
   const potentialWin = betAmount * displayK
-  const minCashout = 1.2
+  const minCashout = 1.01
   const cashoutDisabled =
     !flying || isCashoutPending || multiplier < minCashout
 

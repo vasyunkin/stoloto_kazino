@@ -141,7 +141,7 @@ class StateCashoutIntegrationTest {
     private void freezeJustBelowCrash(GameRound round) {
         BigDecimal target = round.getCrashPoint()
                 .subtract(new BigDecimal("0.0200"))
-                .max(new BigDecimal("1.2000"));
+                .max(new BigDecimal("1.0100"));
         freezeAtMultiplier(round, target);
         if (kNow(round).compareTo(round.getCrashPoint()) >= 0) {
             clock.freeze(round.getStartedAt());
@@ -256,7 +256,7 @@ class StateCashoutIntegrationTest {
         CashoutResponse cashout = orchestrator.cashout(flying.gameId(), flying.playerId());
         assertThat(cashout.serverSeed()).isEqualTo(flying.round().getServerSeed());
         // Effective K may exceed crashPoint when booster activated (crash still uses raw K).
-        assertThat(cashout.multiplierAtCashout()).isGreaterThanOrEqualTo(new BigDecimal("1.20"));
+        assertThat(cashout.multiplierAtCashout()).isGreaterThanOrEqualTo(new BigDecimal("1.01"));
 
         BigDecimal expectedWin = new BigDecimal("100")
                 .multiply(cashout.multiplierAtCashout())

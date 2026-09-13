@@ -23,7 +23,7 @@ import java.time.Instant;
  * <pre>
  *   h = HMAC-SHA256(serverSeedBytes, clientSeed + ":" + nonce)
  *   u = first52bits(h) / 2^52          // ∈ [0, 1)
- *   floor = minCrashPoint (default 1.20)
+ *   floor = minCrashPoint (default 1.00)
  *   if u &lt; instantCrashRate → crashPoint = floor
  *   else crashPoint = min(maxWin, max(floor, (1 - houseEdge) / u))
  * </pre>
@@ -170,7 +170,7 @@ public class CrashMathService {
 
     /**
      * Applies the crash-point formula given u ∈ (0, 1).
-     * Never returns below {@code math.minCrashPoint} (default 1.20).
+     * Never returns below {@code math.minCrashPoint} (default 1.00).
      */
     public BigDecimal computeCrashPoint(double u, GameConfig config) {
         GameConfig.MathConfig math = config.getMath();
