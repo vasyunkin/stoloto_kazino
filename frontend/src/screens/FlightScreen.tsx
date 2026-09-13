@@ -181,35 +181,26 @@ export function FlightScreen() {
           <span>Выигрыш:</span>
           <strong>{potentialWin.toFixed(0)} ◎</strong>
           <span className="flight-pts">★ {pointsTotal}</span>
-          {pointsDelta > 0 && <span className="flight-delta">+{pointsDelta}</span>}
+          <span className={`flight-delta${pointsDelta > 0 ? '' : ' is-empty'}`} aria-hidden={pointsDelta <= 0}>
+            {pointsDelta > 0 ? `+${pointsDelta}` : '·'}
+          </span>
         </div>
-        <motion.button
+        <button
           type="button"
-          className="cashout-btn"
+          className={`cashout-btn${
+            flying && !isCashoutPending && multiplier >= minCashout ? ' is-armed' : ''
+          }`}
           disabled={cashoutDisabled}
           {...hoverHandlers()}
           {...disabledPressHandlers(cashoutDisabled)}
           onClick={onCashout}
-          animate={
-            flying && !isCashoutPending && multiplier >= minCashout
-              ? {
-                  scale: [1, 1.03, 1],
-                  boxShadow: [
-                    '0 0 0 rgba(46,204,113,0)',
-                    '0 0 18px rgba(46,204,113,0.55)',
-                    '0 0 0 rgba(46,204,113,0)',
-                  ],
-                }
-              : { scale: 1 }
-          }
-          transition={flying && multiplier >= minCashout ? { repeat: Infinity, duration: 1.4 } : undefined}
         >
           {isCashoutPending
             ? 'Забираю…'
             : flying && multiplier < minCashout
               ? `С ${minCashout.toFixed(2)}x`
               : 'Забрать'}
-        </motion.button>
+        </button>
       </footer>
 
       {commitHash && (

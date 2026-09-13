@@ -2,19 +2,33 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   min-height: 0;
+  overflow: hidden;
+}
+
+.flight-screen > .history-strip {
+  flex: 0 0 auto;
+  max-height: 4.5rem;
+  overflow: hidden;
+}
+
+.flight-screen > .game-header {
+  flex: 0 0 auto;
 }
 
 .flight-stage {
-  flex: 1;
+  flex: 1 1 auto;
   position: relative;
-  min-height: 360px;
+  /* Avoid fighting mobile chrome: never force a huge floor on short screens */
+  min-height: min(280px, 38svh);
   border-radius: 16px;
   border: 2px solid var(--steam-copper);
   background: linear-gradient(180deg, #5a6e7a 0%, #3a4a52 45%, #2a2118 100%);
   overflow: hidden;
   box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.25);
+  /* Pixi resizeTo host — keep box size stable */
+  contain: layout size;
 }
 
 .pixi-fallback {
@@ -90,6 +104,8 @@
   text-shadow: 0 2px 0 #5a4632, 0 1px 2px rgba(0, 0, 0, 0.55), 0 0 1px #1c1712;
   line-height: 1;
   font-variant-numeric: tabular-nums;
+  min-width: 6ch;
+  text-align: center;
 }
 
 .flight-k {
@@ -105,6 +121,8 @@
   border-radius: 4px;
   background: rgba(0, 0, 0, 0.28);
   border: 1px solid rgba(196, 163, 90, 0.35);
+  min-width: 5.5ch;
+  text-align: center;
 }
 
 .flight-booster {
@@ -156,8 +174,11 @@
 }
 
 .flight-cashout-error {
-  margin-top: auto;
-  margin-bottom: 12px;
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 12px;
+  margin: 0;
   padding: 8px 12px;
   border-radius: var(--radius-plate);
   background: var(--steam-danger);
@@ -167,52 +188,80 @@
   font-size: 0.85rem;
   pointer-events: auto;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  text-align: center;
 }
 
 .flight-footer {
+  flex: 0 0 auto;
   display: grid;
   grid-template-columns: 1fr 1.1fr;
   gap: 10px;
   align-items: stretch;
+  min-height: 64px;
 }
 
 .flight-stats {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 6px 10px;
-  padding: 12px 14px;
+  gap: 6px 8px;
+  padding: 12px 12px;
   border-radius: var(--radius-plate);
   background: linear-gradient(180deg, #5a4a38 0%, var(--steam-soot) 100%);
   border: 2px solid var(--steam-copper);
   font-weight: 700;
   color: var(--steam-parchment);
+  min-height: 56px;
+  overflow: hidden;
+}
+
+.flight-stats strong {
+  font-family: var(--steam-font-meter);
+  font-variant-numeric: tabular-nums;
+  min-width: 4.5ch;
 }
 
 .flight-pts {
   margin-left: auto;
   font-family: var(--steam-font-meter);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .flight-delta {
   color: var(--steam-gold);
   font-family: var(--steam-font-meter);
+  font-variant-numeric: tabular-nums;
+  min-width: 2.75ch;
+  text-align: right;
+  opacity: 1;
+}
+
+.flight-delta.is-empty {
+  opacity: 0;
 }
 
 .cashout-btn {
   min-height: 56px;
+  width: 100%;
   border: 2px solid #6a9b7a;
   border-radius: var(--radius-plate);
   background: linear-gradient(180deg, #5a8f72 0%, var(--steam-safe) 55%, #2a4f3a 100%);
   color: #f3ebe0;
   font-family: var(--steam-font-display);
-  font-size: 1.15rem;
+  font-size: 1.05rem;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.03em;
   cursor: pointer;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  /* Prevent label length from stretching the grid cell oddly */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 10px;
+  transform: translateZ(0);
 }
 
 .cashout-btn:disabled {
@@ -220,10 +269,52 @@
   cursor: default;
 }
 
+/* Glow only — no scale (scale was resizing the flex stage on some mobile browsers) */
+.cashout-btn.is-armed {
+  animation: cashout-glow 1.4s ease-in-out infinite;
+}
+
+@keyframes cashout-glow {
+  0%,
+  100% {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.2),
+      0 0 0 rgba(46, 204, 113, 0);
+  }
+  50% {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.2),
+      0 0 16px rgba(90, 143, 114, 0.55);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cashout-btn.is-armed {
+    animation: none;
+  }
+}
+
 .flight-commit {
+  flex: 0 0 auto;
   margin: 0;
   text-align: center;
-  font-size: 0.7rem;
+  font-size: 0.65rem;
+  line-height: 1.2;
+  min-height: 1.2em;
   color: rgba(243, 235, 224, 0.55);
   font-family: var(--steam-font-meter);
+}
+
+@media (max-height: 700px) {
+  .flight-screen > .history-strip {
+    display: none;
+  }
+
+  .flight-stage {
+    min-height: 0;
+  }
+
+  .flight-commit {
+    display: none;
+  }
 }

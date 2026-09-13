@@ -12,6 +12,7 @@ body,
 }
 
 body {
+  min-height: 100svh;
   min-height: 100dvh;
   color: var(--text-inv);
   background:
@@ -21,20 +22,30 @@ body {
   font-family: var(--steam-font-body);
   line-height: 1.45;
   -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
 }
 
 .app-shell {
   max-width: 430px;
   margin: 0 auto;
+  min-height: 100svh;
   min-height: 100dvh;
   padding: max(10px, env(safe-area-inset-top)) 14px max(14px, env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
 }
 
+/*
+ * Mobile URL-bar show/hide changes 100dvh and was reflowing Flight (stage + cashout pulse).
+ * Lock flight/result to small viewport height so the canvas size stays stable.
+ */
 .app-shell.phase-flight,
 .app-shell.phase-result {
   background: transparent;
+  height: 100svh;
+  max-height: 100svh;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* Shared steampunk chrome — V1 */
