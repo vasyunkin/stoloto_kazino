@@ -2,17 +2,20 @@ import { motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 import { ApiError } from '../api/client'
 import type { BalloonType } from '../api/types'
+import { AlbumBanner } from '../components/AlbumBanner'
 import { Header } from '../components/Header'
 import { HelpModal } from '../components/HelpModal'
 import { HistoryStrip } from '../components/HistoryStrip'
 import { LeaderboardBanner } from '../components/LeaderboardBanner'
 import { LeaderboardSheet } from '../components/LeaderboardSheet'
+import { PuzzleAlbumSheet } from '../components/PuzzleAlbumSheet'
 import { ThemeCards } from '../components/ThemeCards'
 import { playClickSfx } from '../audio/clickSfx'
 import { useGameHistory } from '../hooks/useGameHistory'
 import { demoDeposit, ensureWallet } from '../hooks/wallet'
 import { useGameStore } from '../stores/gameStore'
 import { usePlayerStore } from '../stores/playerStore'
+import { usePuzzleAlbumStore } from '../stores/puzzleAlbumStore'
 import './HubScreen.css'
 
 export function HubScreen() {
@@ -27,7 +30,13 @@ export function HubScreen() {
   const [error, setError] = useState<string | null>(null)
   const [helpOpen, setHelpOpen] = useState(false)
   const [lbOpen, setLbOpen] = useState(false)
+  const [albumOpen, setAlbumOpen] = useState(false)
   const [depositBusy, setDepositBusy] = useState(false)
+  const loadAlbum = usePuzzleAlbumStore((s) => s.loadForPlayer)
+
+  useEffect(() => {
+    loadAlbum(playerId)
+  }, [playerId, loadAlbum])
 
   useEffect(() => {
     let cancelled = false
@@ -101,7 +110,10 @@ export function HubScreen() {
 
       <section className="hub-main">
         <ThemeCards selected={balloonType} onSelect={onSelectTheme} />
-        <LeaderboardBanner onOpen={() => setLbOpen(true)} />
+        <div className="hub-entries">
+          <AlbumBanner onOpen={() => setAlbumOpen(true)} />
+          <LeaderboardBanner onOpen={() => setLbOpen(true)} />
+        </div>
 
         <div className="hub-wallet">
           <button
@@ -121,6 +133,7 @@ export function HubScreen() {
 
       <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
       <LeaderboardSheet open={lbOpen} onClose={() => setLbOpen(false)} />
+      <PuzzleAlbumSheet open={albumOpen} onClose={() => setAlbumOpen(false)} />
     </div>
   )
 }

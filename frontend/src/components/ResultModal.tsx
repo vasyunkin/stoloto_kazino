@@ -12,6 +12,7 @@ interface ResultModalProps {
   pointsTotal: number
   puzzlePieceIndex: number | null
   onAgain: () => void
+  onOpenAlbum?: () => void
 }
 
 export function ResultModal({
@@ -23,6 +24,7 @@ export function ResultModal({
   pointsTotal,
   puzzlePieceIndex,
   onAgain,
+  onOpenAlbum,
 }: ResultModalProps) {
   const win = status === 'CASHED_OUT'
   const crash = status === 'CRASHED'
@@ -95,16 +97,30 @@ export function ResultModal({
               </div>
             )}
 
-            <button
-              type="button"
-              className="result-again"
-              onClick={() => {
-                playClickSfx()
-                onAgain()
-              }}
-            >
-              Играть снова
-            </button>
+            <div className="result-actions">
+              {showPuzzle && onOpenAlbum && (
+                <button
+                  type="button"
+                  className="result-album"
+                  onClick={() => {
+                    playClickSfx()
+                    onOpenAlbum()
+                  }}
+                >
+                  В альбом
+                </button>
+              )}
+              <button
+                type="button"
+                className="result-again"
+                onClick={() => {
+                  playClickSfx()
+                  onAgain()
+                }}
+              >
+                Играть снова
+              </button>
+            </div>
           </motion.div>
         </motion.div>
       )}

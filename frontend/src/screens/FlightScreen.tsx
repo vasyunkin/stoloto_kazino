@@ -4,6 +4,7 @@ import { playClickSfx } from '../audio/clickSfx'
 import { Header } from '../components/Header'
 import { HelpModal } from '../components/HelpModal'
 import { HistoryStrip } from '../components/HistoryStrip'
+import { PuzzleAlbumSheet } from '../components/PuzzleAlbumSheet'
 import { ResultModal } from '../components/ResultModal'
 import { requestCashout } from '../hooks/cashout'
 import { markFlightOnboardingSeen, shouldShowFlightOnboarding } from '../hooks/onboarding'
@@ -14,11 +15,13 @@ import { ensureWallet } from '../hooks/wallet'
 import { BalloonStage } from '../pixi/BalloonStage'
 import { useGameStore } from '../stores/gameStore'
 import { usePlayerStore } from '../stores/playerStore'
+import { usePuzzleAlbumStore } from '../stores/puzzleAlbumStore'
 import './FlightScreen.css'
 
 /** F5/F6 — cashout, result, history strip, one-shot onboarding. */
 export function FlightScreen() {
   const balance = usePlayerStore((s) => s.balance)
+  const playerId = usePlayerStore((s) => s.playerId)
   const gameId = useGameStore((s) => s.gameId)
   const status = useGameStore((s) => s.status)
   const betAmount = useGameStore((s) => s.betAmount)
@@ -32,6 +35,7 @@ export function FlightScreen() {
   const puzzlePieceIndex = useGameStore((s) => s.puzzlePieceIndex)
   const multiplier = useGameStore((s) => s.multiplier)
   const resetToHub = useGameStore((s) => s.resetToHub)
+  const collectPiece = usePuzzleAlbumStore((s) => s.collectPiece)
 
   const flying = status === 'FLYING'
   const terminal = status === 'CRASHED' || status === 'CASHED_OUT' || status === 'VOID'
@@ -43,6 +47,8 @@ export function FlightScreen() {
   const [showHint, setShowHint] = useState(() => shouldShowFlightOnboarding())
   const [cashoutError, setCashoutError] = useState<string | null>(null)
   const [resultOpen, setResultOpen] = useState(false)
+  const [albumOpen, setAlbumOpen] = useState(false)
+  const [albumFocus, setAlbumFocus] = useState<number | null>(null)
 
   useEffect(() => {
     if (!flying || !showHint) return
@@ -64,6 +70,13 @@ export function FlightScreen() {
     void reloadHistory()
     return () => window.clearTimeout(t)
   }, [terminal, status, gameId, reloadHistory])
+
+  // Spec 5 V4 — persist puzzle fragment on CRASHED / CASHED_OUT (not VOID)
+  useEffect(() => {
+    if (status !== 'CRASHED' && status !== 'CASHED_OUT') return
+    if (puzzlePieceIndex == null) return
+    collectPiece(playerId, puzzlePieceIndex, gameId)
+  }, [status, puzzlePieceIndex, playerId, gameId, collectPiece])
 
   const potentialWin = betAmount * displayK
   const minCashout = 1.01
@@ -169,7 +182,7 @@ export function FlightScreen() {
       )}
 
       <ResultModal
-        open={resultOpen && terminal}
+        open={resultOpen && terminal && !albumOpen}
         status={status}
         betAmount={betAmount}
         multiplier={multiplier}
@@ -177,6 +190,19 @@ export function FlightScreen() {
         pointsTotal={pointsTotal}
         puzzlePieceIndex={puzzlePieceIndex}
         onAgain={resetToHub}
+        onOpenAlbum={() => {
+          setAlbumFocus(puzzlePieceIndex)
+          setAlbumOpen(true)
+        }}
+      />
+
+      <PuzzleAlbumSheet
+        open={albumOpen}
+        focusSlot={albumFocus}
+        onClose={() => {
+          setAlbumOpen(false)
+          setAlbumFocus(null)
+        }}
       />
 
       <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />

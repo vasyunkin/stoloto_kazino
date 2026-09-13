@@ -1,0 +1,137 @@
+.album-backdrop {
+  z-index: 55;
+}
+
+.album-panel {
+  max-height: min(82dvh, 640px);
+}
+
+.album-progress {
+  margin: 0 0 10px;
+  font-weight: 700;
+  color: var(--steam-parchment-ink);
+}
+
+.album-progress strong {
+  font-size: 1.15rem;
+  color: var(--steam-copper);
+}
+
+.album-empty {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-plate);
+  border: 1px dashed rgba(184, 115, 51, 0.55);
+  background: rgba(42, 33, 24, 0.06);
+  color: var(--muted);
+  font-weight: 600;
+  text-align: center;
+}
+
+.album-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+
+.album-slot {
+  aspect-ratio: 1;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  position: relative;
+  border-radius: 8px;
+  border: 1.5px dashed rgba(184, 115, 51, 0.45);
+  background: rgba(42, 33, 24, 0.05);
+  cursor: default;
+  padding: 0;
+  color: var(--muted);
+}
+
+.album-slot.is-filled {
+  border-style: solid;
+  border-color: var(--steam-copper);
+  background: linear-gradient(145deg, #f5e6b8, #e8c98a);
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.album-slot.is-focus {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 0 0 2px rgba(196, 163, 90, 0.55);
+}
+
+.album-slot-piece {
+  position: absolute;
+  inset: 6px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, var(--steam-lucky-accent), var(--steam-lucky-fill));
+  clip-path: polygon(0 18%, 40% 0, 72% 16%, 100% 6%, 100% 100%, 0 100%);
+  opacity: 0.9;
+}
+
+.album-slot-num {
+  position: relative;
+  z-index: 1;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--steam-parchment-ink);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+.album-slot-empty {
+  font-size: 1rem;
+  opacity: 0.45;
+}
+
+.album-preview {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: 48px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border-radius: var(--radius-plate);
+  border: 2px solid var(--steam-copper);
+  background: linear-gradient(135deg, #f5e6b8, #e8c98a);
+}
+
+.album-preview-piece {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--steam-lucky-accent), var(--steam-lucky-fill));
+  border: 1px solid var(--steam-copper);
+  clip-path: polygon(0 18%, 40% 0, 72% 16%, 100% 6%, 100% 100%, 0 100%);
+}
+
+.album-preview strong {
+  display: block;
+  font-family: var(--steam-font-display);
+  color: var(--steam-parchment-ink);
+}
+
+.album-preview p {
+  margin: 2px 0 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.album-preview-close {
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--steam-copper);
+  border-radius: var(--radius-plate);
+  background: var(--steam-parchment);
+  color: var(--steam-parchment-ink);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+@media (max-width: 360px) {
+  .album-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}

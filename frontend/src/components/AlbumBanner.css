@@ -1,0 +1,54 @@
+.album-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 2px solid var(--steam-copper);
+  border-radius: var(--radius-card);
+  background: linear-gradient(180deg, #efe4cc 0%, var(--steam-parchment) 100%);
+  box-shadow: var(--shadow-card);
+  text-align: left;
+  cursor: pointer;
+  color: var(--steam-parchment-ink);
+}
+
+.album-banner-icon {
+  position: relative;
+  flex: 0 0 48px;
+  height: 48px;
+  border-radius: var(--radius-plate);
+  background: linear-gradient(160deg, #5a4a38, var(--steam-soot));
+  border: 1px solid var(--steam-copper);
+  display: grid;
+  place-items: center;
+}
+
+.album-banner-piece {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, var(--steam-lucky-accent), var(--steam-lucky-fill));
+  clip-path: polygon(0 18%, 40% 0, 72% 16%, 100% 6%, 100% 100%, 0 100%);
+  border: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+.album-banner-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.album-banner-copy strong {
+  font-size: 1rem;
+  font-family: var(--steam-font-display);
+}
+
+.album-banner-copy span {
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-weight: 600;
+  line-height: 1.25;
+  font-family: var(--steam-font-meter);
+}

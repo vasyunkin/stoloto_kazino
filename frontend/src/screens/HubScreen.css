@@ -79,6 +79,12 @@
   padding-bottom: 8px;
 }
 
+.hub-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .hub-wallet {
   display: flex;
   flex-direction: column;
