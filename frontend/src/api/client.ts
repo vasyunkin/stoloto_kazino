@@ -19,6 +19,7 @@ export class ApiError extends Error {
 export interface RequestOptions {
   method?: string
   playerId?: string
+  accessToken?: string
   body?: unknown
   signal?: AbortSignal
 }
@@ -32,6 +33,9 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   }
   if (options.playerId) {
     headers['X-Player-Id'] = options.playerId
+  }
+  if (options.accessToken) {
+    headers['Authorization'] = `Bearer ${options.accessToken}`
   }
 
   const res = await fetch(`${API_BASE}${path}`, {

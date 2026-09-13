@@ -3,15 +3,18 @@ package com.stoloto.balloongame.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.stoloto.balloongame.api.dto.ConfigHistoryItemResponse;
 import com.stoloto.balloongame.api.exception.GameException;
 import com.stoloto.balloongame.config.GameConfig;
 import com.stoloto.balloongame.domain.entity.ConfigSnapshotEntity;
 import com.stoloto.balloongame.domain.repository.ConfigSnapshotRepository;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -79,6 +82,27 @@ public class ConfigService {
         }
         update(merged);
         return getSnapshot();
+    }
+
+    @Transactional(readOnly = true)
+    public List<ConfigHistoryItemResponse> listHistory(int limit) {
+        int capped = Math.min(Math.max(limit, 1), 100);
+        return snapshotRepository.findAllByOrderByAppliedAtDesc(PageRequest.of(0, capped))
+                .stream()
+                .map(s -> new ConfigHistoryItemResponse(
+                        s.getId(),
+                        s.getAppliedAt(),
+                        s.getAppliedBy(),
+                        truncate(s.getPayload(), 200)
+                ))
+                .toList();
+    }
+
+    private static String truncate(String payload, int max) {
+        if (payload == null) {
+            return "";
+        }
+        return payload.length() <= max ? payload : payload.substring(0, max);
     }
 
     private void validate(GameConfig config) {

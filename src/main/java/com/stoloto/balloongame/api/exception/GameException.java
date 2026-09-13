@@ -84,4 +84,24 @@ public class GameException extends RuntimeException {
         return new GameException(ErrorCode.NO_BOOSTER_CHARGES,
                 "No booster charges left — choose NONE or deposit for more", HttpStatus.BAD_REQUEST);
     }
+
+    public static GameException authInvalidCredentials() {
+        return new GameException(ErrorCode.AUTH_INVALID_CREDENTIALS,
+                "Invalid username or password", HttpStatus.UNAUTHORIZED);
+    }
+
+    public static GameException authDisabled() {
+        return new GameException(ErrorCode.AUTH_DISABLED,
+                "Admin account is disabled", HttpStatus.FORBIDDEN);
+    }
+
+    public static GameException authTokenExpired() {
+        return new GameException(ErrorCode.AUTH_TOKEN_EXPIRED,
+                "Access token expired", HttpStatus.UNAUTHORIZED);
+    }
+
+    public static GameException authUnauthorized() {
+        return new GameException(ErrorCode.AUTH_UNAUTHORIZED,
+                "Unauthorized", HttpStatus.UNAUTHORIZED);
+    }
 }

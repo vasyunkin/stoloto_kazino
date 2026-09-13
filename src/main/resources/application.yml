@@ -132,6 +132,12 @@ game:
   # Admin & wallet limits (fallback; themes override min/max bet + maxWin)
   admin:
     api-key: ${GAME_ADMIN_KEY:change-me-in-prod}
+    jwt-secret: ${ADMIN_JWT_SECRET:change-me-jwt-secret-use-long-value-32b}
+    access-token-ttl: 20m
+    refresh-token-ttl: 14d
+    legacy-api-key-enabled: true
+    bootstrap-username: ${ADMIN_BOOTSTRAP_USER:admin}
+    bootstrap-password: ${ADMIN_BOOTSTRAP_PASSWORD:admin}
     min-bet-amount: 10.0
     max-bet-amount: 10000.0
     min-win-amount: 50.0

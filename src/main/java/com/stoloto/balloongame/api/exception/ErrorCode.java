@@ -15,6 +15,10 @@ public enum ErrorCode {
     ROUND_NOT_TERMINAL,      // verify called before round ended
     ROUND_EXPIRED,           // FLYING cache miss / recovered VOID — 410
     CONFIG_VALIDATION_FAILED,
+    AUTH_INVALID_CREDENTIALS,
+    AUTH_DISABLED,
+    AUTH_TOKEN_EXPIRED,
+    AUTH_UNAUTHORIZED,
     FORBIDDEN,
     VALIDATION_ERROR,
     RATE_LIMITED,            // 429 — start/cashout spam (optional filter)

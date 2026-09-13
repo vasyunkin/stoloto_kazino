@@ -130,9 +130,10 @@ class AdminConfigIntegrationTest {
     }
 
     @Test
-    void getConfig_withoutKey_returns403() throws Exception {
+    void getConfig_withoutKey_returns401() throws Exception {
         mockMvc.perform(get("/api/admin/config"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTH_UNAUTHORIZED"));
     }
 
     @Test

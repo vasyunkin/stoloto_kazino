@@ -9,7 +9,7 @@
 
 1. `docker compose up --build`
 2. Health: `http://localhost:8080/actuator/health` → `UP`
-3. Swagger → **Authorize**: PlayerId=`demo`, AdminKey=`change-me-in-prod`
+3. Swagger → **Authorize**: PlayerId=`demo`. Админка: UI `/admin` (`admin`/`admin`) или Bearer / AdminKey
 4. `POST /api/players/demo/deposit` → `{"amount": 1000}`
 5. `POST /api/game/start` → скопировать `gameId`
 6. Poll `GET /api/game/state/{gameId}` каждые **100–250 ms**
@@ -49,7 +49,7 @@ Partial merge JSON. Ключ админки в JSON **не** отдаётся и
 
 ```http
 PUT /api/admin/config
-X-Admin-Key: change-me-in-prod
+Authorization: Bearer <accessToken>
 Content-Type: application/json
 
 {"math":{"growthRate":0.08},"admin":{"allowDeposit":false}}

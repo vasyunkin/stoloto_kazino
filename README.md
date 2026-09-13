@@ -42,10 +42,11 @@ docker compose up --build
 | Поверхность | URL |
 |-------------|-----|
 | **Игра (UI)** | [http://localhost:3000](http://localhost:3000) |
+| **Админ-панель** | [http://localhost:3000/admin](http://localhost:3000/admin) — логин `admin` / `admin` |
 | **Health API** | [http://localhost:8080/actuator/health](http://localhost:8080/actuator/health) |
-| **Админка / OpenAPI** | [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html) |
+| **Swagger (API)** | [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html) |
 
-> **Отдельной страницы `/admin` нет.** Баланс параметров крутится через Swagger → Authorize → `AdminKey` = `change-me-in-prod` → `GET`/`PUT /api/admin/config`. Подробнее в [§6](#6-конфиг-и-админка).
+> Веб-админка — основной способ крутить баланс для жюри. Тот же конфиг доступен через Swagger (`Bearer` после login или legacy `X-Admin-Key`). Подробности в [§6](#6-конфиг-и-админка).
 
 ### Видео для жюри
 
@@ -94,7 +95,7 @@ docs/presentation.pdf   ← опционально слайды для жюри
 | **DevOps** | Docker + Docker Compose (postgres · backend · frontend/nginx) |
 | **Контракт** | springdoc OpenAPI / Swagger UI |
 
-Игрок: заголовок `X-Player-Id`. Админ: `X-Admin-Key`. Формы логина Spring Security нет (удобно для хакатона).
+Игрок: заголовок `X-Player-Id`. Админ: JWT (`POST /api/admin/auth/login`) или dual-mode `X-Admin-Key`. UI: `/admin`.
 
 ---
 
@@ -207,8 +208,9 @@ docker compose up --build
 | Сервис | URL |
 |--------|-----|
 | Игра | http://localhost:3000 |
+| Админка | http://localhost:3000/admin (`admin` / `admin`) |
 | API | http://localhost:8080 |
-| Swagger (админ + player API) | http://localhost:8080/swagger-ui.html |
+| Swagger | http://localhost:8080/swagger-ui.html |
 
 Стоп: `Ctrl+C`, при необходимости `docker compose down`. Данные Postgres: volume `postgres-data`.
 
@@ -246,10 +248,35 @@ SPRING_DATASOURCE_PASSWORD=balloon \
 
 ## 6. Конфиг и админка
 
-**Эндпоинты:** `GET` / `PUT /api/admin/config`  
-**Авторизация:** заголовок `X-Admin-Key: change-me-in-prod` (Swagger → Authorize → AdminKey)  
-**Merge:** частичный JSON; ключ админки в JSON **не** отдаётся и через PUT **не** меняется  
-**Летящие раунды:** живут на снимке конфига со **start** — новый α только для **новых** раундов  
+### Веб-админка (для жюри)
+
+| | |
+|--|--|
+| **URL** | [http://localhost:3000/admin](http://localhost:3000/admin) |
+| **Логин** | `admin` |
+| **Пароль** | `admin` |
+| Env override | `ADMIN_BOOTSTRAP_USER` / `ADMIN_BOOTSTRAP_PASSWORD` в `docker-compose` / `.env` |
+
+После входа: JSON runtime-конфига → правьте → **Save**. Летящие раунды **не** меняются; новый α только у следующих стартов.
+
+**Сброс пароля / «забыл admin»:**
+
+1. Остановить стек: `docker compose down`  
+2. Удалить данные Postgres (сбросит и игроков, и админа): `docker compose down -v`  
+   либо только volume `postgres-data`  
+3. Задать новый пароль в env (опционально) и снова `docker compose up --build` — bootstrap создаст админа заново, если таблица пуста  
+
+Альтернатива без wipe: сменить hash в БД / вызвать change-password API после логина (когда доступен).
+
+### API (Swagger / автоматизация)
+
+| | |
+|--|--|
+| Эндпоинты | `GET` / `PUT /api/admin/config` |
+| Auth (цель) | `Authorization: Bearer <accessToken>` после `POST /api/admin/auth/login` |
+| Legacy | `X-Admin-Key: change-me-in-prod` (Swagger Authorize → AdminKey), пока dual-режим включён |
+| Merge | частичный JSON; секреты в ответе GET **не** отдаются |
+| Ошибки | невалидный конфиг (например `growthRate: -5`) → **400** + код ошибки, не 500 |
 
 ### Параметры с сильным эффектом
 
@@ -268,11 +295,11 @@ SPRING_DATASOURCE_PASSWORD=balloon \
 | `admin.allowDeposit` | `true` | Демо-пополнение (+ заряд бустера) |
 | `admin.maxWinMultiplier` | `100` | Потолок (тема может снизить) |
 
-Пример горячего тюнинга (медленнее рост):
+Пример через API:
 
 ```http
 PUT /api/admin/config
-X-Admin-Key: change-me-in-prod
+Authorization: Bearer <accessToken>
 Content-Type: application/json
 
 {
@@ -284,7 +311,7 @@ Content-Type: application/json
 }
 ```
 
-Полная таблица и чеклист жюри: **[docs/expert-guide.md](docs/expert-guide.md)**. Дефолты: `src/main/resources/application.yml`.
+Полная таблица: **[docs/expert-guide.md](docs/expert-guide.md)**. Дефолты: `src/main/resources/application.yml`.
 
 ---
 
@@ -334,6 +361,7 @@ CONNECT с native-header `X-Player-Id` → подписка `/topic/game/{gameId
 - [x] MVP backend — crash math, ledger, PF, admin config, STOMP  
 - [x] Frontend — Hub → Prefight → Flight → Result  
 - [x] Steampunk UI — chrome, корзины, Pixi-полёт, альбом, SFX  
+- [x] Админ-панель — JWT login + JSON editor конфига (`/admin`)  
 - [ ] Опционально: demo GIF + слайды жюри в `docs/`  
 - [ ] Опционально: серверный альбом пазла (синхронизация между устройствами)  
 - [ ] Stretch: PWA / installable mobile  

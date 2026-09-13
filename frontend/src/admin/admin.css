@@ -1,0 +1,172 @@
+.admin-body {
+  background: #f3f5f8 !important;
+  color: #1c2430;
+  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+
+.admin-root {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-shell {
+  width: min(960px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 24px 0 48px;
+}
+
+.admin-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.admin-header h1 {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 650;
+  color: #152033;
+}
+
+.admin-muted {
+  color: #5b6573;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.admin-card {
+  background: #ffffff;
+  border: 1px solid #d7dde6;
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: 0 8px 24px rgba(21, 32, 51, 0.06);
+}
+
+.admin-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.85rem;
+  color: #3d4754;
+}
+
+.admin-input,
+.admin-editor {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #c5ced8;
+  border-radius: 8px;
+  background: #fbfcfe;
+  color: #152033;
+  padding: 10px 12px;
+  font-size: 0.95rem;
+}
+
+.admin-input:focus,
+.admin-editor:focus {
+  outline: 2px solid #3d7ea6;
+  outline-offset: 1px;
+}
+
+.admin-editor {
+  min-height: 420px;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.admin-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.admin-btn {
+  min-height: 40px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 8px;
+  background: #2f6f94;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.admin-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.admin-btn.secondary {
+  background: #e8edf2;
+  color: #1c2430;
+}
+
+.admin-btn.danger {
+  background: #c24752;
+  color: #fff;
+}
+
+.admin-alert {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 0.92rem;
+}
+
+.admin-alert.error {
+  background: #fdecee;
+  color: #8a2430;
+}
+
+.admin-alert.ok {
+  background: #e7f6ec;
+  color: #21643a;
+}
+
+.admin-login {
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.admin-login .admin-card {
+  width: min(380px, 100%);
+}
+
+.admin-field {
+  margin-bottom: 14px;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  margin-top: 10px;
+}
+
+.admin-table th,
+.admin-table td {
+  text-align: left;
+  padding: 8px 6px;
+  border-bottom: 1px solid #e2e7ee;
+  vertical-align: top;
+}
+
+.admin-table th {
+  color: #5b6573;
+  font-weight: 600;
+}
+
+.admin-preview {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 11px;
+  color: #4b5563;
+  word-break: break-all;
+}
