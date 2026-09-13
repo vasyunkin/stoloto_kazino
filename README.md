@@ -1,6 +1,6 @@
-# AeroQuest — Victorian Steampunk Crash Game
+# Воздушный Шар — Victorian Steampunk Crash
 
-**Воздушный Шар** · Hot-air balloon crash · Provably fair · Real-time · Steampunk UI
+**AeroQuest** · Crash на аэростате · Provably Fair · Real-time · Steampunk UI
 
 [![Java](https://img.shields.io/badge/Java-21-ED8B00?logo=openjdk&logoColor=white)](https://openjdk.org/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4-6DB33F?logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
@@ -8,114 +8,114 @@
 [![PixiJS](https://img.shields.io/badge/PixiJS-8-E72264?logo=javascript&logoColor=white)](https://pixijs.com/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
 [![Version](https://img.shields.io/badge/version-0.0.1--SNAPSHOT-informational)](pom.xml)
-[![Verify](https://img.shields.io/badge/tests-mvn%20verify-success)](#7-getting-started)
+[![Verify](https://img.shields.io/badge/tests-mvn%20verify-success)](#5-быстрый-старт)
 
-> High-performance bonus **crash** game with Victorian Steampunk aesthetics, real-time STOMP WebSocket updates, server-authoritative math, and provably fair mechanics — plus a client-side puzzle album.
+> Высокопроизводительная **crash**-игра в эстетике Victorian Steampunk: серверная математика, STOMP WebSocket в реальном времени, provably fair и клиентский альбом пазла.
 
-**Docs for jury / tuning:** [docs/expert-guide.md](docs/expert-guide.md) · Frontend notes: [frontend/README.md](frontend/README.md) · Specs: `.specs/`
-
----
-
-## Table of contents
-
-1. [Demo & visuals](#2-demo--visuals)
-2. [About the project](#4-about-the-project)
-3. [Key features](#5-key-features)
-4. [Architecture](#6-architecture--tech-deep-dive)
-5. [Getting started](#7-getting-started)
-6. [Configuration & admin](#8-configuration--admin-guide)
-7. [API documentation](#9-api-documentation)
-8. [Roadmap](#10-roadmap)
-9. [Contributing & license](#11-contributing--license)
-10. [Acknowledgments](#12-acknowledgments)
+**Для жюри / тюнинга:** [docs/expert-guide.md](docs/expert-guide.md) · Фронт: [frontend/README.md](frontend/README.md) · Спеки: `.specs/`
 
 ---
 
-## 2. Demo & visuals
+## Оглавление
 
-### One-minute run
+1. [Демо и визуал](#1-демо-и-визуал)
+2. [О проекте](#2-о-проекте)
+3. [Ключевые особенности](#3-ключевые-особенности)
+4. [Архитектура](#4-архитектура)
+5. [Быстрый старт](#5-быстрый-старт)
+6. [Конфиг и админка](#6-конфиг-и-админка)
+7. [API](#7-api)
+8. [Roadmap](#8-roadmap)
+9. [Участие и лицензия](#9-участие-и-лицензия)
+10. [Благодарности](#10-благодарности)
+
+---
+
+## 1. Демо и визуал
+
+### Запуск за одну минуту
 
 ```bash
 docker compose up --build
 ```
 
-Then open **[http://localhost:3000](http://localhost:3000)** — play Hub → theme baskets → Prefight → Flight → Result → Album.
+Откройте **[http://localhost:3000](http://localhost:3000)** — Hub → выбор темы (корзины) → Prefight → полёт → результат → альбом.
 
-| Surface | URL |
-|---------|-----|
-| **Game UI** | [http://localhost:3000](http://localhost:3000) |
-| **API health** | [http://localhost:8080/actuator/health](http://localhost:8080/actuator/health) |
-| **Admin / OpenAPI** | [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html) |
+| Поверхность | URL |
+|-------------|-----|
+| **Игра (UI)** | [http://localhost:3000](http://localhost:3000) |
+| **Health API** | [http://localhost:8080/actuator/health](http://localhost:8080/actuator/health) |
+| **Админка / OpenAPI** | [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html) |
 
-> **Admin is not a separate `/admin` page.** Runtime balance is tuned via Swagger → Authorize → `AdminKey` = `change-me-in-prod` → `GET`/`PUT /api/admin/config`. See [§8](#8-configuration--admin-guide).
+> **Отдельной страницы `/admin` нет.** Баланс параметров крутится через Swagger → Authorize → `AdminKey` = `change-me-in-prod` → `GET`/`PUT /api/admin/config`. Подробнее в [§6](#6-конфиг-и-админка).
 
-### Visual walkthrough (for the jury)
+### Видео для жюри
 
-Drop a short screen recording / GIF here before the pitch (recommended ~20–40 s):
+Перед питчем положите короткий скринкаст / GIF (~20–40 с):
 
-1. Hub — swaying LUCKY / STANDARD aerostat baskets  
-2. Flight — map-toned sky, altimeter K, steam booster flash  
-3. Crash or cashout → Result parchment + puzzle fragment  
-4. Album — 24-slot map collection  
+1. Hub — покачивающиеся корзины LUCKY / STANDARD  
+2. Полёт — карта-небо, альтиметр K, вспышка пара на бустере  
+3. Краш или «Забрать» → пергаментный Result + фрагмент пазла  
+4. Альбом — сетка 24 слота  
 
 ```text
-docs/demo.gif          ← add recording
-docs/presentation.pdf  ← optional jury slides
+docs/demo.gif           ← запись экрана
+docs/presentation.pdf   ← опционально слайды для жюри
 ```
 
-<!-- Example once the file exists:
-![AeroQuest demo](docs/demo.gif)
+<!-- Когда файл появится:
+![Демо Воздушный Шар](docs/demo.gif)
 -->
 
-**Live demo:** use the Docker stack above (or paste your tunnel / Cloudflare URL here when deployed).
+**Live demo:** Docker-стек выше (или вставьте сюда URL туннеля / Cloudflare, когда задеплоите).
 
 ---
 
-## 4. About the project
+## 2. О проекте
 
-### The problem
+### Проблема
 
-Bonus / crash games often feel like **generic casino UI**: flat multipliers, no identity, no reason to return after the first cashout. Visuals and collection loops are usually an afterthought.
+Обычные бонусные / crash-игры часто выглядят как **безликое казино**: плоские множители, нет характера, нет причины вернуться после первого cashout. Визуал и коллекция — вторичны.
 
-### The solution
+### Решение
 
-**AeroQuest** wraps classic crash math in a **Victorian Steampunk adventure**:
+**Воздушный Шар** оборачивает классическую crash-математику в **викторианское steampunk-приключение**:
 
-- Distinct **red (LUCKY)** vs **green (STANDARD)** aerostats — silhouette + economy differ  
-- **Immersive flight** (PixiJS) with map atmosphere, altimeter readout, burner/steam VFX  
-- **Puzzle album** — fragments awarded on terminal rounds, persisted in `localStorage`  
-- **Hot admin config** — change α, house edge, themes, boosters **without redeploy**  
-- **Provably fair** — crash & seed committed at start; reveal only after the round ends  
+- Чёткие **красный (LUCKY)** и **зелёный (STANDARD)** аэростаты — разный силуэт и экономика  
+- **Иммерсивный полёт** (PixiJS): атмосфера карты, альтиметр, VFX горелки/пара  
+- **Альбом пазла** — фрагменты после терминальных раундов, `localStorage`  
+- **Горячий админ-конфиг** — α, house edge, темы, бустеры **без редеплоя**  
+- **Provably Fair** — краш и seed фиксируются на старте; раскрытие только после конца раунда  
 
-### Built with
+### Стек
 
-| Layer | Stack |
-|-------|--------|
+| Слой | Технологии |
+|------|------------|
 | **Backend** | Java **21**, Spring Boot **3.4**, Spring WebSocket (STOMP), JPA, Flyway, PostgreSQL **16** |
 | **Frontend** | React **19**, TypeScript, Vite, **PixiJS 8**, Framer Motion, Zustand, `@stomp/stompjs` |
 | **DevOps** | Docker + Docker Compose (postgres · backend · frontend/nginx) |
-| **Contract** | springdoc OpenAPI / Swagger UI |
+| **Контракт** | springdoc OpenAPI / Swagger UI |
 
-Player identity: header `X-Player-Id`. Admin: header `X-Admin-Key`. No Spring Security login form (hackathon-friendly).
-
----
-
-## 5. Key features
-
-| | Feature | Why it matters |
-|---|---------|----------------|
-| Immersive gameplay | Server-clock \(K(t)=e^{αt}\), Pixi flight, STOMP ticks + REST poll fallback | Smooth real-time feel without trusting the client for crash |
-| Steampunk UI | Parchment / brass chrome, theme baskets, meter font for K, themed SFX | Instant visual identity for the jury |
-| Collection | 24-slot puzzle album (`balloon.puzzleAlbum.{playerId}`) | Retention loop **without** new backend APIs |
-| Dual themes | STANDARD calmer α / lower bet · LUCKY faster α / higher ceiling | Real economy difference, not cosmetic only |
-| Boosters | Finite charges; AUTO consumes 1; multiplies K + points on line trigger | Extra tension mid-flight |
-| Admin control | `PUT /api/admin/config` partial JSON merge | Jury can retune balance live |
-| Provably Fair | `crash-v1` commit at start; `GET /verify` after terminal | Transparent honesty story |
-| Resilience | FLYING → VOID + refund on process restart; rate limits on start/cashout | Production-shaped edge cases |
+Игрок: заголовок `X-Player-Id`. Админ: `X-Admin-Key`. Формы логина Spring Security нет (удобно для хакатона).
 
 ---
 
-## 6. Architecture & tech deep dive
+## 3. Ключевые особенности
+
+| | Фича | Зачем это важно |
+|---|------|-----------------|
+| Геймплей | Серверный \(K(t)=e^{αt}\), Pixi-полёт, STOMP + REST poll fallback | Плавно в real-time, краш не доверяем клиенту |
+| Steampunk UI | Пергамент / латунь, корзины тем, meter-шрифт для K, тематические SFX | Сразу читается идентичность для жюри |
+| Коллекция | Альбом 24 слота (`balloon.puzzleAlbum.{playerId}`) | Retention **без** новых backend API |
+| Две темы | STANDARD — спокойнее α / ниже ставка · LUCKY — быстрее α / выше потолок | Разная экономика, не только цвет |
+| Бустеры | Конечные заряды; AUTO −1; множит K и очки на линии | Дополнительное напряжение в полёте |
+| Админка | `PUT /api/admin/config`, частичный JSON merge | Жюри крутит баланс «на горячую» |
+| Provably Fair | `crash-v1` commit на старте; `GET /verify` после терминала | Прозрачная честность |
+| Устойчивость | FLYING → VOID + refund при рестарте; rate limit на start/cashout | Продакшен-краевые случаи |
+
+---
+
+## 4. Архитектура
 
 ```mermaid
 flowchart LR
@@ -155,7 +155,7 @@ flowchart LR
   WS --> Mem
 ```
 
-### Round lifecycle
+### Жизненный цикл раунда
 
 ```mermaid
 sequenceDiagram
@@ -164,41 +164,41 @@ sequenceDiagram
   participant DB as PostgreSQL
 
   UI->>API: POST /api/game/start
-  Note over API,DB: lock wallet, debit bet,<br/>crashPoint + seed fixed, commitHash returned
-  loop STOMP ~200ms or REST poll 100–250ms
-    API-->>UI: tick PublicGameState (no crashPoint/seed)
+  Note over API,DB: lock кошелька, списание ставки,<br/>crashPoint + seed зафиксированы, commitHash в ответе
+  loop STOMP ~200ms или REST poll 100–250ms
+    API-->>UI: tick PublicGameState (без crashPoint/seed)
   end
-  alt Cashout while FLYING
+  alt Cashout пока FLYING
     UI->>API: POST /cashout
-    API-->>UI: win + optional puzzlePieceIndex
-  else K reaches crashPoint
-    API-->>UI: crash event / CRASHED state
+    API-->>UI: выигрыш + опционально puzzlePieceIndex
+  else K достиг crashPoint
+    API-->>UI: crash / статус CRASHED
   end
   UI->>API: GET /verify
-  Note over API: reveal serverSeed + crashPoint
+  Note over API: раскрытие serverSeed + crashPoint
 ```
 
-### Key decisions
+### Ключевые решения
 
-| Choice | Rationale |
-|--------|-----------|
-| **PixiJS** for flight | Canvas performance, ticker pause on hidden tab, low-detail gate on small viewports |
-| **STOMP WebSocket** | Low-latency ticks; REST `/state` remains the fallback |
-| **Server-authoritative K** | Same clock formula for all clients; crash decided at start |
-| **Config snapshot per round** | Mid-flight `PUT` admin changes do **not** move flying rounds (I8) |
-| **Album on client** | Ships collection UX without Spec-2 ledger work |
+| Выбор | Почему |
+|-------|--------|
+| **PixiJS** для полёта | Производительность canvas, pause ticker на скрытой вкладке, `lowDetail` на узких экранах |
+| **STOMP WebSocket** | Низкая задержка тиков; REST `/state` остаётся fallback |
+| **K считает сервер** | Одна формула по часам для всех клиентов; краш загадан на старте |
+| **Снимок конфига на раунд** | `PUT` админки mid-flight **не** двигает уже летящий раунд (I8) |
+| **Альбом на клиенте** | Коллекция без доработки ledger / Spec 2 |
 
 ---
 
-## 7. Getting started
+## 5. Быстрый старт
 
-### Prerequisites
+### Требования
 
-- **Docker Desktop** (ports **3000**, **8080**, **5433** free)
-- Optional for local FE HMR: **Node 20+**
-- Optional for local BE: **Java 21** + Maven wrapper (`./mvnw`)
+- **Docker Desktop** (свободны порты **3000**, **8080**, **5433**)
+- Опционально для HMR фронта: **Node 20+**
+- Опционально для локального бэка: **Java 21** + Maven wrapper (`./mvnw`)
 
-### Install & run (recommended)
+### Установка (рекомендуется)
 
 ```bash
 git clone <this-repo>
@@ -206,33 +206,33 @@ cd balloon-game
 docker compose up --build
 ```
 
-| Service | URL |
-|---------|-----|
-| Game | http://localhost:3000 |
+| Сервис | URL |
+|--------|-----|
+| Игра | http://localhost:3000 |
 | API | http://localhost:8080 |
-| Swagger (admin + player API) | http://localhost:8080/swagger-ui.html |
+| Swagger (админ + player API) | http://localhost:8080/swagger-ui.html |
 
-Stop: `Ctrl+C`, then `docker compose down` if needed. Postgres data: volume `postgres-data`.
+Стоп: `Ctrl+C`, при необходимости `docker compose down`. Данные Postgres: volume `postgres-data`.
 
-### Swagger quick path
+### Быстрый путь в Swagger
 
-1. Open Swagger → **Authorize**  
-2. **PlayerId** = `demo` (any string)  
+1. Swagger → **Authorize**  
+2. **PlayerId** = `demo` (любая строка)  
 3. **AdminKey** = `change-me-in-prod`  
 4. `POST /api/players/demo/deposit` → `{"amount": 1000}`  
-5. `POST /api/game/start` → copy real `gameId` (ignore OpenAPI sample UUIDs)  
+5. `POST /api/game/start` → скопировать реальный `gameId` (UUID из примеров OpenAPI — заглушка)  
 6. Poll state / cashout / verify  
 
-### Frontend HMR only
+### Только фронт (HMR)
 
 ```bash
 docker compose up postgres backend
 cd frontend && npm install && npm run dev
 ```
 
-UI: http://localhost:5173 (Vite proxies `/api`, `/ws`).
+UI: http://localhost:5173 (Vite проксирует `/api`, `/ws`).
 
-### Backend HMR-ish
+### Backend локально
 
 ```bash
 docker compose up postgres
@@ -242,35 +242,35 @@ SPRING_DATASOURCE_PASSWORD=balloon \
 ./mvnw spring-boot:run
 ```
 
-Tests: `./mvnw test` (Testcontainers needs Docker).
+Тесты: `./mvnw test` (Testcontainers нужен Docker).
 
 ---
 
-## 8. Configuration & admin guide
+## 6. Конфиг и админка
 
-**Endpoint:** `GET` / `PUT /api/admin/config`  
-**Auth:** header `X-Admin-Key: change-me-in-prod` (Swagger Authorize → AdminKey)  
-**Merge:** partial JSON; admin API key is **never** returned or changed via PUT  
-**Flying rounds:** keep the config snapshot from **start** — new α applies to **new** rounds only  
+**Эндпоинты:** `GET` / `PUT /api/admin/config`  
+**Авторизация:** заголовок `X-Admin-Key: change-me-in-prod` (Swagger → Authorize → AdminKey)  
+**Merge:** частичный JSON; ключ админки в JSON **не** отдаётся и через PUT **не** меняется  
+**Летящие раунды:** живут на снимке конфига со **start** — новый α только для **новых** раундов  
 
-### High-impact parameters
+### Параметры с сильным эффектом
 
-| Parameter | Default | Effect |
-|-----------|---------|--------|
-| `math.growthRate` (α) | `0.0433` | Speed of \(K(t)=e^{αt}\); themes override |
-| `themes.standard.growthRate` | `0.0367` | Calmer green climb |
-| `themes.lucky.growthRate` | `0.0567` | Faster red climb |
-| `math.houseEdge` | `0.08` | PF / crash distribution |
-| `math.instantCrashRate` | `0.08` | Chance of bust at min crash (1.00×) |
-| `math.minCrashPoint` | `1.00` | Floor for crash |
-| `math.minCashoutMultiplier` | `1.01` | Cashout blocked earlier → `CASHOUT_TOO_EARLY` |
-| `pointsPerLine` | `10` | Points per height line |
-| `ascentSpeedLinesPerSec` | `1.5` | Line progression pace |
-| `boosters.spawnProbability` | `0.45` | Booster spawn chance |
-| `admin.allowDeposit` | `true` | Demo wallet top-up (+ booster charge) |
-| `admin.maxWinMultiplier` | `100` | Cap (theme may lower) |
+| Параметр | Default | Эффект |
+|----------|---------|--------|
+| `math.growthRate` (α) | `0.0433` | Скорость \(K(t)=e^{αt}\); темы перекрывают |
+| `themes.standard.growthRate` | `0.0367` | Спокойный рост зелёного |
+| `themes.lucky.growthRate` | `0.0567` | Более быстрый рост красного |
+| `math.houseEdge` | `0.08` | House edge PF / раздача краша |
+| `math.instantCrashRate` | `0.08` | Шанс мгновенного краша на минимуме (1.00×) |
+| `math.minCrashPoint` | `1.00` | Пол краша |
+| `math.minCashoutMultiplier` | `1.01` | Раньше → `CASHOUT_TOO_EARLY` |
+| `pointsPerLine` | `10` | Очки за линию высоты |
+| `ascentSpeedLinesPerSec` | `1.5` | Темп набора линий |
+| `boosters.spawnProbability` | `0.45` | Шанс спавна бустера |
+| `admin.allowDeposit` | `true` | Демо-пополнение (+ заряд бустера) |
+| `admin.maxWinMultiplier` | `100` | Потолок (тема может снизить) |
 
-Example hot-tune (slower climb):
+Пример горячего тюнинга (медленнее рост):
 
 ```http
 PUT /api/admin/config
@@ -286,30 +286,30 @@ Content-Type: application/json
 }
 ```
 
-Full table and jury checklist: **[docs/expert-guide.md](docs/expert-guide.md)**. Defaults live in `src/main/resources/application.yml`.
+Полная таблица и чеклист жюри: **[docs/expert-guide.md](docs/expert-guide.md)**. Дефолты: `src/main/resources/application.yml`.
 
 ---
 
-## 9. API documentation
+## 7. API
 
-**Live contract:** [Swagger UI](http://localhost:8080/swagger-ui.html) · [OpenAPI JSON](http://localhost:8080/v3/api-docs)
+**Живой контракт:** [Swagger UI](http://localhost:8080/swagger-ui.html) · [OpenAPI JSON](http://localhost:8080/v3/api-docs)
 
-| Method | Path | Purpose |
-|--------|------|---------|
-| `POST` | `/api/players/{id}/deposit` | Demo credit (+ booster charge) |
-| `GET` | `/api/players/{id}/balance` | Wallet (auto-welcome balance on first get) |
-| `GET` | `/api/players/leaderboard` | Points ranking |
-| `POST` | `/api/game/start` | Place bet, open round → `gameId`, `commitHash` |
-| `GET` | `/api/game/state/{gameId}` | Flight poll (`PublicGameState`) |
-| `POST` | `/api/game/cashout/{gameId}` | Take win while `FLYING` |
-| `GET` | `/api/game/verify/{gameId}` | Reveal PF after terminal |
-| `GET` | `/api/game/history` | Public finished rounds (no secrets) |
-| `GET`/`PUT` | `/api/admin/config` | Runtime math / themes / boosters |
+| Метод | Путь | Назначение |
+|-------|------|------------|
+| `POST` | `/api/players/{id}/deposit` | Демо-кредит (+ заряд бустера) |
+| `GET` | `/api/players/{id}/balance` | Кошелёк (welcome-баланс при первом get) |
+| `GET` | `/api/players/leaderboard` | Рейтинг по очкам |
+| `POST` | `/api/game/start` | Ставка, новый раунд → `gameId`, `commitHash` |
+| `GET` | `/api/game/state/{gameId}` | Poll полёта (`PublicGameState`) |
+| `POST` | `/api/game/cashout/{gameId}` | Забрать выигрыш пока `FLYING` |
+| `GET` | `/api/game/verify/{gameId}` | Раскрыть PF после терминала |
+| `GET` | `/api/game/history` | Публичная лента (без секретов) |
+| `GET`/`PUT` | `/api/admin/config` | Математика / темы / бустеры в runtime |
 
-**Headers:** `X-Player-Id` on game routes (must match bet owner). History is public.
+**Заголовки:** `X-Player-Id` на игровых маршрутах (должен совпадать с владельцем ставки). History публичный.
 
 **WebSocket:** `ws://localhost:8080/ws` (SockJS: `/ws-sockjs`)  
-CONNECT with native-header `X-Player-Id` → subscribe `/topic/game/{gameId}`  
+CONNECT с native-header `X-Player-Id` → подписка `/topic/game/{gameId}`  
 
 ```json
 {
@@ -325,44 +325,44 @@ CONNECT with native-header `X-Player-Id` → subscribe `/topic/game/{gameId}`
 }
 ```
 
-`type` may be `tick` | `crash` | `cashout` | `void`. Payloads **never** include `crashPoint` / `serverSeed` while flying.
+`type`: `tick` | `crash` | `cashout` | `void`. Пока идёт полёт, в payload **нет** `crashPoint` / `serverSeed`.
 
-Errors: `{ "code", "message", "timestamp", "details"? }` — e.g. `INSUFFICIENT_BALANCE` (402), `FORBIDDEN` (403), `ALREADY_CRASHED` (409), `RATE_LIMITED` (429).
+Ошибки: `{ "code", "message", "timestamp", "details"? }` — например `INSUFFICIENT_BALANCE` (402), `FORBIDDEN` (403), `ALREADY_CRASHED` (409), `RATE_LIMITED` (429).
 
 ---
 
-## 10. Roadmap
+## 8. Roadmap
 
 - [x] MVP backend — crash math, ledger, PF, admin config, STOMP  
 - [x] Frontend F1–F6 — Hub → Prefight → Flight → Result  
-- [x] Steampunk visual series V1–V5 — chrome, baskets, Pixi, album, SFX  
-- [ ] Optional: recorded demo GIF + jury slide deck in `docs/`  
-- [ ] Optional: server-persisted puzzle album (Spec 2 GAP)  
-- [ ] Stretch: PWA / installable mobile shell  
-- [ ] Stretch: richer sample-pack audio (CC0) instead of pure synthesis  
+- [x] Steampunk V1–V5 — chrome, корзины, Pixi, альбом, SFX  
+- [ ] Опционально: demo GIF + слайды жюри в `docs/`  
+- [ ] Опционально: серверный альбом пазла (GAP Spec 2)  
+- [ ] Stretch: PWA / installable mobile  
+- [ ] Stretch: CC0 sample-pack вместо чистого синтеза звука  
 
 ---
 
-## 11. Contributing & license
+## 9. Участие и лицензия
 
-Issues and PRs welcome for docs, balance presets, and visual polish. Prefer small focused commits; keep API contracts aligned with Swagger and `.specs/`.
+Issues и PR приветствуются (доки, пресеты баланса, полиш UI). Коммиты лучше мелкие; контракты API держим в синхроне со Swagger и `.specs/`.
 
-**License:** not published in-repo yet — treat as private hackathon deliverable unless the team adds an SPDX file (MIT/Apache-2.0 recommended).
+**Лицензия:** в репозитории пока не опубликована — считайте deliverable хакатона, пока команда не добавит SPDX (рекомендуем MIT / Apache-2.0).
 
 ```bash
-./mvnw verify          # backend
-cd frontend && npm run build
+./mvnw verify                 # backend
+cd frontend && npm run build  # frontend
 ```
 
 ---
 
-## 12. Acknowledgments
+## 10. Благодарности
 
-- Product & engineering team behind **Воздушный Шар / AeroQuest**  
-- Visual direction: Victorian Steampunk / adventure (aerostats, maps, parchment)  
-- Inspiration: classic crash UX + period adventure fiction (*Around the World in Eighty Days* era aesthetics), steampunk illustration refs  
-- Stack communities: Spring, React, PixiJS, Framer Motion  
+- Команда продукта и разработки **Воздушный Шар / AeroQuest**  
+- Визуальное направление: Victorian Steampunk / adventure (аэростаты, карты, пергамент)  
+- Вдохновение: классический crash UX + приключенческая эстетика эпохи *«Вокруг света за 80 дней»*, референсы стимпанка  
+- Сообщества стека: Spring, React, PixiJS, Framer Motion  
 
 ---
 
-*When in doubt: API + Spec 3 win over mockups; Spec 5 wins over old casino colors. Happy flying.*
+*При конфликте макета и API побеждает API + Spec 3. При конфликте со старыми casino-цветами — Spec 5. Удачных полётов.*
