@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
+import { playClickSfx } from '../audio/clickSfx'
 import { Header } from '../components/Header'
 import { HelpModal } from '../components/HelpModal'
 import { HistoryStrip } from '../components/HistoryStrip'
@@ -71,6 +72,7 @@ export function FlightScreen() {
 
   const onCashout = async () => {
     if (cashoutDisabled) return
+    playClickSfx()
     setCashoutError(null)
     const res = await requestCashout()
     if (!res.ok) setCashoutError(res.message)

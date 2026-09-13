@@ -1,20 +1,47 @@
-/** Design tokens — Hub / mobile chrome (Spec 3 §6). */
+/** Steampunk design tokens — Spec 5 §3.2 / V1 */
 :root {
-  --bg: #0b3d5c;
-  --bg-deep: #06283d;
-  --sand: #e8c98a;
-  --chrome: rgba(18, 24, 48, 0.88);
-  --glass: rgba(255, 255, 255, 0.78);
-  --glass-border: rgba(255, 255, 255, 0.55);
-  --text: #142033;
-  --text-inv: #f7f9fc;
-  --muted: #5a6578;
-  --red: #d62828;
-  --green: #2e9b4f;
-  --accent: #2ecc71;
-  --yellow: #ffd54a;
-  --trophy: #e6a817;
-  --radius-card: 22px;
-  --shadow-card: 0 10px 28px rgba(8, 30, 50, 0.18);
-  font-family: 'Nunito', 'Trebuchet MS', sans-serif;
+  /* Surfaces */
+  --steam-bg-deep: #1c1712;
+  --steam-bg-mid: #2a2118;
+  --steam-parchment: #e8dcc4;
+  --steam-parchment-ink: #2a2118;
+  --steam-copper: #b87333;
+  --steam-brass: #c4a35a;
+  --steam-brass-light: #dfc278;
+  --steam-soot: #3d342c;
+
+  /* Themes */
+  --steam-lucky-fill: #8b2e2e;
+  --steam-lucky-accent: #c4783a;
+  --steam-standard-fill: #2f5d4a;
+  --steam-standard-accent: #7a9b6d;
+
+  /* Feedback */
+  --steam-danger: #a33b2b;
+  --steam-safe: #3d6b4f;
+  --steam-gold: #d4b56a;
+
+  /* Typography */
+  --steam-font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --steam-font-body: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+  --steam-font-meter: 'Share Tech Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Legacy aliases (components during V1–V2 migration) */
+  --bg: var(--steam-bg-mid);
+  --bg-deep: var(--steam-bg-deep);
+  --sand: var(--steam-parchment);
+  --chrome: linear-gradient(180deg, #5a4a38 0%, #3d342c 100%);
+  --glass: var(--steam-parchment);
+  --glass-border: rgba(184, 115, 51, 0.55);
+  --text: var(--steam-parchment-ink);
+  --text-inv: #f3ebe0;
+  --muted: #6b5c4c;
+  --red: var(--steam-lucky-fill);
+  --green: var(--steam-standard-fill);
+  --accent: var(--steam-brass);
+  --yellow: var(--steam-gold);
+  --trophy: var(--steam-copper);
+  --radius-card: 14px;
+  --shadow-card: 0 8px 20px rgba(0, 0, 0, 0.35);
+  --radius-plate: 10px;
 }

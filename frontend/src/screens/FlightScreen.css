@@ -10,9 +10,11 @@
   flex: 1;
   position: relative;
   min-height: 360px;
-  border-radius: 22px;
-  background: linear-gradient(180deg, #6bb7d8 0%, #2a6285 55%, #1a4060 100%);
+  border-radius: 16px;
+  border: 2px solid var(--steam-copper);
+  background: linear-gradient(180deg, #5a6e7a 0%, #3a4a52 45%, #2a2118 100%);
   overflow: hidden;
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.25);
 }
 
 .flight-overlay {
@@ -33,9 +35,10 @@
 .flight-hint {
   margin: 0;
   padding: 10px 14px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.94);
-  color: #142033;
+  border-radius: var(--radius-plate);
+  background: var(--steam-parchment);
+  border: 2px solid var(--steam-copper);
+  color: var(--steam-parchment-ink);
   font-weight: 700;
   font-size: 0.9rem;
   text-align: center;
@@ -48,27 +51,35 @@
 }
 
 .flight-win {
+  font-family: var(--steam-font-meter);
   font-size: clamp(2.2rem, 9vw, 3rem);
-  font-weight: 800;
-  color: #ffe566;
-  text-shadow: 0 3px 0 #b8860b, 0 8px 18px rgba(0, 0, 0, 0.35);
+  font-weight: 700;
+  color: var(--steam-gold);
+  text-shadow: 0 2px 0 #5a4632, 0 1px 2px rgba(0, 0, 0, 0.55), 0 0 1px #1c1712;
   line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 .flight-k {
   margin-top: 4px;
-  font-size: 1.25rem;
-  font-weight: 800;
+  font-family: var(--steam-font-meter);
+  font-size: 1.35rem;
+  font-weight: 700;
   color: #fff3a8;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65), 0 0 1px #1c1712;
 }
 
 .flight-booster {
   margin: 8px 0 0;
   padding: 6px 10px;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.35);
+  background: rgba(28, 23, 18, 0.55);
+  border: 1px solid rgba(196, 163, 90, 0.45);
   font-size: 0.78rem;
   font-weight: 700;
+  color: var(--steam-parchment);
 }
 
 .flight-terminal {
@@ -79,29 +90,31 @@
   align-items: center;
   gap: 8px;
   padding: 16px 18px;
-  border-radius: 18px;
-  background: rgba(15, 20, 36, 0.9);
-  color: #fff;
+  border-radius: var(--radius-plate);
+  background: rgba(28, 23, 18, 0.92);
+  border: 2px solid var(--steam-copper);
+  color: var(--steam-parchment);
   font-weight: 700;
   pointer-events: auto;
 }
 
 .flight-terminal.status-CRASHED {
-  border: 2px solid #ff6b5a;
+  border-color: var(--steam-danger);
 }
 
 .flight-terminal.status-CASHED_OUT {
-  border: 2px solid #4ae087;
+  border-color: var(--steam-safe);
 }
 
 .flight-again {
   margin-top: 4px;
   min-height: 44px;
   padding: 0 18px;
-  border: 0;
-  border-radius: 999px;
-  background: #2ecc71;
-  color: #08301a;
+  border: 2px solid var(--steam-copper);
+  border-radius: var(--radius-plate);
+  background: linear-gradient(180deg, var(--steam-brass-light), var(--steam-brass));
+  color: var(--steam-parchment-ink);
+  font-family: var(--steam-font-display);
   font-weight: 800;
   cursor: pointer;
 }
@@ -110,12 +123,14 @@
   margin-top: auto;
   margin-bottom: 12px;
   padding: 8px 12px;
-  border-radius: 12px;
-  background: rgba(214, 40, 40, 0.92);
-  color: #fff;
+  border-radius: var(--radius-plate);
+  background: var(--steam-danger);
+  border: 1px solid var(--steam-lucky-accent);
+  color: #f3ebe0;
   font-weight: 700;
   font-size: 0.85rem;
   pointer-events: auto;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
 .flight-footer {
@@ -131,30 +146,37 @@
   align-items: center;
   gap: 6px 10px;
   padding: 12px 14px;
-  border-radius: 16px;
-  background: rgba(18, 24, 48, 0.88);
+  border-radius: var(--radius-plate);
+  background: linear-gradient(180deg, #5a4a38 0%, var(--steam-soot) 100%);
+  border: 2px solid var(--steam-copper);
   font-weight: 700;
+  color: var(--steam-parchment);
 }
 
 .flight-pts {
   margin-left: auto;
+  font-family: var(--steam-font-meter);
 }
 
 .flight-delta {
-  color: #4ae087;
+  color: var(--steam-gold);
+  font-family: var(--steam-font-meter);
 }
 
 .cashout-btn {
   min-height: 56px;
-  border: 0;
-  border-radius: 16px;
-  background: linear-gradient(180deg, #4ae087, #2ecc71);
-  color: #08301a;
+  border: 2px solid #6a9b7a;
+  border-radius: var(--radius-plate);
+  background: linear-gradient(180deg, #5a8f72 0%, var(--steam-safe) 55%, #2a4f3a 100%);
+  color: #f3ebe0;
+  font-family: var(--steam-font-display);
   font-size: 1.15rem;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.03em;
   cursor: pointer;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .cashout-btn:disabled {
@@ -166,6 +188,6 @@
   margin: 0;
   text-align: center;
   font-size: 0.7rem;
-  color: rgba(255, 255, 255, 0.65);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: rgba(243, 235, 224, 0.55);
+  font-family: var(--steam-font-meter);
 }

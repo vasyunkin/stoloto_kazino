@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import type { BoosterPreference } from '../api/types'
+import { playClickSfx } from '../audio/clickSfx'
 import './BoosterCards.css'
 
 export type BoosterCardId = 'none' | 'auto'
@@ -53,7 +54,9 @@ export function BoosterCards({ selectedId, charges, onSelect }: BoosterCardsProp
               className={`booster-card tone-${c.tone}${active ? ' is-selected' : ''}`}
               whileTap={disabled ? undefined : { scale: 0.97 }}
               onClick={() => {
-                if (!disabled) onSelect(c.id, c.preference)
+                if (disabled) return
+                playClickSfx()
+                onSelect(c.id, c.preference)
               }}
             >
               <span className="booster-piece" aria-hidden />

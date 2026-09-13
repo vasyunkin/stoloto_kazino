@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
+import { playClickSfx } from '../audio/clickSfx'
 import './HelpModal.css'
 
 interface HelpModalProps {
@@ -29,7 +30,15 @@ export function HelpModal({ open, onClose }: HelpModalProps) {
           >
             <header className="sheet-head">
               <h2 id="help-title">Как играть</h2>
-              <button type="button" className="sheet-close" onClick={onClose} aria-label="Закрыть">
+              <button
+                type="button"
+                className="sheet-close"
+                onClick={() => {
+                  playClickSfx()
+                  onClose()
+                }}
+                aria-label="Закрыть"
+              >
                 ×
               </button>
             </header>

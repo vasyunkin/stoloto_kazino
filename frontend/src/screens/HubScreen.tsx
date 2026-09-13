@@ -8,6 +8,7 @@ import { HistoryStrip } from '../components/HistoryStrip'
 import { LeaderboardBanner } from '../components/LeaderboardBanner'
 import { LeaderboardSheet } from '../components/LeaderboardSheet'
 import { ThemeCards } from '../components/ThemeCards'
+import { playClickSfx } from '../audio/clickSfx'
 import { useGameHistory } from '../hooks/useGameHistory'
 import { demoDeposit, ensureWallet } from '../hooks/wallet'
 import { useGameStore } from '../stores/gameStore'
@@ -59,6 +60,7 @@ export function HubScreen() {
   }
 
   const onDeposit = async () => {
+    playClickSfx()
     setDepositBusy(true)
     setError(null)
     try {
@@ -81,9 +83,15 @@ export function HubScreen() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35 }}
       >
-        <div className="hub-logo" aria-hidden>
+        <motion.div
+          className="hub-logo-aerostat"
+          aria-hidden
+          animate={{ rotate: [-1.8, 1.8] }}
+          transition={{ duration: 5.5, repeat: Infinity, ease: 'easeInOut' }}
+        >
           <span className="hub-logo-balloon" />
-        </div>
+          <span className="hub-logo-ropes" />
+        </motion.div>
         <h1 className="hub-brand">
           ВОЗДУШНЫЙ
           <br />

@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
+import { playClickSfx } from '../audio/clickSfx'
 import type { RoundStatus } from '../api/types'
 import './ResultModal.css'
 
@@ -48,7 +49,7 @@ export function ResultModal({
             transition={{ type: 'spring', stiffness: 380, damping: 26 }}
           >
             <p className="result-emoji" aria-hidden>
-              {win ? '🏆' : crash ? '💥' : '↩️'}
+              {win ? '★' : crash ? '×' : '↩'}
             </p>
             <h2 id="result-title">
               {win && 'Победа!'}
@@ -94,7 +95,14 @@ export function ResultModal({
               </div>
             )}
 
-            <button type="button" className="result-again" onClick={onAgain}>
+            <button
+              type="button"
+              className="result-again"
+              onClick={() => {
+                playClickSfx()
+                onAgain()
+              }}
+            >
               Играть снова
             </button>
           </motion.div>

@@ -4,31 +4,33 @@
   gap: 12px;
   width: 100%;
   padding: 14px 16px;
-  border: 1px solid var(--glass-border);
-  border-radius: 18px;
-  background: var(--glass);
+  border: 2px solid var(--steam-copper);
+  border-radius: var(--radius-card);
+  background: linear-gradient(180deg, #efe4cc 0%, var(--steam-parchment) 100%);
   box-shadow: var(--shadow-card);
   text-align: left;
   cursor: pointer;
-  color: var(--text);
+  color: var(--steam-parchment-ink);
 }
 
 .lb-trophy {
   position: relative;
   flex: 0 0 48px;
   height: 48px;
-  border-radius: 14px;
-  background: linear-gradient(160deg, #ffe08a, var(--trophy));
-  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.12);
+  border-radius: var(--radius-plate);
+  background: linear-gradient(160deg, var(--steam-brass-light), var(--steam-copper));
+  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(0, 0, 0, 0.2);
 }
 
 .lb-trophy::before {
-  content: '🏆';
+  content: '★';
   position: absolute;
   inset: 0;
   display: grid;
   place-items: center;
   font-size: 1.4rem;
+  color: var(--steam-parchment-ink);
 }
 
 .lb-badge {
@@ -36,12 +38,14 @@
   right: -6px;
   bottom: -6px;
   padding: 2px 6px;
-  border-radius: 999px;
-  background: #1d3557;
-  color: #fff;
+  border-radius: 4px;
+  background: var(--steam-soot);
+  border: 1px solid var(--steam-copper);
+  color: var(--steam-parchment);
   font-size: 0.62rem;
   font-weight: 800;
   text-transform: uppercase;
+  font-family: var(--steam-font-meter);
 }
 
 .lb-copy {
@@ -53,6 +57,7 @@
 
 .lb-copy strong {
   font-size: 1rem;
+  font-family: var(--steam-font-display);
 }
 
 .lb-copy span {

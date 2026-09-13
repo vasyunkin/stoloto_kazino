@@ -2,7 +2,7 @@
   position: fixed;
   inset: 0;
   z-index: 40;
-  background: rgba(6, 20, 36, 0.55);
+  background: rgba(14, 10, 8, 0.72);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -13,11 +13,12 @@
   width: min(430px, 100%);
   max-height: min(70dvh, 560px);
   overflow: auto;
-  border-radius: 24px 24px 18px 18px;
-  background: #f7f9fc;
-  color: var(--text);
+  border-radius: 18px 18px 14px 14px;
+  background: linear-gradient(180deg, #efe4cc 0%, var(--steam-parchment) 100%);
+  color: var(--steam-parchment-ink);
+  border: 2px solid var(--steam-copper);
   padding: 16px 16px 20px;
-  box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.45);
 }
 
 .sheet-head {
@@ -25,19 +26,23 @@
   align-items: center;
   justify-content: space-between;
   margin-bottom: 12px;
+  border-bottom: 1px solid rgba(184, 115, 51, 0.35);
+  padding-bottom: 8px;
 }
 
 .sheet-head h2 {
   margin: 0;
-  font-size: 1.2rem;
+  font-family: var(--steam-font-display);
+  font-size: 1.25rem;
 }
 
 .sheet-close {
   width: 36px;
   height: 36px;
-  border: 0;
+  border: 2px solid var(--steam-copper);
   border-radius: 50%;
-  background: #e8ecf3;
+  background: linear-gradient(180deg, #5a4a38, var(--steam-soot));
+  color: var(--steam-parchment);
   font-size: 1.4rem;
   cursor: pointer;
 }
@@ -48,7 +53,7 @@
 }
 
 .sheet-error {
-  color: var(--red);
+  color: var(--steam-danger);
   margin: 8px 0;
   font-weight: 700;
 }
@@ -67,8 +72,9 @@
   gap: 10px;
   align-items: center;
   padding: 10px 12px;
-  border-radius: 14px;
-  background: #eef2f8;
+  border-radius: var(--radius-plate);
+  background: rgba(42, 33, 24, 0.08);
+  border: 1px solid rgba(184, 115, 51, 0.35);
   font-weight: 700;
 }
 
@@ -78,9 +84,10 @@
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: #1d3557;
-  color: #fff;
+  background: linear-gradient(180deg, var(--steam-brass-light), var(--steam-copper));
+  color: var(--steam-parchment-ink);
   font-size: 0.85rem;
+  font-family: var(--steam-font-meter);
 }
 
 .lb-id {
@@ -90,5 +97,6 @@
 }
 
 .lb-pts {
-  color: var(--green);
+  color: var(--steam-standard-fill);
+  font-family: var(--steam-font-meter);
 }

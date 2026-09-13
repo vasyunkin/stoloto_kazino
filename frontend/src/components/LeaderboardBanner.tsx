@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import { playClickSfx } from '../audio/clickSfx'
 import './LeaderboardBanner.css'
 
 interface LeaderboardBannerProps {
@@ -11,7 +12,10 @@ export function LeaderboardBanner({ onOpen }: LeaderboardBannerProps) {
       type="button"
       className="lb-banner"
       whileTap={{ scale: 0.99 }}
-      onClick={onOpen}
+      onClick={() => {
+        playClickSfx()
+        onOpen()
+      }}
       aria-label="Открыть рейтинг участников"
     >
       <span className="lb-trophy" aria-hidden>

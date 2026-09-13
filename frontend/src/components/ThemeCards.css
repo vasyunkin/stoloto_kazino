@@ -1,74 +1,353 @@
+/* Spec 5 V2 — launch yard + aerostat baskets */
+
+.hub-yard {
+  position: relative;
+  isolation: isolate;
+  padding: 8px 4px 18px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 2px solid rgba(184, 115, 51, 0.45);
+  background: linear-gradient(180deg, #4a5560 0%, #3a4238 42%, #2a2118 100%);
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.28);
+}
+
+.hub-yard-sky {
+  position: absolute;
+  inset: 0 0 38% 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(196, 163, 90, 0.22) 0%, transparent 55%),
+    linear-gradient(180deg, #6a7884 0%, #4a5560 55%, transparent 100%);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.hub-yard-haze {
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  bottom: 28%;
+  height: 42%;
+  background: radial-gradient(ellipse at center, rgba(232, 220, 196, 0.18) 0%, transparent 70%);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.hub-yard-map {
+  position: absolute;
+  inset: 8% 6% 40% 6%;
+  opacity: 0.14;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 11px,
+      rgba(42, 33, 24, 0.55) 11px,
+      rgba(42, 33, 24, 0.55) 12px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 14px,
+      rgba(42, 33, 24, 0.4) 14px,
+      rgba(42, 33, 24, 0.4) 15px
+    );
+  mask-image: radial-gradient(ellipse at center, #000 30%, transparent 75%);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.hub-yard-platform {
+  position: absolute;
+  left: 4%;
+  right: 4%;
+  bottom: 6px;
+  height: 28px;
+  border-radius: 4px 4px 8px 8px;
+  background:
+    linear-gradient(180deg, #6b5340 0%, #4a382c 55%, #3a2c22 100%);
+  border: 2px solid var(--steam-copper);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.12),
+    0 8px 16px rgba(0, 0, 0, 0.35);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.hub-yard-platform::before {
+  content: '';
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 6px;
+  height: 2px;
+  background: repeating-linear-gradient(
+    90deg,
+    transparent 0 10px,
+    rgba(196, 163, 90, 0.35) 10px 12px
+  );
+}
+
 .theme-grid {
+  position: relative;
+  z-index: 2;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 10px;
+  padding-bottom: 22px;
 }
 
 .theme-card {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 18px 12px 16px;
+  gap: 10px;
+  padding: 12px 8px 14px;
   border-radius: var(--radius-card);
-  border: 2px solid var(--glass-border);
-  background: var(--glass);
-  box-shadow: var(--shadow-card);
+  border: 2px solid transparent;
+  background: transparent;
+  box-shadow: none;
   cursor: pointer;
   text-align: center;
-  color: var(--text);
+  color: var(--steam-parchment);
+  min-height: 0;
 }
 
 .theme-card.is-selected {
-  border-color: var(--accent);
-  box-shadow:
-    var(--shadow-card),
-    0 0 0 3px rgba(46, 204, 113, 0.25);
+  border-color: var(--steam-brass);
+  background: rgba(28, 23, 18, 0.35);
+  box-shadow: 0 0 0 2px rgba(196, 163, 90, 0.25);
 }
 
-.balloon-orb {
-  width: 56px;
-  height: 64px;
-  border-radius: 50% 50% 46% 46%;
+.aerostat {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding-top: 4px;
+  min-height: 132px;
+}
+
+.aerostat-sway {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform-origin: 50% 12%;
+  will-change: transform;
+}
+
+.aerostat-envelope {
   position: relative;
-  margin-bottom: 4px;
-  box-shadow: inset -8px -10px 0 rgba(0, 0, 0, 0.12);
+  width: 64px;
+  height: 74px;
+  border-radius: 50% 50% 46% 46% / 58% 58% 42% 42%;
+  border: 2px solid rgba(0, 0, 0, 0.35);
+  box-shadow:
+    inset -10px -14px 0 rgba(0, 0, 0, 0.18),
+    inset 6px 8px 0 rgba(255, 255, 255, 0.12),
+    0 10px 18px rgba(0, 0, 0, 0.35);
 }
 
-.balloon-orb::after {
+.aerostat-envelope.tone-red {
+  background:
+    linear-gradient(155deg, var(--steam-lucky-accent) 0%, var(--steam-lucky-fill) 55%, #5a1c1c 100%);
+}
+
+.aerostat-envelope.tone-green {
+  background:
+    linear-gradient(155deg, var(--steam-standard-accent) 0%, var(--steam-standard-fill) 55%, #1a382c 100%);
+}
+
+.aerostat-gleam {
+  position: absolute;
+  left: 14%;
+  top: 16%;
+  width: 28%;
+  height: 34%;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.22);
+  filter: blur(1px);
+}
+
+.aerostat-patch {
+  position: absolute;
+  right: 14%;
+  top: 38%;
+  width: 16px;
+  height: 12px;
+  border-radius: 2px;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+  background: rgba(0, 0, 0, 0.15);
+  transform: rotate(-12deg);
+}
+
+/* LUCKY silhouette: copper gear on envelope */
+.aerostat-gear {
+  position: absolute;
+  right: -4px;
+  bottom: 18%;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at center, var(--steam-brass-light) 0 28%, transparent 29%),
+    repeating-conic-gradient(from 10deg, var(--steam-copper) 0 18deg, #8a5a28 18deg 36deg);
+  border: 1px solid #5a3a18;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+/* STANDARD silhouette: vine on envelope */
+.aerostat-vine {
+  position: absolute;
+  left: 6%;
+  bottom: 8%;
+  width: 10px;
+  height: 42%;
+  border-radius: 40% 60% 50% 50%;
+  background: linear-gradient(180deg, #7a9b6d, #3d5c45);
+  box-shadow: 4px 8px 0 -2px #6a8b5d, 7px 18px 0 -3px #4a6b4a;
+  opacity: 0.95;
+}
+
+.aerostat-ropes {
+  display: flex;
+  justify-content: space-between;
+  width: 42px;
+  height: 18px;
+  margin-top: -2px;
+}
+
+.aerostat-ropes i {
+  display: block;
+  width: 2px;
+  height: 100%;
+  background: linear-gradient(180deg, #5a4632, #3a2c22);
+  border-radius: 1px;
+}
+
+.aerostat-ropes i:nth-child(1) {
+  transform: rotate(8deg);
+}
+
+.aerostat-ropes i:nth-child(3) {
+  transform: rotate(-8deg);
+}
+
+.aerostat-basket {
+  position: relative;
+  width: 34px;
+  height: 22px;
+  margin-top: -1px;
+  border-radius: 2px 2px 4px 4px;
+  background: linear-gradient(180deg, #8a6a3a 0%, #5a4632 55%, #3d2e22 100%);
+  border: 1.5px solid var(--steam-copper);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    0 4px 8px rgba(0, 0, 0, 0.35);
+}
+
+.aerostat-basket::before {
   content: '';
   position: absolute;
-  left: 50%;
-  bottom: -10px;
-  width: 2px;
-  height: 14px;
-  background: #5a4632;
-  transform: translateX(-50%);
+  left: 3px;
+  right: 3px;
+  top: 5px;
+  height: 1px;
+  background: rgba(196, 163, 90, 0.45);
+  box-shadow: 0 5px 0 rgba(196, 163, 90, 0.3);
 }
 
-.balloon-orb.tone-red {
-  background: linear-gradient(160deg, #ff6b5a, var(--red));
+.aerostat-basket.tone-red {
+  border-color: var(--steam-lucky-accent);
 }
 
-.balloon-orb.tone-green {
-  background: linear-gradient(160deg, #6ee7a0, var(--green));
+.aerostat-basket.tone-green {
+  border-color: var(--steam-standard-accent);
+}
+
+.basket-gear {
+  position: absolute;
+  right: -7px;
+  top: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at center, #2a2118 0 22%, transparent 23%),
+    repeating-conic-gradient(from 0deg, var(--steam-copper) 0 20deg, #8a5a28 20deg 40deg);
+  border: 1px solid #3d2a18;
+}
+
+.basket-pipe {
+  position: absolute;
+  left: 4px;
+  top: -8px;
+  width: 5px;
+  height: 12px;
+  border-radius: 1px 1px 0 0;
+  background: linear-gradient(90deg, #8a9a8a, #4a5a4a);
+  border: 1px solid #2a3a2a;
+}
+
+.basket-pipe::after {
+  content: '';
+  position: absolute;
+  left: -2px;
+  top: -3px;
+  width: 9px;
+  height: 4px;
+  border-radius: 2px;
+  background: #6a7a6a;
+  border: 1px solid #2a3a2a;
+}
+
+.basket-leaf {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 10px;
+  height: 7px;
+  border-radius: 0 70% 40% 70%;
+  background: linear-gradient(135deg, #8aab7a, #3d5c45);
+  transform: rotate(-25deg);
+}
+
+.theme-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 8px 6px;
+  border-radius: var(--radius-plate);
+  background: linear-gradient(180deg, rgba(239, 228, 204, 0.95) 0%, var(--steam-parchment) 100%);
+  border: 1px solid var(--steam-copper);
+  color: var(--steam-parchment-ink);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
 }
 
 .theme-title {
+  font-family: var(--steam-font-display);
   font-weight: 800;
-  font-size: 1.05rem;
+  font-size: 1rem;
+  line-height: 1.15;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
 .theme-card.tone-red .theme-title {
-  color: var(--red);
+  color: var(--steam-lucky-fill);
 }
 
 .theme-card.tone-green .theme-title {
-  color: var(--green);
+  color: var(--steam-standard-fill);
 }
 
 .theme-sub {
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   color: var(--muted);
-  font-weight: 700;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aerostat-sway {
+    animation: none !important;
+  }
 }

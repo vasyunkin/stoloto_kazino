@@ -1,22 +1,28 @@
 .game-header {
   display: grid;
-  grid-template-columns: 44px 1fr 44px;
+  grid-template-columns: 44px 1fr auto;
   align-items: center;
   gap: 10px;
   padding: 8px 4px;
 }
 
+.header-actions {
+  display: flex;
+  gap: 6px;
+}
+
 .icon-btn {
   width: 44px;
   height: 44px;
-  border: 0;
+  border: 2px solid var(--steam-copper);
   border-radius: 50%;
-  background: var(--chrome);
+  background: linear-gradient(180deg, #5a4a38 0%, var(--steam-soot) 100%);
   color: var(--text-inv);
-  font-size: 1.4rem;
+  font-size: 1.15rem;
   font-weight: 800;
   line-height: 1;
   cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 .icon-btn:disabled {
@@ -29,17 +35,19 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-width: 110px;
+  min-width: 118px;
   justify-content: center;
   padding: 10px 18px;
-  border-radius: 999px;
-  background: var(--chrome);
-  color: var(--text-inv);
-  font-weight: 800;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+  font-weight: 700;
+}
+
+.balance-value {
+  font-size: 1.15rem;
+  color: var(--steam-parchment-ink);
 }
 
 .balance-currency {
-  color: #c5c9d4;
+  color: var(--steam-copper);
   font-size: 0.95rem;
+  font-family: var(--steam-font-display);
 }

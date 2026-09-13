@@ -8,15 +8,16 @@
 .history-title {
   margin: 0;
   font-size: 0.82rem;
+  font-family: var(--steam-font-display);
   font-weight: 800;
-  color: rgba(255, 255, 255, 0.88);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  color: var(--steam-parchment);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
 .history-empty {
   margin: 0;
   font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.65);
+  color: rgba(243, 235, 224, 0.6);
   font-weight: 600;
 }
 
@@ -32,30 +33,34 @@
 .history-pill {
   flex: 0 0 auto;
   padding: 7px 11px;
-  border-radius: 999px;
+  border-radius: var(--radius-plate);
   font-size: 0.82rem;
-  font-weight: 800;
-  background: rgba(255, 255, 255, 0.9);
-  color: #142033;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+  font-weight: 700;
+  font-family: var(--steam-font-meter);
+  background: var(--steam-parchment);
+  color: var(--steam-parchment-ink);
+  border: 1px solid var(--steam-copper);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  font-variant-numeric: tabular-nums;
 }
 
 .history-pill.tone-hot {
-  background: linear-gradient(180deg, #ffe08a, #ffb020);
-  color: #5a3200;
+  background: linear-gradient(180deg, var(--steam-brass-light), var(--steam-brass));
+  color: var(--steam-parchment-ink);
 }
 
 .history-pill.tone-win {
-  background: rgba(255, 255, 255, 0.92);
-  color: #1d3557;
+  background: rgba(232, 220, 196, 0.95);
+  color: var(--steam-parchment-ink);
 }
 
 .history-pill.tone-crash {
-  background: rgba(255, 107, 90, 0.95);
-  color: #fff;
+  background: var(--steam-danger);
+  color: #f3ebe0;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
 .history-pill.tone-void {
-  background: rgba(148, 163, 184, 0.95);
-  color: #0f172a;
+  background: #8a7a68;
+  color: #1c1712;
 }

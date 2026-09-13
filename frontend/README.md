@@ -6,6 +6,7 @@ React-клиент к Spring backend.
 |----------|------|
 | Техспека FE | [`.specs/3-frontend-technical-spec.md`](../.specs/3-frontend-technical-spec.md) |
 | Слайсы F1–F6 | [`.specs/4-frontend-implementation-slices.md`](../.specs/4-frontend-implementation-slices.md) |
+| Steampunk + альбом | [`.specs/5-frontend-steampunk-visual-spec.md`](../.specs/5-frontend-steampunk-visual-spec.md) |
 | Макеты | [`.specs/assets/mockups/`](../.specs/assets/mockups/) |
 | Backend | [корневой README](../README.md), Swagger `:8080/swagger-ui.html` |
 

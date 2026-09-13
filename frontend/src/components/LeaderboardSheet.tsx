@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { ApiError } from '../api/client'
 import { getLeaderboard } from '../api/gameApi'
 import type { LeaderboardEntryResponse } from '../api/types'
+import { playClickSfx } from '../audio/clickSfx'
 import './LeaderboardSheet.css'
 
 interface LeaderboardSheetProps {
@@ -60,7 +61,15 @@ export function LeaderboardSheet({ open, onClose }: LeaderboardSheetProps) {
           >
             <header className="sheet-head">
               <h2 id="lb-title">Рейтинг участников</h2>
-              <button type="button" className="sheet-close" onClick={onClose} aria-label="Закрыть">
+              <button
+                type="button"
+                className="sheet-close"
+                onClick={() => {
+                  playClickSfx()
+                  onClose()
+                }}
+                aria-label="Закрыть"
+              >
                 ×
               </button>
             </header>

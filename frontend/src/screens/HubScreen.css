@@ -2,7 +2,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 14px;
   min-height: 0;
 }
 
@@ -10,19 +10,29 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  padding: 8px 4px 4px;
+  gap: 12px;
+  padding: 6px 4px 2px;
+}
+
+.hub-logo-aerostat {
+  position: relative;
+  width: 48px;
+  height: 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .hub-logo-balloon {
   display: block;
-  width: 72px;
-  height: 84px;
-  border-radius: 50% 50% 46% 46%;
-  background: linear-gradient(160deg, #ff7a68, #d62828);
+  width: 40px;
+  height: 46px;
+  border-radius: 50% 50% 46% 46% / 58% 58% 42% 42%;
+  background: linear-gradient(160deg, var(--steam-lucky-accent), var(--steam-lucky-fill));
+  border: 2px solid var(--steam-copper);
   box-shadow:
-    inset -10px -12px 0 rgba(0, 0, 0, 0.12),
-    0 12px 24px rgba(0, 0, 0, 0.2);
+    inset -8px -10px 0 rgba(0, 0, 0, 0.18),
+    0 8px 16px rgba(0, 0, 0, 0.3);
   position: relative;
 }
 
@@ -30,30 +40,41 @@
   content: '';
   position: absolute;
   left: 50%;
-  bottom: -12px;
-  width: 2px;
-  height: 16px;
-  background: #5a4632;
+  bottom: -16px;
+  width: 16px;
+  height: 11px;
+  background: linear-gradient(180deg, #8a6a3a, #5a4632);
+  border: 1px solid var(--steam-copper);
+  border-radius: 2px;
   transform: translateX(-50%);
+}
+
+.hub-logo-ropes {
+  width: 22px;
+  height: 10px;
+  margin-top: -1px;
+  background:
+    linear-gradient(90deg, transparent 0 8px, #5a4632 8px 10px, transparent 10px 12px, #5a4632 12px 14px, transparent 14px);
 }
 
 .hub-brand {
   margin: 0;
-  font-size: clamp(1.8rem, 7vw, 2.35rem);
+  font-family: var(--steam-font-display);
+  font-size: clamp(1.75rem, 7vw, 2.25rem);
   line-height: 0.95;
   font-weight: 800;
-  letter-spacing: 0.02em;
-  color: #fff;
+  letter-spacing: 0.04em;
+  color: var(--steam-parchment);
   text-shadow:
-    0 2px 0 #1d4e89,
-    0 4px 0 #163a66,
-    0 10px 24px rgba(0, 0, 0, 0.25);
+    0 1px 0 var(--steam-copper),
+    0 3px 0 #3d2a18,
+    0 10px 22px rgba(0, 0, 0, 0.45);
 }
 
 .hub-main {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
   margin-top: auto;
   padding-bottom: 8px;
 }
@@ -69,14 +90,17 @@
   min-height: 48px;
   min-width: 200px;
   padding: 0 20px;
-  border: 0;
-  border-radius: 999px;
-  background: linear-gradient(180deg, #4ae087, var(--accent));
-  color: #08301a;
-  font-weight: 800;
+  border: 2px solid var(--steam-copper);
+  border-radius: var(--radius-plate);
+  background: linear-gradient(180deg, var(--steam-brass-light) 0%, var(--steam-brass) 45%, #a8843a 100%);
+  color: var(--steam-parchment-ink);
+  font-family: var(--steam-font-display);
+  font-weight: 700;
   font-size: 1rem;
   cursor: pointer;
-  box-shadow: 0 8px 18px rgba(16, 120, 60, 0.35);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 6px 14px rgba(0, 0, 0, 0.35);
 }
 
 .deposit-btn:disabled {
@@ -87,23 +111,26 @@
 .hub-player {
   margin: 0;
   font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.75);
+  color: rgba(243, 235, 224, 0.65);
   font-weight: 600;
+  font-family: var(--steam-font-meter);
 }
 
 .hub-status {
   margin: 0;
   text-align: center;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--steam-parchment);
   font-weight: 700;
 }
 
 .hub-error {
   margin: 0;
   padding: 10px 12px;
-  border-radius: 12px;
-  background: rgba(214, 40, 40, 0.92);
-  color: #fff;
+  border-radius: var(--radius-plate);
+  background: var(--steam-danger);
+  border: 1px solid #c4783a;
+  color: #f3ebe0;
   font-weight: 700;
   text-align: center;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }

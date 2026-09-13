@@ -6,6 +6,7 @@ import { BetChips } from '../components/BetChips'
 import { BoosterCards, type BoosterCardId } from '../components/BoosterCards'
 import { Header } from '../components/Header'
 import { HelpModal } from '../components/HelpModal'
+import { playClickSfx } from '../audio/clickSfx'
 import { ensureWallet } from '../hooks/wallet'
 import { useGameStore } from '../stores/gameStore'
 import { usePlayerStore } from '../stores/playerStore'
@@ -58,6 +59,7 @@ export function PrefightScreen() {
 
   const onStart = async () => {
     if (!canStart) return
+    playClickSfx()
     setStarting(true)
     setError(null)
     try {
