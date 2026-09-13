@@ -12,7 +12,7 @@
 
 > Высокопроизводительная **crash**-игра в эстетике Victorian Steampunk: серверная математика, STOMP WebSocket в реальном времени, provably fair и клиентский альбом пазла.
 
-**Для жюри / тюнинга:** [docs/expert-guide.md](docs/expert-guide.md) · Фронт: [frontend/README.md](frontend/README.md) · Спеки: `.specs/`
+**Для жюри / тюнинга:** [docs/expert-guide.md](docs/expert-guide.md) · Фронт: [frontend/README.md](frontend/README.md)
 
 ---
 
@@ -26,8 +26,6 @@
 6. [Конфиг и админка](#6-конфиг-и-админка)
 7. [API](#7-api)
 8. [Roadmap](#8-roadmap)
-9. [Участие и лицензия](#9-участие-и-лицензия)
-10. [Благодарности](#10-благодарности)
 
 ---
 
@@ -185,8 +183,8 @@ sequenceDiagram
 | **PixiJS** для полёта | Производительность canvas, pause ticker на скрытой вкладке, `lowDetail` на узких экранах |
 | **STOMP WebSocket** | Низкая задержка тиков; REST `/state` остаётся fallback |
 | **K считает сервер** | Одна формула по часам для всех клиентов; краш загадан на старте |
-| **Снимок конфига на раунд** | `PUT` админки mid-flight **не** двигает уже летящий раунд (I8) |
-| **Альбом на клиенте** | Коллекция без доработки ledger / Spec 2 |
+| **Снимок конфига на раунд** | `PUT` админки mid-flight **не** двигает уже летящий раунд |
+| **Альбом на клиенте** | Коллекция без доработки серверного ledger |
 
 ---
 
@@ -334,35 +332,9 @@ CONNECT с native-header `X-Player-Id` → подписка `/topic/game/{gameId
 ## 8. Roadmap
 
 - [x] MVP backend — crash math, ledger, PF, admin config, STOMP  
-- [x] Frontend F1–F6 — Hub → Prefight → Flight → Result  
-- [x] Steampunk V1–V5 — chrome, корзины, Pixi, альбом, SFX  
+- [x] Frontend — Hub → Prefight → Flight → Result  
+- [x] Steampunk UI — chrome, корзины, Pixi-полёт, альбом, SFX  
 - [ ] Опционально: demo GIF + слайды жюри в `docs/`  
-- [ ] Опционально: серверный альбом пазла (GAP Spec 2)  
+- [ ] Опционально: серверный альбом пазла (синхронизация между устройствами)  
 - [ ] Stretch: PWA / installable mobile  
 - [ ] Stretch: CC0 sample-pack вместо чистого синтеза звука  
-
----
-
-## 9. Участие и лицензия
-
-Issues и PR приветствуются (доки, пресеты баланса, полиш UI). Коммиты лучше мелкие; контракты API держим в синхроне со Swagger и `.specs/`.
-
-**Лицензия:** в репозитории пока не опубликована — считайте deliverable хакатона, пока команда не добавит SPDX (рекомендуем MIT / Apache-2.0).
-
-```bash
-./mvnw verify                 # backend
-cd frontend && npm run build  # frontend
-```
-
----
-
-## 10. Благодарности
-
-- Команда продукта и разработки **Воздушный Шар / AeroQuest**  
-- Визуальное направление: Victorian Steampunk / adventure (аэростаты, карты, пергамент)  
-- Вдохновение: классический crash UX + приключенческая эстетика эпохи *«Вокруг света за 80 дней»*, референсы стимпанка  
-- Сообщества стека: Spring, React, PixiJS, Framer Motion  
-
----
-
-*При конфликте макета и API побеждает API + Spec 3. При конфликте со старыми casino-цветами — Spec 5. Удачных полётов.*
