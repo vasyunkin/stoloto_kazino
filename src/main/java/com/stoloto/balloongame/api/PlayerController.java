@@ -49,10 +49,10 @@ public class PlayerController {
      * Returns the current wallet balance for the given player.
      * If the player does not exist, returns 404 PLAYER_NOT_FOUND.
      */
-    @Operation(summary = "Текущий баланс. 404 PLAYER_NOT_FOUND, если игрока ещё не было")
+    @Operation(summary = "Текущий баланс. Создаёт игрока с welcome-balance, если его ещё не было")
     @GetMapping("/{externalId}/balance")
     public ResponseEntity<BalanceResponse> getBalance(@PathVariable String externalId) {
-        return ResponseEntity.ok(playerService.getWallet(externalId));
+        return ResponseEntity.ok(playerService.getWalletOrCreate(externalId));
     }
 
     /**

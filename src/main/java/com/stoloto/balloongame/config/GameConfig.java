@@ -148,6 +148,13 @@ public class GameConfig {
 
         /** Allow /api/players/{id}/deposit endpoint. Set false in prod. */
         private boolean allowDeposit = true;
+
+        /**
+         * Balance granted once when a player is auto-created via GET balance.
+         * {@code 0} = create with empty wallet (Hub must deposit). Demo default 1000.
+         */
+        @NotNull @DecimalMin("0.0")
+        private BigDecimal welcomeBalance = new BigDecimal("1000.0");
     }
 
     @Data
@@ -292,6 +299,7 @@ public class GameConfig {
         a.minWinAmount = this.admin.minWinAmount;
         a.maxWinMultiplier = this.admin.maxWinMultiplier;
         a.allowDeposit = this.admin.allowDeposit;
+        a.welcomeBalance = this.admin.welcomeBalance;
         copy.admin = a;
 
         ProvablyFairConfig pf = new ProvablyFairConfig();

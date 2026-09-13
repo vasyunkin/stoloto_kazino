@@ -119,6 +119,22 @@ class WalletIntegrationTest {
                 .hasMessageContaining("Player not found");
     }
 
+    @Test
+    void getWalletOrCreate_newPlayer_getsWelcomeBalanceAndLedger() {
+        String id = uid();
+        var wallet = playerService.getWalletOrCreate(id);
+        assertThat(wallet.balance()).isEqualByComparingTo("1000.00");
+        assertThat(wallet.boosterCharges()).isEqualTo(5);
+
+        Player player = playerRepository.findByExternalId(id).orElseThrow();
+        assertThat(player.getBalance())
+                .isEqualByComparingTo(walletLedgerRepository.sumBalanceByPlayerId(player.getId()));
+
+        // Idempotent — second call does not double-credit
+        var again = playerService.getWalletOrCreate(id);
+        assertThat(again.balance()).isEqualByComparingTo("1000.00");
+    }
+
     // ── Invariant: balance == SUM(ledger) ─────────────────────────────────
 
     @Test

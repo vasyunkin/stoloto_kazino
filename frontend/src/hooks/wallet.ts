@@ -16,17 +16,23 @@ function applyWallet(balance: number | string, charges: number | undefined) {
 }
 
 /**
- * Load balance; if player missing — demo deposit so Hub is playable (F2).
+ * Load wallet. Backend GET /balance creates the player + welcome credit if missing.
+ * Optional deposit only when still empty and autoDepositIfMissing (legacy / top-up).
  */
 export async function ensureWallet(autoDepositIfMissing = true): Promise<number> {
   const { playerId } = usePlayerStore.getState()
+  const res = await getBalance(playerId)
+  const bal = applyWallet(res.balance, res.boosterCharges)
+  if (bal > 0 || !autoDepositIfMissing) {
+    return bal
+  }
+  // Empty wallet (welcome=0 or spent): try demo deposit; ignore 403 (deposit disabled).
   try {
-    const res = await getBalance(playerId)
-    return applyWallet(res.balance, res.boosterCharges)
+    const dep = await deposit(playerId, DEMO_DEPOSIT)
+    return applyWallet(dep.newBalance, dep.boosterCharges)
   } catch (err) {
-    if (err instanceof ApiError && err.status === 404 && autoDepositIfMissing) {
-      const res = await deposit(playerId, DEMO_DEPOSIT)
-      return applyWallet(res.newBalance, res.boosterCharges)
+    if (err instanceof ApiError && (err.status === 403 || err.code === 'DEPOSIT_NOT_ALLOWED')) {
+      return bal
     }
     throw err
   }

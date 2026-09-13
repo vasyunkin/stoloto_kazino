@@ -11,7 +11,19 @@ import java.util.List;
 public class CorsProperties {
 
     /**
-     * Explicit origin whitelist. Do not use {@code *}.
+     * Origin patterns for browser CORS (Spring {@code allowedOriginPatterns}).
+     * Prefer patterns over exact hosts so trycloudflare.com tunnels work.
+     */
+    private List<String> allowedOriginPatterns = new ArrayList<>(List.of(
+            "http://localhost:*",
+            "http://127.0.0.1:*",
+            "https://*.trycloudflare.com",
+            "https://*.cloudflaretunnel.com"
+    ));
+
+    /**
+     * Exact origins kept for SockJS whitelist / backward compat.
+     * Prefer {@link #allowedOriginPatterns} for MVC CORS.
      */
     private List<String> allowedOrigins = new ArrayList<>(List.of(
             "http://localhost:3000",

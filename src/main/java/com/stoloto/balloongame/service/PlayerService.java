@@ -46,9 +46,30 @@ public class PlayerService {
         return getPlayerOrThrow(externalId).getBalance();
     }
 
-    /** Wallet snapshot for balance API (balance + booster charges). */
-    public BalanceResponse getWallet(String externalId) {
-        Player player = getPlayerOrThrow(externalId);
+    /** Wallet snapshot for balance API. Creates player + welcome credit if missing (demo). */
+    @Transactional
+    public BalanceResponse getWalletOrCreate(String externalId) {
+        return playerRepository.findByExternalId(externalId)
+                .map(p -> new BalanceResponse(externalId, p.getBalance(), p.getBoosterCharges()))
+                .orElseGet(() -> createWithWelcome(externalId));
+    }
+
+    /**
+     * First-visit bootstrap: create player and optionally credit {@code welcomeBalance}
+     * (ledger CREDIT_DEPOSIT). Does <strong>not</strong> require {@code allowDeposit}.
+     */
+    private BalanceResponse createWithWelcome(String externalId) {
+        BigDecimal welcome = configService.getSnapshot().getAdmin().getWelcomeBalance();
+        if (welcome == null || welcome.signum() < 0) {
+            welcome = BigDecimal.ZERO;
+        }
+        log.info("Creating new player: externalId={} welcome={}", externalId, welcome);
+        Player player = new Player(externalId);
+        player.setBalance(welcome);
+        player = playerRepository.saveAndFlush(player);
+        if (welcome.signum() > 0) {
+            walletLedgerRepository.save(new WalletLedger(player, null, LedgerType.CREDIT_DEPOSIT, welcome));
+        }
         return new BalanceResponse(externalId, player.getBalance(), player.getBoosterCharges());
     }
 
@@ -66,7 +87,7 @@ public class PlayerService {
     // ── Write operations ──────────────────────────────────────────────────
 
     /**
-     * Get existing player or create a new one (zero balance).
+     * Get existing player or create a new one (zero balance, no welcome — used by deposit path).
      *
      * <p>Not fully safe under extreme concurrent first-creation races, but acceptable
      * for the hackathon scope. The unique constraint on external_id ensures the DB
@@ -76,7 +97,7 @@ public class PlayerService {
     public Player getOrCreate(String externalId) {
         return playerRepository.findByExternalId(externalId)
                 .orElseGet(() -> {
-                    log.info("Creating new player: externalId={}", externalId);
+                    log.info("Creating new player (no welcome): externalId={}", externalId);
                     return playerRepository.save(new Player(externalId));
                 });
     }

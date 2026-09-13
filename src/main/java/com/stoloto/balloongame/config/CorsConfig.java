@@ -13,8 +13,11 @@ public class CorsConfig implements WebMvcConfigurer {
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
+        // Patterns (not only exact origins) so Cloudflare quick tunnels work:
+        // https://*.trycloudflare.com
+        String[] patterns = corsProperties.getAllowedOriginPatterns().toArray(String[]::new);
         registry.addMapping("/api/**")
-                .allowedOrigins(corsProperties.getAllowedOrigins().toArray(String[]::new))
+                .allowedOriginPatterns(patterns)
                 .allowedMethods("GET", "POST", "PUT", "OPTIONS")
                 .allowedHeaders("Content-Type", "X-Player-Id", "X-Admin-Key")
                 .exposedHeaders("Content-Type")

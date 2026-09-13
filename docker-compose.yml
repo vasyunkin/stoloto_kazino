@@ -32,6 +32,9 @@ services:
       SPRING_DATASOURCE_USERNAME: balloon
       SPRING_DATASOURCE_PASSWORD: balloon
       GAME_ADMIN_KEY: ${GAME_ADMIN_KEY:-change-me-in-prod}
+      # Demo wallet: keep deposit on + welcome credit for first GET /balance
+      GAME_ADMIN_ALLOW_DEPOSIT: "true"
+      GAME_ADMIN_WELCOME_BALANCE: "1000.0"
     depends_on:
       postgres:
         condition: service_healthy

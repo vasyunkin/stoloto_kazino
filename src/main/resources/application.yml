@@ -58,6 +58,11 @@ springdoc:
 # ── CORS + rate limit (S9) ────────────────────────────────────────────────
 app:
   cors:
+    allowed-origin-patterns:
+      - "http://localhost:*"
+      - "http://127.0.0.1:*"
+      - "https://*.trycloudflare.com"
+      - "https://*.cloudflaretunnel.com"
     allowed-origins:
       - http://localhost:3000
       - http://localhost:5173
@@ -132,6 +137,7 @@ game:
     min-win-amount: 50.0
     max-win-multiplier: 100.0
     allow-deposit: true       # Set false in prod; overridable via PUT /api/admin/config
+    welcome-balance: 1000.0   # Auto-credit on first GET /balance (creates player)
 
   # Provably Fair
   provably-fair:
