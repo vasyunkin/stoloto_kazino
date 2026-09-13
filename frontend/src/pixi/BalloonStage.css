@@ -11,3 +11,8 @@
   width: 100% !important;
   height: 100% !important;
 }
+
+/* Spec 5 V3 acceptance: inspect data-low-detail on .pixi-host */
+.pixi-host[data-low-detail='1'] {
+  /* marker only — drawing path reads this via dataset in BalloonStage */
+}

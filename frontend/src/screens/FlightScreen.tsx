@@ -105,9 +105,12 @@ export function FlightScreen() {
             )}
           </AnimatePresence>
 
-          <div className="flight-readout">
-            <div className="flight-win">{potentialWin.toFixed(0)} ◎</div>
-            <div className="flight-k">{displayK.toFixed(2)}x</div>
+          <div className="flight-readout" aria-live="polite">
+            <div className="altimeter">
+              <span className="altimeter-label">Альтиметр</span>
+              <div className="flight-win">{potentialWin.toFixed(0)} ◎</div>
+              <div className="flight-k">{displayK.toFixed(2)}x</div>
+            </div>
           </div>
 
           {booster?.spawned && (
