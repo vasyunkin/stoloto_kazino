@@ -1,0 +1,23 @@
+@startuml container_diagram
+title C4 Level 2 — Контейнеры «Воздушный Шар»
+
+actor Игрок
+actor Оператор
+
+package "ИС «Воздушный Шар»" {
+  [Web UI\nReact, PixiJS, /admin] as web
+  [nginx\nreverse proxy :3000] as ngx
+  [Backend API\nSpring Boot :8080\nREST + STOMP] as api
+  database "PostgreSQL 16" as db
+  [In-memory\nFLYING sessions] as mem
+}
+
+Игрок --> web
+Оператор --> web
+web --> ngx
+ngx --> api : /api, /ws
+web --> api : WSS + REST fallback
+api --> db
+api --> mem
+
+@enduml

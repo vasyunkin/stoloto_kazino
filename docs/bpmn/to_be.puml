@@ -1,0 +1,53 @@
+@startuml to_be
+title To-Be: игровой цикл «Воздушный Шар» (упрощённая BPMN)
+
+|Игрок|
+start
+:Открыть Hub (без регистрации,\nauto demo-id);
+:Выбрать шар STANDARD / LUCKY;
+:Prefight: ставка, бустер;
+
+|ИС (Backend + БД)|
+:POST /game/start\n**[A]** lock кошелька, debit ставки;
+:Зафиксировать crash point,\nseed, commitHash;
+:Сохранить game_round (FLYING);
+
+|Игрок|
+:Полёт (PixiJS + тики 200 мс);
+
+|ИС (Backend + БД)|
+repeat
+  :**[A]** STOMP tick / REST poll\nPublicGameState;
+repeat while (FLYING?) is (да)
+-> нет;
+
+if (Cashout?) then (да)
+  |Игрок|
+  :POST /cashout (K ≥ 1.01×);
+  |ИС (Backend + БД)|
+  :**[A]** credit win, CASHED_OUT,\nledger, puzzle index;
+else (крах)
+  |ИС (Backend + БД)|
+  :**[A]** CRASHED, очки,\npuzzle index;
+endif
+
+|Игрок|
+:Result + фрагмент альбома\n(localStorage);
+:GET /verify (после финиша);
+:Играть снова / рейтинг / альбом;
+
+|Оператор|
+:PUT /admin/config\n**[A]** live-config + audit;
+note right: Следующие старты\nс новым снимком;\nлетящий раунд не меняется
+
+|ИС (Backend + БД)|
+:**[A]** SUM(points) → leaderboard;
+
+|Игрок|
+stop
+
+legend right
+  **[A]** — точка автоматизации
+endlegend
+
+@enduml

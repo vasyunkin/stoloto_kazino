@@ -1,0 +1,96 @@
+@startuml er_diagram
+title ER-диаграмма (PostgreSQL) — «Воздушный Шар»
+
+hide circle
+skinparam linetype ortho
+
+entity "player" as player {
+  * id : UUID <<PK>>
+  --
+  external_id : VARCHAR(64) <<UK>>
+  balance : NUMERIC(19,4)
+  booster_charges : INT
+  created_at : TIMESTAMPTZ
+}
+
+entity "game_round" as round {
+  * id : UUID <<PK>>
+  --
+  * player_id : UUID <<FK>>
+  bet_amount : NUMERIC(19,4)
+  balloon_type : VARCHAR(32)
+  status : VARCHAR(16)
+  crash_point : NUMERIC(10,4)
+  cashout_multiplier : NUMERIC(10,4)
+  win_amount : NUMERIC(19,4)
+  points_earned : INT
+  server_seed : TEXT
+  server_seed_hash : VARCHAR(64)
+  client_seed : VARCHAR(64)
+  nonce : BIGINT
+  boost_tier : INT
+  boost_trigger_line : INT
+  game_config_snapshot : TEXT
+  puzzle_piece_index : INT
+  started_at : TIMESTAMPTZ
+  ended_at : TIMESTAMPTZ
+}
+
+entity "wallet_ledger" as ledger {
+  * id : BIGSERIAL <<PK>>
+  --
+  * player_id : UUID <<FK>>
+  game_round_id : UUID <<FK>>
+  type : VARCHAR(20)
+  amount : NUMERIC(19,4)
+  created_at : TIMESTAMPTZ
+}
+
+entity "config_snapshot" as config {
+  * id : UUID <<PK>>
+  --
+  payload : JSONB
+  applied_at : TIMESTAMPTZ
+  applied_by : VARCHAR(64)
+}
+
+entity "admin_user" as admin {
+  * id : UUID <<PK>>
+  --
+  username : VARCHAR(64) <<UK>>
+  password_hash : VARCHAR(100)
+  display_name : VARCHAR(128)
+  enabled : BOOLEAN
+  created_at : TIMESTAMPTZ
+  updated_at : TIMESTAMPTZ
+  last_login_at : TIMESTAMPTZ
+}
+
+entity "admin_refresh_token" as refresh {
+  * id : UUID <<PK>>
+  --
+  * admin_user_id : UUID <<FK>>
+  token_hash : VARCHAR(64) <<UK>>
+  expires_at : TIMESTAMPTZ
+  revoked_at : TIMESTAMPTZ
+  created_at : TIMESTAMPTZ
+  user_agent : VARCHAR(256)
+  ip : VARCHAR(64)
+}
+
+player ||--o{ round : "играет"
+player ||--o{ ledger : "проводки"
+round ||--o{ ledger : "опционально"
+admin ||--o{ refresh : "сессии"
+
+note bottom of config
+  История live-config.
+  Текущий снимок также в памяти ConfigService.
+end note
+
+note bottom of round
+  Альбом 24/24 — не в БД,
+  только puzzle_piece_index на раунд.
+end note
+
+@enduml

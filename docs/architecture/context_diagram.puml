@@ -1,0 +1,17 @@
+@startuml context_diagram
+title C4 Level 1 — Контекст «Воздушный Шар» (упрощённо)
+
+actor "Игрок" as player
+actor "Оператор" as op
+
+rectangle "ИС «Воздушный Шар»\n(Server-authoritative crash)" as sys #LightBlue
+
+cloud "LocalStorage\n(альбом 24 слота)" as ls
+cloud "Платёжный шлюз\n(roadmap)" as pay
+
+player --> sys : HTTPS / WSS\nигра, рейтинг, verify
+op --> sys : HTTPS /admin\nlive-config
+sys ..> ls : фрагменты пишет SPA\n(не API БД)
+sys ..> pay : ledger → проводки\n(будущее)
+
+@enduml
