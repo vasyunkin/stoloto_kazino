@@ -211,11 +211,18 @@ class AdminAuthIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"math\":{\"houseEdge\":0.06}}"))
                 .andExpect(status().isOk());
-        mockMvc.perform(get("/api/admin/config/history?limit=5")
+        MvcResult history = mockMvc.perform(get("/api/admin/config/history?limit=5")
                         .header("Authorization", "Bearer " + access))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].appliedBy").exists())
-                .andExpect(jsonPath("$[0].payloadPreview").exists());
+                .andExpect(jsonPath("$[0].payloadPreview").exists())
+                .andExpect(jsonPath("$[0].payload").exists())
+                .andReturn();
+        String payload = objectMapper.readTree(history.getResponse().getContentAsString())
+                .get(0).get("payload").asText();
+        assertThat(payload).contains("0.06");
+        assertThat(payload).doesNotContain("apiKey");
+        assertThat(payload).doesNotContain("devFixedServerSeed");
     }
 
     private JsonNode login(String username, String password) throws Exception {

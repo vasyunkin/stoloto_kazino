@@ -10,15 +10,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import java.time.Clock;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * Startup recovery: unfinished {@code FLYING} rounds are voided and the bet is refunded
- * (Spec 0 §4.1). Per-round lock order matches cashout: {@code gameId} lock, then player
- * {@code SELECT FOR UPDATE} as the first entity load in the write TX (I5).
+ * Keeps FLYING rounds on the server clock. A restart resumes a round from its stored
+ * crash point and snapshot. The bet is refunded only when that snapshot cannot be read.
  */
 @Slf4j
 @Service
@@ -29,46 +27,59 @@ public class RoundRecoveryService {
     private final PlayerRepository playerRepository;
     private final PlayerService playerService;
     private final GameSessionCache sessionCache;
+    private final GameOrchestrator orchestrator;
+    private final RoundLifecycleService lifecycle;
     private final TransactionTemplate transactionTemplate;
-    private final Clock clock;
+    private final java.time.Clock clock;
 
-    /**
-     * @return number of FLYING rounds found at the start of the sweep
-     */
-    public int recoverAllFlying() {
+    /** Startup and the live settler share this sweep. */
+    public int settleLiveRounds() {
         List<UUID> ids = gameRoundRepository.findIdsByStatus(RoundStatus.FLYING);
         for (UUID id : ids) {
-            recoverOne(id);
+            settleOne(id);
         }
         return ids.size();
     }
 
-    private void recoverOne(UUID roundId) {
+    /** @deprecated use {@link #settleLiveRounds()}; kept so older call sites stay source-compatible. */
+    public int recoverAllFlying() {
+        return settleLiveRounds();
+    }
+
+    private void settleOne(UUID roundId) {
         ReentrantLock lock = sessionCache.lockFor(roundId);
         lock.lock();
         try {
-            transactionTemplate.executeWithoutResult(status -> {
-                String externalId = gameRoundRepository.findPlayerExternalIdById(roundId)
-                        .orElse(null);
-                if (externalId == null) {
-                    return;
-                }
-                // FIRST Player entity load in this TX — pessimistic lock (I5).
-                var player = playerRepository.findByExternalIdForUpdate(externalId)
-                        .orElseThrow(GameException::playerNotFound);
-                GameRound round = gameRoundRepository.findById(roundId).orElse(null);
-                if (round == null || round.getStatus() != RoundStatus.FLYING) {
-                    return;
-                }
-                playerService.refundBet(player, round.getBetAmount(), round);
-                round.setStatus(RoundStatus.VOID);
-                round.setEndedAt(clock.instant());
-                log.info("Recovered flying round: gameId={} playerId={} refund={}",
-                        roundId, externalId, round.getBetAmount());
-            });
+            try {
+                var session = orchestrator.restoreFlying(roundId);
+                session.ifPresent(value -> lifecycle.resolve(value, ResolveIntent.STATE_ONLY));
+            } catch (IllegalStateException ex) {
+                log.warn("Cannot resume round {}: {}", roundId, ex.getMessage());
+                voidAndRefund(roundId);
+                sessionCache.evict(roundId);
+            }
         } finally {
             lock.unlock();
-            sessionCache.evict(roundId);
         }
+    }
+
+    private void voidAndRefund(UUID roundId) {
+        transactionTemplate.executeWithoutResult(status -> {
+            String externalId = gameRoundRepository.findPlayerExternalIdById(roundId).orElse(null);
+            if (externalId == null) {
+                return;
+            }
+            var player = playerRepository.findByExternalIdForUpdate(externalId)
+                    .orElseThrow(GameException::playerNotFound);
+            GameRound round = gameRoundRepository.findById(roundId).orElse(null);
+            if (round == null || round.getStatus() != RoundStatus.FLYING) {
+                return;
+            }
+            playerService.refundBet(player, round.getBetAmount(), round);
+            round.setStatus(RoundStatus.VOID);
+            round.setEndedAt(clock.instant());
+            log.info("Voided unreadable round: gameId={} playerId={} refund={}",
+                    roundId, externalId, round.getBetAmount());
+        });
     }
 }

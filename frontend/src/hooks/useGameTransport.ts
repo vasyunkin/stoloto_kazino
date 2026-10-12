@@ -1,4 +1,5 @@
 import { Client, type IMessage, type StompSubscription } from '@stomp/stompjs'
+import { getPlayerAccessToken } from '../auth/playerSession'
 import { useEffect, useRef } from 'react'
 import { getState } from '../api/gameApi'
 import type { PublicGameState, WsGameEvent } from '../api/types'
@@ -133,9 +134,13 @@ export function useGameTransport(active: boolean) {
     // Always get an immediate snapshot (covers WS delay / first paint).
     void pollOnce()
 
+    const accessToken = getPlayerAccessToken()
     client = new Client({
       brokerURL: brokerUrl(),
-      connectHeaders: { 'X-Player-Id': playerId },
+      connectHeaders: {
+        'X-Player-Id': playerId,
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
       reconnectDelay: 0,
       heartbeatIncoming: 10000,
       heartbeatOutgoing: 10000,

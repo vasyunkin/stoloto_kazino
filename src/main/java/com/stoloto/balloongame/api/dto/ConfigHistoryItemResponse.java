@@ -7,5 +7,6 @@ public record ConfigHistoryItemResponse(
         UUID id,
         Instant appliedAt,
         String appliedBy,
-        String payloadPreview
+        String payloadPreview,
+        String payload
 ) {}

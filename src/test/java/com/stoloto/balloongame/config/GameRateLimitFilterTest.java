@@ -19,7 +19,7 @@ class GameRateLimitFilterTest {
         properties.setEnabled(true);
         properties.setCapacity(40);
         properties.setWindowSeconds(10);
-        filter = new GameRateLimitFilter(properties);
+        filter = new GameRateLimitFilter(properties, null);
     }
 
     @Test

@@ -108,7 +108,7 @@ class StateCashoutIntegrationTest {
     }
 
     private BetRequest bet(String playerId, String amount) {
-        return new BetRequest(playerId, new BigDecimal(amount), "STANDARD", "AUTO", null);
+        return new BetRequest(playerId, new BigDecimal(amount), "STANDARD", "AUTO", null, null);
     }
 
     private StartGameResponse startOk(String playerId, String amount) throws Exception {
@@ -202,6 +202,9 @@ class StateCashoutIntegrationTest {
         assertThat(json)
                 .doesNotContain("\"crashPoint\"")
                 .doesNotContain("\"serverSeed\"");
+        if (flying.round().getBoostTriggerLine() != null && flying.round().getBoostTriggerLine() > 0) {
+            assertThat(json).doesNotContain("\"triggerLine\"");
+        }
     }
 
     @Test
@@ -460,7 +463,7 @@ class StateCashoutIntegrationTest {
             clock.freeze(T0);
             String playerId = uid();
             fund(playerId, "1000.00");
-            BetRequest body = new BetRequest(playerId, new BigDecimal("100"), "STANDARD", "NONE", null);
+            BetRequest body = new BetRequest(playerId, new BigDecimal("100"), "STANDARD", "NONE", null, null);
             MvcResult startResult = mockMvc.perform(post("/api/game/start")
                             .header("X-Player-Id", playerId)
                             .contentType(MediaType.APPLICATION_JSON)
@@ -500,14 +503,15 @@ class StateCashoutIntegrationTest {
     // ── cache miss rebuild ────────────────────────────────────────────────
 
     @Test
-    void state_flyingCacheMiss_returns410() throws Exception {
+    void state_flyingCacheMiss_resumesFromDatabase() throws Exception {
         FlyingRound flying = flyingRound();
         sessionCache.evict(flying.gameId());
 
         mockMvc.perform(get("/api/game/state/" + flying.gameId())
                         .header("X-Player-Id", flying.playerId()))
-                .andExpect(status().isGone())
-                .andExpect(jsonPath("$.code").value("ROUND_EXPIRED"));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("FLYING"))
+                .andExpect(jsonPath("$.crashPoint").doesNotExist());
     }
 
     // ── I7 ────────────────────────────────────────────────────────────────

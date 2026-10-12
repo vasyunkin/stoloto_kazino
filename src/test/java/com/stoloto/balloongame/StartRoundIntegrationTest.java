@@ -41,6 +41,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -82,7 +83,7 @@ class StartRoundIntegrationTest {
     }
 
     private BetRequest bet(String playerId, String amount) {
-        return new BetRequest(playerId, new BigDecimal(amount), "STANDARD", "AUTO", null);
+        return new BetRequest(playerId, new BigDecimal(amount), "STANDARD", "AUTO", null, null);
     }
 
     private MvcResult postStart(String headerPlayerId, BetRequest body) throws Exception {
@@ -131,7 +132,10 @@ class StartRoundIntegrationTest {
                 .doesNotContain("\"server_seed\"");
 
         StartGameResponse body = objectMapper.readValue(json, StartGameResponse.class);
-        assertThat(body.commitHash()).isEqualTo(body.serverSeedHash());
+        assertThat(body.commitHash()).hasSize(64);
+        assertThat(body.serverSeedHash()).hasSize(64);
+        assertThat(body.nextServerSeedHash()).hasSize(64);
+        assertThat(body.nonce()).isPositive();
         assertThat(body.commitHash()).isNotBlank();
     }
 
@@ -246,6 +250,16 @@ class StartRoundIntegrationTest {
     // ── Validation ────────────────────────────────────────────────────────
 
     @Test
+    void limits_returnsThemeBetBounds() throws Exception {
+        mockMvc.perform(get("/api/game/limits"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.standard.minBetAmount").value(12.0))
+                .andExpect(jsonPath("$.standard.maxBetAmount").value(5000.0))
+                .andExpect(jsonPath("$.lucky.minBetAmount").value(25.0))
+                .andExpect(jsonPath("$.lucky.maxBetAmount").value(10000.0));
+    }
+
+    @Test
     void start_betBelowMin_returns400_INVALID_BET() throws Exception {
         String playerId = uid();
         fund(playerId, "1000.00");
@@ -296,7 +310,7 @@ class StartRoundIntegrationTest {
 
         String seededId = uid();
         fund(seededId, "1000.00");
-        BetRequest withSeed = new BetRequest(seededId, new BigDecimal("100"), "LUCKY", null, "player-seed-1");
+        BetRequest withSeed = new BetRequest(seededId, new BigDecimal("100"), "LUCKY", null, "player-seed-1", null);
         MvcResult result = mockMvc.perform(post("/api/game/start")
                         .header("X-Player-Id", seededId)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -392,18 +406,20 @@ class StartRoundIntegrationTest {
         start.countDown();
         done.await(30, TimeUnit.SECONDS);
 
-        assertThat(errors).as("Concurrent starts: %s", errors).isEmpty();
-        assertThat(ok).hasSize(2);
+        assertThat(ok).hasSize(1);
+        assertThat(errors).hasSize(1);
+        assertThat(((com.stoloto.balloongame.api.exception.GameException) errors.get(0)).getErrorCode())
+                .isEqualTo(com.stoloto.balloongame.api.exception.ErrorCode.ROUND_IN_PROGRESS);
 
         Player player = playerRepository.findByExternalId(playerId).orElseThrow();
         BigDecimal balance = playerService.getBalance(playerId);
-        assertThat(balance).isEqualByComparingTo("800.00");
+        assertThat(balance).isEqualByComparingTo("900.00");
         assertThat(balance).isEqualByComparingTo(walletLedgerRepository.sumBalanceByPlayerId(player.getId()));
 
         long debitCount = walletLedgerRepository.findAllByPlayerIdOrderByCreatedAtDesc(player.getId())
                 .stream()
                 .filter(e -> e.getType() == LedgerType.DEBIT_BET)
                 .count();
-        assertThat(debitCount).isEqualTo(2);
+        assertThat(debitCount).isEqualTo(1);
     }
 }

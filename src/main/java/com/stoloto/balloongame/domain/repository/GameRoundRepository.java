@@ -23,6 +23,26 @@ public interface GameRoundRepository extends JpaRepository<GameRound, UUID> {
 
     long countByPlayer_ExternalId(String externalId);
 
+    long countByPlayer_IdAndStatus(UUID playerId, RoundStatus status);
+
+    @Query("""
+            SELECT r FROM GameRound r JOIN FETCH r.player p
+            WHERE p.externalId = :externalId AND r.status IN :statuses
+            ORDER BY r.startedAt DESC
+            """)
+    List<GameRound> findOwnHistory(@Param("externalId") String externalId,
+                                   @Param("statuses") Collection<RoundStatus> statuses,
+                                   Pageable pageable);
+
+    @Query(value = """
+            SELECT COALESCE(SUM(bet_amount), 0), COALESCE(SUM(COALESCE(win_amount, 0)), 0)
+            FROM game_round
+            WHERE status IN ('CRASHED', 'CASHED_OUT')
+              AND ended_at >= :fromTs AND ended_at < :toTs
+            """, nativeQuery = true)
+    List<Object[]> sumSettledStakesAndWins(@Param("fromTs") java.time.Instant fromTs,
+                                            @Param("toTs") java.time.Instant toTs);
+
     /** Rebuild {@code GameSession} from DB (cache miss). Player must be loaded (I6). */
     @Query("SELECT r FROM GameRound r JOIN FETCH r.player WHERE r.id = :id")
     Optional<GameRound> findByIdWithPlayer(@Param("id") UUID id);

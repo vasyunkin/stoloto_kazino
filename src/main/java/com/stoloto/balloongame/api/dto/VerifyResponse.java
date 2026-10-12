@@ -16,5 +16,10 @@ public record VerifyResponse(
         String algorithmVersion,
         Integer boostTier,
         Integer boostTriggerLine,
-        BigDecimal boostMultiplier
+        BigDecimal boostMultiplier,
+        String seedPrecommit,
+        BigDecimal houseEdge,
+        BigDecimal maxWinMultiplier,
+        BigDecimal minCrashPoint,
+        BigDecimal instantCrashRate
 ) {}

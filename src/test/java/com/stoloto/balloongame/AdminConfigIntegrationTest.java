@@ -119,7 +119,7 @@ class AdminConfigIntegrationTest {
     }
 
     private StartGameResponse startOk(String playerId) throws Exception {
-        BetRequest body = new BetRequest(playerId, new BigDecimal("100"), "STANDARD", "NONE", null);
+        BetRequest body = new BetRequest(playerId, new BigDecimal("100"), "STANDARD", "NONE", null, null);
         MvcResult result = mockMvc.perform(post("/api/game/start")
                         .header("X-Player-Id", playerId)
                         .contentType(MediaType.APPLICATION_JSON)

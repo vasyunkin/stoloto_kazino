@@ -5,20 +5,22 @@ import { useGameStore } from '../stores/gameStore'
 export function useDisplayMultiplier(): number {
   const serverK = useGameStore((s) => s.multiplier)
   const status = useGameStore((s) => s.status)
+  const phase = useGameStore((s) => s.phase)
+  const tracking = status === 'FLYING' || phase === 'spectating'
   const [display, setDisplay] = useState(serverK)
   const currentRef = useRef(serverK)
   const targetRef = useRef(serverK)
 
   useEffect(() => {
     targetRef.current = serverK
-    if (status !== 'FLYING') {
+    if (!tracking) {
       currentRef.current = serverK
       setDisplay(serverK)
     }
-  }, [serverK, status])
+  }, [serverK, tracking])
 
   useEffect(() => {
-    if (status !== 'FLYING') return
+    if (!tracking) return
     let raf = 0
     const tick = () => {
       const target = targetRef.current
@@ -31,7 +33,7 @@ export function useDisplayMultiplier(): number {
     }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
-  }, [status])
+  }, [tracking])
 
   return display
 }

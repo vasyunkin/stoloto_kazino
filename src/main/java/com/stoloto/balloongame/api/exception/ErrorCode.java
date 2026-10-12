@@ -19,10 +19,13 @@ public enum ErrorCode {
     AUTH_DISABLED,
     AUTH_TOKEN_EXPIRED,
     AUTH_UNAUTHORIZED,
+    AUTH_EMAIL_TAKEN,
     FORBIDDEN,
     VALIDATION_ERROR,
     RATE_LIMITED,            // 429 — start/cashout spam (optional filter)
     CASHOUT_TOO_EARLY,       // 409 — K below minCashoutMultiplier
     NO_BOOSTER_CHARGES,      // 400 — AUTO requested with zero charges
+    ROUND_IN_PROGRESS,       // 409 — player already has a FLYING round
+    BETS_CLOSED,             // 403 — operator stopped new bets
     INTERNAL_ERROR
 }

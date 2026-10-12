@@ -1,6 +1,7 @@
 package com.stoloto.balloongame.service;
 
 import com.stoloto.balloongame.api.dto.HistoryItemResponse;
+import com.stoloto.balloongame.api.dto.OwnRoundResponse;
 import com.stoloto.balloongame.domain.entity.RoundStatus;
 import com.stoloto.balloongame.domain.repository.GameRoundRepository;
 import lombok.RequiredArgsConstructor;
@@ -48,5 +49,14 @@ public class GameHistoryService {
             return 1;
         }
         return Math.min(limit, MAX_LIMIT);
+    }
+
+    public List<OwnRoundResponse> ownHistory(String playerId, Integer limit) {
+        int size = clampLimit(limit);
+        return gameRoundRepository
+                .findOwnHistory(playerId, TERMINAL, PageRequest.of(0, size))
+                .stream()
+                .map(OwnRoundResponse::from)
+                .toList();
     }
 }

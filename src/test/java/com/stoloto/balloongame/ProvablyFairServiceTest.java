@@ -45,7 +45,7 @@ class ProvablyFairServiceTest {
 
     @Test
     void algorithmVersion_isCrashV1() {
-        assertThat(pf.algorithmVersion()).isEqualTo("crash-v1");
+        assertThat(pf.algorithmVersion()).isEqualTo("crash-v2");
     }
 
     // ── Golden vector: commitHash ─────────────────────────────────────────

@@ -2,6 +2,7 @@ package com.stoloto.balloongame.service;
 
 import com.stoloto.balloongame.config.AdminAuthProperties;
 import com.stoloto.balloongame.config.AdminPrincipal;
+import com.stoloto.balloongame.config.PlayerPrincipal;
 import com.stoloto.balloongame.domain.entity.AdminUserEntity;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
@@ -24,6 +25,7 @@ public class JwtService {
 
     public sealed interface ParseResult {
         record Ok(AdminPrincipal principal) implements ParseResult {}
+        record PlayerOk(PlayerPrincipal principal) implements ParseResult {}
         record Err(Failure failure) implements ParseResult {}
     }
 
@@ -51,6 +53,18 @@ public class JwtService {
                 .compact();
     }
 
+    public String createPlayerAccessToken(String playerId) {
+        Instant now = clock.instant();
+        Instant exp = now.plus(properties.getAccessTokenTtl());
+        return Jwts.builder()
+                .subject(playerId)
+                .claim("role", "PLAYER")
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(exp))
+                .signWith(key)
+                .compact();
+    }
+
     public long accessExpiresInSeconds() {
         return properties.getAccessTokenTtl().toSeconds();
     }
@@ -63,9 +77,16 @@ public class JwtService {
                     .build()
                     .parseSignedClaims(token)
                     .getPayload();
+            String role = claims.get("role", String.class);
+            if ("PLAYER".equals(role)) {
+                String playerId = claims.getSubject();
+                if (playerId == null || playerId.isBlank()) {
+                    return new ParseResult.Err(Failure.INVALID);
+                }
+                return new ParseResult.PlayerOk(new PlayerPrincipal(playerId));
+            }
             UUID id = UUID.fromString(claims.getSubject());
             String username = claims.get("username", String.class);
-            String role = claims.get("role", String.class);
             if (username == null || username.isBlank()) {
                 return new ParseResult.Err(Failure.INVALID);
             }

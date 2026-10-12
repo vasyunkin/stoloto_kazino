@@ -31,7 +31,16 @@ export async function requestCashout(): Promise<{ ok: true } | { ok: false; mess
       if (err.code === 'ALREADY_CRASHED' || err.code === 'ALREADY_CASHED_OUT') {
         try {
           const state = await getState(game.gameId, playerId)
-          useGameStore.getState().applyPublicState(state)
+          if (state.status === 'CASHED_OUT') {
+            useGameStore.getState().applyCashoutResult({
+              multiplierAtCashout: state.multiplier,
+              winAmount: state.winAmount ?? 0,
+              pointsTotal: state.pointsTotal,
+              puzzlePieceIndex: state.puzzlePieceIndex ?? null,
+            })
+          } else {
+            useGameStore.getState().applyPublicState(state)
+          }
           await ensureWallet(false)
         } catch {
           /* ignore secondary */

@@ -49,6 +49,10 @@ interface PuzzleAlbumStore {
   playerId: string | null
   pieces: Record<number, AlbumPiece>
   loadForPlayer: (playerId: string) => void
+  replaceFromServer: (
+    playerId: string,
+    slots: Array<{ slot: number; gameId?: string | null; earnedAt: string }>,
+  ) => void
   /** Idempotent: first collect wins for a slot. Returns true if newly added. */
   collectPiece: (
     playerId: string,
@@ -63,6 +67,18 @@ export const usePuzzleAlbumStore = create<PuzzleAlbumStore>((set, get) => ({
   pieces: {},
   loadForPlayer: (playerId) => {
     set({ playerId, pieces: toPiecesMap(readAlbum(playerId)) })
+  },
+  replaceFromServer: (playerId, slots) => {
+    const record: AlbumRecord = {}
+    for (const slot of slots) {
+      if (!Number.isInteger(slot.slot) || slot.slot < 0 || slot.slot >= PUZZLE_SLOT_COUNT) continue
+      record[String(slot.slot)] = {
+        collectedAt: slot.earnedAt,
+        ...(slot.gameId ? { fromGameId: slot.gameId } : {}),
+      }
+    }
+    writeAlbum(playerId, record)
+    set({ playerId, pieces: toPiecesMap(record) })
   },
   collectPiece: (playerId, slotIndex, fromGameId) => {
     if (!Number.isInteger(slotIndex) || slotIndex < 0 || slotIndex >= PUZZLE_SLOT_COUNT) {

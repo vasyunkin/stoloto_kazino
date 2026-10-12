@@ -149,8 +149,17 @@ public class GameConfig {
         @NotNull @Positive
         private BigDecimal maxWinMultiplier = new BigDecimal("100.0");
 
-        /** Allow /api/players/{id}/deposit endpoint. Set false in prod. */
+        /** Allow /api/players/{id}/deposit. Also requires {@link #demoMode}. */
         private boolean allowDeposit = true;
+
+        /**
+         * Demo faucet: welcome credit and {@code POST /deposit}.
+         * Profile {@code prod} must set this false; {@code ProdSafetyChecker} refuses otherwise.
+         */
+        private boolean demoMode = true;
+
+        /** When false, new rounds are rejected. Rounds already FLYING keep running. */
+        private boolean acceptingBets = true;
 
         /**
          * Balance granted once when a player is auto-created via GET balance.
@@ -302,6 +311,8 @@ public class GameConfig {
         a.minWinAmount = this.admin.minWinAmount;
         a.maxWinMultiplier = this.admin.maxWinMultiplier;
         a.allowDeposit = this.admin.allowDeposit;
+        a.demoMode = this.admin.demoMode;
+        a.acceptingBets = this.admin.acceptingBets;
         a.welcomeBalance = this.admin.welcomeBalance;
         copy.admin = a;
 

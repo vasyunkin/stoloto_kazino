@@ -128,7 +128,7 @@ class RecoveryVerifyIntegrationTest {
     }
 
     private StartGameResponse startOk(String playerId) throws Exception {
-        BetRequest body = new BetRequest(playerId, new BigDecimal("100"), "STANDARD", "AUTO", null);
+        BetRequest body = new BetRequest(playerId, new BigDecimal("100"), "STANDARD", "AUTO", null, null);
         MvcResult result = mockMvc.perform(post("/api/game/start")
                         .header("X-Player-Id", playerId)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -139,17 +139,35 @@ class RecoveryVerifyIntegrationTest {
     }
 
     @Test
-    void recovery_flyingRound_voidedAndRefunded() throws Exception {
+    void recovery_stillFlying_resumesWithoutRefund() throws Exception {
         FlyingRound flying = flyingRound();
         assertThat(playerService.getBalance(flying.playerId())).isEqualByComparingTo("900.00");
+        sessionCache.evict(flying.gameId());
 
-        int n = recoveryService.recoverAllFlying();
-        assertThat(n).isGreaterThanOrEqualTo(1);
+        recoveryService.recoverAllFlying();
+
+        GameRound persisted = gameRoundRepository.findById(flying.gameId()).orElseThrow();
+        assertThat(persisted.getStatus()).isEqualTo(RoundStatus.FLYING);
+        assertThat(playerService.getBalance(flying.playerId())).isEqualByComparingTo("900.00");
+        mockMvc.perform(get("/api/game/state/" + flying.gameId())
+                        .header("X-Player-Id", flying.playerId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("FLYING"))
+                .andExpect(jsonPath("$.crashPoint").doesNotExist());
+    }
+
+    @Test
+    void recovery_unreadableSnapshot_voidsAndRefundsOnce() throws Exception {
+        FlyingRound flying = flyingRound();
+        GameRound round = gameRoundRepository.findById(flying.gameId()).orElseThrow();
+        round.setGameConfigSnapshot("not-json");
+        gameRoundRepository.saveAndFlush(round);
+        sessionCache.evict(flying.gameId());
+
+        recoveryService.recoverAllFlying();
 
         GameRound persisted = gameRoundRepository.findById(flying.gameId()).orElseThrow();
         assertThat(persisted.getStatus()).isEqualTo(RoundStatus.VOID);
-        assertThat(persisted.getEndedAt()).isNotNull();
-        assertThat(sessionCache.get(flying.gameId())).isEmpty();
         assertThat(playerService.getBalance(flying.playerId())).isEqualByComparingTo("1000.00");
 
         Player player = playerRepository.findByExternalId(flying.playerId()).orElseThrow();
@@ -169,7 +187,6 @@ class RecoveryVerifyIntegrationTest {
         mockMvc.perform(get("/api/game/verify/" + flying.gameId())
                         .header("X-Player-Id", flying.playerId()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.algorithmVersion").value("crash-v1"))
                 .andExpect(jsonPath("$.serverSeed").value(flying.round().getServerSeed()));
 
         recoveryService.recoverAllFlying();
@@ -203,7 +220,7 @@ class RecoveryVerifyIntegrationTest {
         MvcResult result = mockMvc.perform(get("/api/game/verify/" + flying.gameId())
                         .header("X-Player-Id", flying.playerId()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.algorithmVersion").value("crash-v1"))
+                .andExpect(jsonPath("$.algorithmVersion").value("crash-v2"))
                 .andReturn();
 
         VerifyResponse verify = objectMapper.readValue(

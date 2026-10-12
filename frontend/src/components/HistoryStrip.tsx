@@ -26,8 +26,8 @@ export function HistoryStrip({ items, title = 'Прошлые игры' }: Histo
       <h3 className="history-title">{title}</h3>
       <div className="history-row" role="list">
         {items.map((item, index) => {
-          const label = historyPillLabel(item.status, item.betAmount, item.winAmount)
-          const tone = historyPillTone(item.status, item.betAmount, item.winAmount)
+          const label = historyPillLabel(item.status, item.crashPoint)
+          const tone = historyPillTone(item.status, item.crashPoint)
           return (
             <motion.span
               key={item.gameId}

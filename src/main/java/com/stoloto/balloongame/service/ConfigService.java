@@ -93,7 +93,8 @@ public class ConfigService {
                         s.getId(),
                         s.getAppliedAt(),
                         s.getAppliedBy(),
-                        truncate(s.getPayload(), 200)
+                        truncate(s.getPayload(), 200),
+                        s.getPayload() == null ? "" : s.getPayload()
                 ))
                 .toList();
     }

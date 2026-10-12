@@ -1,3 +1,4 @@
+import { getPlayerAccessToken } from '../auth/playerSession'
 import type { ErrorResponse } from './types'
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? ''
@@ -34,8 +35,9 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   if (options.playerId) {
     headers['X-Player-Id'] = options.playerId
   }
-  if (options.accessToken) {
-    headers['Authorization'] = `Bearer ${options.accessToken}`
+  const accessToken = options.accessToken ?? getPlayerAccessToken()
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`
   }
 
   const res = await fetch(`${API_BASE}${path}`, {

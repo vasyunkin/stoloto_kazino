@@ -23,9 +23,11 @@ import java.time.Instant;
  * <pre>
  *   h = HMAC-SHA256(serverSeedBytes, clientSeed + ":" + nonce)
  *   u = first52bits(h) / 2^52          // ∈ [0, 1)
- *   floor = minCrashPoint (default 1.00)
- *   if u &lt; instantCrashRate → crashPoint = floor
- *   else crashPoint = min(maxWin, max(floor, (1 - houseEdge) / u))
+ *   crash-v2 (new rounds): houseEdge is the whole edge before the win cap.
+ *   if u &lt; houseEdge → crashPoint = floor (instant 1.00×)
+ *   else v = (u - houseEdge) / (1 - houseEdge); crashPoint = min(maxWin, max(floor, 1 / (1 - v)))
+ *   P(crash &gt; M) = (1 - houseEdge) / M for 1 &lt; M and no cap, so RTP at a fixed cashout is 1 - houseEdge.
+ *   crash-v1 (stored rounds): instantCrashRate and houseEdge were applied together.
  * </pre>
  *
  * <p><b>I2:</b> crash point is drawn once at round start and never recalculated.
@@ -142,13 +144,16 @@ public class CrashMathService {
      */
     public BigDecimal drawCrashMultiplier(String serverSeedHex, String clientSeed,
                                           long nonce, GameConfig config) {
+        return drawCrashMultiplier(serverSeedHex, clientSeed, nonce, config, ProvablyFairService.ALGORITHM_V2);
+    }
+
+    public BigDecimal drawCrashMultiplier(String serverSeedHex, String clientSeed,
+                                          long nonce, GameConfig config, String algorithm) {
         byte[] serverSeedBytes = provablyFairService.decodeServerSeed(serverSeedHex);
         String message = clientSeed + ":" + nonce;
         byte[] hmac = provablyFairService.hmacSha256(
                 serverSeedBytes, message.getBytes(StandardCharsets.UTF_8));
-
-        double u = extractU(hmac);
-        return computeCrashPoint(u, config);
+        return computeCrashPoint(extractU(hmac), config, algorithm);
     }
 
     // ── Internal helpers ─────────────────────────────────────────────────
@@ -173,13 +178,24 @@ public class CrashMathService {
      * Never returns below {@code math.minCrashPoint} (default 1.00).
      */
     public BigDecimal computeCrashPoint(double u, GameConfig config) {
-        GameConfig.MathConfig math = config.getMath();
-        BigDecimal floor = math.getMinCrashPoint() != null ? math.getMinCrashPoint() : ONE;
-        double floorD = floor.doubleValue();
-        double maxWin = config.getAdmin().getMaxWinMultiplier().doubleValue();
-        if (maxWin < floorD) {
-            maxWin = floorD;
+        return computeCrashPoint(u, config, com.stoloto.balloongame.provablyfair.ProvablyFairService.ALGORITHM_V2);
+    }
+
+    public BigDecimal computeCrashPoint(double u, GameConfig config, String algorithm) {
+        if (com.stoloto.balloongame.provablyfair.ProvablyFairService.ALGORITHM_V1.equals(algorithm)) {
+            return computeCrashPointV1(u, config);
         }
+        return computeCrashPointV2(u, config);
+    }
+
+    /**
+     * Historical crash-v1: {@code instantCrashRate} and {@code houseEdge} both reduce RTP.
+     */
+    private BigDecimal computeCrashPointV1(double u, GameConfig config) {
+        GameConfig.MathConfig math = config.getMath();
+        BigDecimal floor = floor(config);
+        double floorD = floor.doubleValue();
+        double maxWin = maxWin(config, floorD);
 
         if (u < math.getInstantCrashRate()) {
             return floor.setScale(SCALE, RoundingMode.HALF_UP);
@@ -188,5 +204,44 @@ public class CrashMathService {
         double raw = (1.0 - math.getHouseEdge()) / u;
         double capped = Math.min(maxWin, Math.max(floorD, raw));
         return BigDecimal.valueOf(capped).setScale(SCALE, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * crash-v2: a fixed cashout M below the cap returns RTP = 1 - houseEdge.
+     * Instant busts at {@code minCrashPoint} happen with probability {@code houseEdge}.
+     * {@code instantCrashRate} is ignored so it cannot stack a second edge.
+     */
+    private BigDecimal computeCrashPointV2(double u, GameConfig config) {
+        GameConfig.MathConfig math = config.getMath();
+        BigDecimal floor = floor(config);
+        double floorD = floor.doubleValue();
+        double maxWin = maxWin(config, floorD);
+        double h = math.getHouseEdge();
+        if (h < 0) {
+            h = 0;
+        }
+        if (h >= 1) {
+            return floor.setScale(SCALE, RoundingMode.HALF_UP);
+        }
+        if (u < h) {
+            return floor.setScale(SCALE, RoundingMode.HALF_UP);
+        }
+        double v = (u - h) / (1.0 - h);
+        if (v >= 1.0) {
+            v = Math.nextDown(1.0);
+        }
+        double raw = 1.0 / (1.0 - v);
+        double capped = Math.min(maxWin, Math.max(floorD, raw));
+        return BigDecimal.valueOf(capped).setScale(SCALE, RoundingMode.HALF_UP);
+    }
+
+    private static BigDecimal floor(GameConfig config) {
+        BigDecimal floor = config.getMath().getMinCrashPoint();
+        return floor != null ? floor : ONE;
+    }
+
+    private static double maxWin(GameConfig config, double floorD) {
+        double maxWin = config.getAdmin().getMaxWinMultiplier().doubleValue();
+        return maxWin < floorD ? floorD : maxWin;
     }
 }

@@ -38,5 +38,9 @@ public record BetRequest(
 
         @Size(max = 64, message = "clientSeed must be at most 64 characters")
         @Schema(description = "Опциональный client seed для Provably Fair")
-        String clientSeed
+        String clientSeed,
+
+        @DecimalMin(value = "1.00", message = "autoCashoutMultiplier must be >= 1")
+        @Schema(description = "Сервер забирает на этом множителе, если краш ещё не случился", example = "2.00")
+        BigDecimal autoCashoutMultiplier
 ) {}

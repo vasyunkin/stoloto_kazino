@@ -5,6 +5,7 @@ import com.stoloto.balloongame.api.dto.DepositRequest;
 import com.stoloto.balloongame.api.dto.DepositResponse;
 import com.stoloto.balloongame.api.dto.LeaderboardEntryResponse;
 import com.stoloto.balloongame.service.LeaderboardService;
+import com.stoloto.balloongame.service.PlayerIdentity;
 import com.stoloto.balloongame.service.PlayerService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -30,6 +31,7 @@ public class PlayerController {
 
     private final PlayerService playerService;
     private final LeaderboardService leaderboardService;
+    private final PlayerIdentity identity;
 
     /**
      * GET /api/players/leaderboard
@@ -51,8 +53,15 @@ public class PlayerController {
      */
     @Operation(summary = "Текущий баланс. Создаёт игрока с welcome-balance, если его ещё не было")
     @GetMapping("/{externalId}/balance")
-    public ResponseEntity<BalanceResponse> getBalance(@PathVariable String externalId) {
-        return ResponseEntity.ok(playerService.getWalletOrCreate(externalId));
+    public ResponseEntity<BalanceResponse> getBalance(
+            @PathVariable String externalId,
+            @RequestHeader(value = "X-Player-Id", required = false) String xPlayerId) {
+        String claimed = xPlayerId != null && !xPlayerId.isBlank() ? xPlayerId : externalId;
+        String playerId = identity.resolve(claimed);
+        if (!playerId.equals(externalId)) {
+            throw com.stoloto.balloongame.api.exception.GameException.forbidden();
+        }
+        return ResponseEntity.ok(playerService.getWalletOrCreate(playerId));
     }
 
     /**
@@ -69,9 +78,14 @@ public class PlayerController {
     @PostMapping("/{externalId}/deposit")
     public ResponseEntity<DepositResponse> deposit(
             @PathVariable String externalId,
+            @RequestHeader(value = "X-Player-Id", required = false) String xPlayerId,
             @Valid @RequestBody DepositRequest request) {
-
-        DepositResponse response = playerService.deposit(externalId, request.amount());
+        String claimed = xPlayerId != null && !xPlayerId.isBlank() ? xPlayerId : externalId;
+        String playerId = identity.resolve(claimed);
+        if (!playerId.equals(externalId)) {
+            throw com.stoloto.balloongame.api.exception.GameException.forbidden();
+        }
+        DepositResponse response = playerService.deposit(playerId, request.amount());
         return ResponseEntity.ok(response);
     }
 }

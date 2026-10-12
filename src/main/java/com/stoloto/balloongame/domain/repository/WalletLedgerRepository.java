@@ -37,4 +37,21 @@ public interface WalletLedgerRepository extends JpaRepository<WalletLedger, Long
 
     /** Count entries for a player — used in concurrent test assertions. */
     long countByPlayerId(UUID playerId);
+
+    @Query(value = """
+            SELECT p.external_id,
+                   p.balance,
+                   COALESCE(SUM(CASE
+                       WHEN l.type IN ('CREDIT_WIN', 'CREDIT_REFUND', 'CREDIT_DEPOSIT') THEN l.amount
+                       WHEN l.type = 'DEBIT_BET' THEN -l.amount
+                       ELSE 0 END), 0)
+            FROM player p
+            LEFT JOIN wallet_ledger l ON l.player_id = p.id
+            GROUP BY p.id, p.external_id, p.balance
+            HAVING p.balance <> COALESCE(SUM(CASE
+                       WHEN l.type IN ('CREDIT_WIN', 'CREDIT_REFUND', 'CREDIT_DEPOSIT') THEN l.amount
+                       WHEN l.type = 'DEBIT_BET' THEN -l.amount
+                       ELSE 0 END), 0)
+            """, nativeQuery = true)
+    List<Object[]> findBalanceMismatches();
 }

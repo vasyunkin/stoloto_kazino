@@ -12,7 +12,7 @@ function App() {
     <div className={`app-shell phase-${phase}`}>
       {phase === 'hub' && <HubScreen />}
       {phase === 'prefight' && <PrefightScreen />}
-      {(phase === 'flight' || phase === 'result') && <FlightScreen />}
+      {(phase === 'flight' || phase === 'spectating' || phase === 'result') && <FlightScreen />}
     </div>
   )
 }

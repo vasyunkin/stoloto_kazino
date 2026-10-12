@@ -61,9 +61,13 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/admin/auth/login",
                                 "/api/admin/auth/refresh",
-                                "/api/admin/auth/logout"
+                                "/api/admin/auth/logout",
+                                "/api/auth/register",
+                                "/api/auth/login",
+                                "/api/auth/refresh",
+                                "/api/auth/logout"
                         ).permitAll()
-                        .requestMatchers("/api/admin/**").authenticated()
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/players/**", "/api/game/**").permitAll()
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()

@@ -46,7 +46,10 @@ import java.util.Locale;
 public class ProvablyFairService {
 
     private static final HexFormat HEX = HexFormat.of();
-    private static final String ALGORITHM_VERSION = "crash-v1";
+    /** Commit scheme is unchanged. Crash distribution since this version is {@code crash-v2}. */
+    public static final String ALGORITHM_V1 = "crash-v1";
+    public static final String ALGORITHM_V2 = "crash-v2";
+    private static final String ALGORITHM_VERSION = ALGORITHM_V2;
 
     private final Environment environment;
 
@@ -60,9 +63,18 @@ public class ProvablyFairService {
         this.environment = environment;
     }
 
-    /** @return {@code "crash-v1"} — stable identifier for PF audit. */
+    /** @return current crash algorithm written onto new rounds. */
     public String algorithmVersion() {
         return ALGORITHM_VERSION;
+    }
+
+    /** Fresh server seed, honouring the dev/test fixed seed when that profile allows it. */
+    public String newServerSeedHex(GameConfig.ProvablyFairConfig pfConfig) {
+        return resolveServerSeedHex(pfConfig);
+    }
+
+    public String sha256Utf8(String value) {
+        return sha(value.getBytes(StandardCharsets.UTF_8), "SHA-256");
     }
 
     // ── Secret generation ─────────────────────────────────────────────────

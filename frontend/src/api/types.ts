@@ -31,14 +31,22 @@ export interface StartGameResponse {
   commitHash: string
   serverSeedHash: string
   startedAt: string
+  nextServerSeedHash: string
+  nonce: number
+}
+
+export interface FairnessResponse {
+  serverSeedHash: string
+  nextNonce: number
+  clientSeed: string
 }
 
 export interface BoosterStateDto {
   spawned: boolean
-  tier: number
-  name: string
-  multiplier: number | string
-  triggerLine: number
+  tier?: number | null
+  name?: string | null
+  multiplier?: number | string | null
+  triggerLine?: number | null
   activated: boolean
 }
 
@@ -60,6 +68,24 @@ export interface GameStateResponse extends PublicGameState {
   serverSeed?: string | null
 }
 
+export interface VerifyResponse {
+  gameId: string
+  serverSeed: string
+  clientSeed: string
+  nonce: number
+  commitHash: string
+  crashPoint: number | string
+  algorithmVersion: string
+  boostTier: number | null
+  boostTriggerLine: number | null
+  boostMultiplier: number | string | null
+  seedPrecommit?: string | null
+  houseEdge?: number | string | null
+  maxWinMultiplier?: number | string | null
+  minCrashPoint?: number | string | null
+  instantCrashRate?: number | string | null
+}
+
 export interface CashoutResponse {
   gameId: string
   multiplierAtCashout: number | string
@@ -67,6 +93,20 @@ export interface CashoutResponse {
   pointsTotal: number
   serverSeed: string
   puzzlePieceIndex: number | null
+}
+
+export interface OwnRoundResponse {
+  gameId: string
+  status: RoundStatus
+  betAmount: number | string
+  winAmount: number | string | null
+  crashPoint: number | string | null
+  cashoutMultiplier: number | string | null
+  commitHash: string
+  algorithmVersion: string
+  balloonType: string
+  startedAt: string
+  endedAt: string | null
 }
 
 export interface HistoryItemResponse {
@@ -78,6 +118,7 @@ export interface HistoryItemResponse {
   balloonType: string
   startedAt: string
   endedAt: string | null
+  crashPoint?: number | string | null
 }
 
 export interface LeaderboardEntryResponse {
@@ -91,10 +132,21 @@ export interface WsGameEvent {
   state: PublicGameState
 }
 
+export interface ThemeBetLimit {
+  minBetAmount: number | string
+  maxBetAmount: number | string
+}
+
+export interface BetLimitsResponse {
+  standard: ThemeBetLimit
+  lucky: ThemeBetLimit
+}
+
 export interface BetRequest {
   playerId: string
   betAmount: number
   balloonType: BalloonType
   boosterPreference?: BoosterPreference
   clientSeed?: string
+  autoCashoutMultiplier?: number
 }

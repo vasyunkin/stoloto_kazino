@@ -48,8 +48,9 @@ export function HelpModal({ open, onClose }: HelpModalProps) {
                 потом быстрее. «Забрать» с <strong>1.01x</strong>.
               </li>
               <li>
-                <strong>Крах</strong> загадан до старта (чаще низкие множители). Возможен
-                мгновенный краш на <strong>1.00x</strong> — ждать «безопасный» порог нельзя.
+                <strong>Крах</strong> загадан до старта. Шанс мгновенного <strong>1.00×</strong> равен
+                доле казино (по умолчанию 8%). Ниже потолка темы отдача около 92%. Выплата,
+                включая бустер, не выше потолка.
               </li>
               <li>
                 <strong>Темы:</strong> зелёный — ниже ставка и спокойнее рост; красный — дороже,
@@ -64,8 +65,8 @@ export function HelpModal({ open, onClose }: HelpModalProps) {
                 больше не копятся.
               </li>
               <li>
-                <strong>Provably Fair:</strong> до полёта — commitHash; после раунда — verify
-                (seed, crashPoint, бустер).
+                <strong>Автозабор:</strong> укажи множитель до старта. Если шар долетит, сервер
+                заберёт сам — кнопку жать не нужно.
               </li>
             </ol>
           </motion.div>

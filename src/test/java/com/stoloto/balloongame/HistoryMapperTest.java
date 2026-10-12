@@ -54,7 +54,9 @@ class HistoryMapperTest {
         // Record components must not include secret / player fields
         assertThat(HistoryItemResponse.class.getRecordComponents())
                 .extracting(rc -> rc.getName())
-                .doesNotContain("serverSeed", "crashPoint", "clientSeed", "playerId", "playerExternalId");
+                .contains("crashPoint")
+                .doesNotContain("serverSeed", "clientSeed", "playerId", "playerExternalId");
+        assertThat(dto.crashPoint()).isEqualByComparingTo("2.5000");
     }
 
     @Test

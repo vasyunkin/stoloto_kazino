@@ -1,5 +1,6 @@
 package com.stoloto.balloongame.config;
 
+import com.stoloto.balloongame.service.JwtService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -32,6 +33,7 @@ public class GameRateLimitFilter extends OncePerRequestFilter {
     static final int EVICT_SIZE_THRESHOLD = 64;
 
     private final RateLimitProperties properties;
+    private final JwtService jwtService;
     private final ConcurrentHashMap<String, Window> windows = new ConcurrentHashMap<>();
 
     @Override
@@ -63,6 +65,13 @@ public class GameRateLimitFilter extends OncePerRequestFilter {
     }
 
     private String rateKey(HttpServletRequest request) {
+        String authorization = request.getHeader("Authorization");
+        if (jwtService != null && authorization != null && authorization.startsWith("Bearer ")) {
+            String token = authorization.substring("Bearer ".length()).trim();
+            if (jwtService.parse(token) instanceof JwtService.ParseResult.PlayerOk ok) {
+                return ok.principal().playerId();
+            }
+        }
         String player = request.getHeader("X-Player-Id");
         if (player != null && !player.isBlank()) {
             return player;

@@ -75,6 +75,11 @@ public class GameException extends RuntimeException {
         return new GameException(ErrorCode.FORBIDDEN, "Access denied", HttpStatus.FORBIDDEN);
     }
 
+    public static GameException missingPlayerHeader() {
+        return new GameException(ErrorCode.VALIDATION_ERROR,
+                "Missing required header: X-Player-Id", HttpStatus.BAD_REQUEST);
+    }
+
     public static GameException cashoutTooEarly(BigDecimal minMultiplier) {
         return new GameException(ErrorCode.CASHOUT_TOO_EARLY,
                 "Cashout available from " + minMultiplier + "x", HttpStatus.CONFLICT);
@@ -100,8 +105,23 @@ public class GameException extends RuntimeException {
                 "Access token expired", HttpStatus.UNAUTHORIZED);
     }
 
+    public static GameException emailTaken() {
+        return new GameException(ErrorCode.AUTH_EMAIL_TAKEN,
+                "Email is already registered", HttpStatus.CONFLICT);
+    }
+
     public static GameException authUnauthorized() {
         return new GameException(ErrorCode.AUTH_UNAUTHORIZED,
                 "Unauthorized", HttpStatus.UNAUTHORIZED);
+    }
+
+    public static GameException roundInProgress() {
+        return new GameException(ErrorCode.ROUND_IN_PROGRESS,
+                "Finish the current flight before starting another", HttpStatus.CONFLICT);
+    }
+
+    public static GameException betsClosed() {
+        return new GameException(ErrorCode.BETS_CLOSED,
+                "Betting is temporarily closed", HttpStatus.FORBIDDEN);
     }
 }

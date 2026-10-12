@@ -25,6 +25,7 @@ export interface ConfigHistoryItem {
   appliedAt: string
   appliedBy: string
   payloadPreview: string
+  payload?: string
 }
 
 let refreshInFlight: Promise<boolean> | null = null
@@ -67,6 +68,29 @@ export async function saveAdminConfig(payload: unknown): Promise<unknown> {
       accessToken,
       body: payload,
     }),
+  )
+}
+
+export interface GgrResponse {
+  stakes: number | string
+  wins: number | string
+  ggr: number | string
+}
+
+export interface PlayerAdminRow {
+  externalId: string
+  balance: number | string
+  boosterCharges: number
+  account: boolean
+}
+
+export async function fetchStats(): Promise<GgrResponse> {
+  return withAuthRetry((accessToken) => apiRequest<GgrResponse>('/api/admin/stats', { accessToken }))
+}
+
+export async function searchPlayers(query: string): Promise<PlayerAdminRow[]> {
+  return withAuthRetry((accessToken) =>
+    apiRequest<PlayerAdminRow[]>(`/api/admin/players?q=${encodeURIComponent(query)}`, { accessToken }),
   )
 }
 

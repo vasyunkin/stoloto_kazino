@@ -12,5 +12,7 @@ game:
 app:
   rate-limit:
     enabled: false            # flyingRound() may POST /start dozens of times
+  round-settler:
+    enabled: false            # tests advance the clock and call recover explicitly
   ws:
     tick-interval-ms: 100

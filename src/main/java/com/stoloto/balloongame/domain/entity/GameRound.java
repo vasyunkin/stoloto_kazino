@@ -104,4 +104,16 @@ public class GameRound {
      */
     @Column(name = "puzzle_piece_index")
     private Integer puzzlePieceIndex;
+
+    /** {@code crash-v1} historical rows; new rounds are {@code crash-v2}. */
+    @Column(name = "algorithm_version", nullable = false, length = 16)
+    private String algorithmVersion = "crash-v1";
+
+    /** Server closes the round at this multiplier when it is still below the crash point. */
+    @Column(name = "auto_cashout_multiplier", precision = 10, scale = 4)
+    private BigDecimal autoCashoutMultiplier;
+
+    /** SHA-256 of the server seed hex, published before this bet consumed the seed. */
+    @Column(name = "seed_precommit", length = 64)
+    private String seedPrecommit;
 }

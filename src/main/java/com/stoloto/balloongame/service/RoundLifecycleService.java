@@ -63,51 +63,36 @@ public class RoundLifecycleService {
             Instant now = clock.instant();
             BigDecimal k = gameClock.multiplier(current, now);
             int line = gameClock.lineIndex(current, now);
+            BigDecimal crashPoint = current.getCrashPoint();
+            boolean crashed = k.compareTo(crashPoint) >= 0;
+            BigDecimal auto = current.getAutoCashoutMultiplier();
+            boolean autoDue = intent != ResolveIntent.CASHOUT
+                    && auto != null
+                    && auto.compareTo(crashPoint) < 0
+                    && k.compareTo(auto) >= 0;
 
-            int scoredLine = line;
-            if (k.compareTo(current.getCrashPoint()) >= 0) {
-                GameConfig snap = current.getConfigSnapshot();
-                scoredLine = crashMath.lineForMultiplier(
-                        current.getCrashPoint().doubleValue(),
-                        snap.getMath().getGrowthRate(),
-                        snap.getAscentSpeedLinesPerSec());
+            if (autoDue) {
+                settleCashout(current, auto, now);
+                return viewOfTerminal(current);
             }
-            applyScoring(current, scoredLine);
 
-            // Crash uses raw K; payout/display may include booster after activation.
-            BigDecimal effectiveK = effectiveMultiplier(current, k);
-
-            if (k.compareTo(current.getCrashPoint()) >= 0) {
-                int piece = awardPuzzle(current, RoundStatus.CRASHED, null);
-                persistCrash(current, now, piece);
-                current.setStatus(RoundStatus.CRASHED);
-                current.setEndedAt(now);
-                current.setPuzzlePieceIndex(piece);
-                // I7: no serverSeed / crashPoint in logs.
-                log.info("Round crashed: gameId={} puzzlePiece={}", current.getGameId(), piece);
+            if (crashed) {
+                settleCrash(current, now);
                 if (intent == ResolveIntent.CASHOUT) {
                     throw GameException.alreadyCrashed();
                 }
                 return viewOfTerminal(current);
             }
 
+            applyScoring(current, line);
+            BigDecimal effectiveK = effectiveMultiplier(current, k);
+
             if (intent == ResolveIntent.CASHOUT) {
                 BigDecimal minCashout = current.getConfigSnapshot().getMath().getMinCashoutMultiplier();
                 if (minCashout != null && k.compareTo(minCashout) < 0) {
                     throw GameException.cashoutTooEarly(minCashout);
                 }
-                BigDecimal win = current.getBetAmount()
-                        .multiply(effectiveK)
-                        .setScale(MONEY_SCALE, RoundingMode.HALF_UP);
-                int piece = awardPuzzle(current, RoundStatus.CASHED_OUT, effectiveK);
-                persistCashout(current, effectiveK, win, now, piece);
-                current.setStatus(RoundStatus.CASHED_OUT);
-                current.setCashoutMultiplier(effectiveK);
-                current.setWinAmount(win);
-                current.setEndedAt(now);
-                current.setPuzzlePieceIndex(piece);
-                log.info("Cashout OK: gameId={} win={} puzzlePiece={}",
-                        current.getGameId(), win, piece);
+                settleCashout(current, k, now);
                 return viewOfTerminal(current);
             }
 
@@ -115,6 +100,55 @@ public class RoundLifecycleService {
         } finally {
             lock.unlock();
         }
+    }
+
+    /**
+     * Payout multiplier cannot exceed the round's max win, including after a booster.
+     */
+    public static BigDecimal capPayout(GameSession session, BigDecimal multiplier) {
+        BigDecimal cap = session.getConfigSnapshot().getAdmin().getMaxWinMultiplier();
+        if (cap != null && multiplier.compareTo(cap) > 0) {
+            return cap.setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+        }
+        return multiplier;
+    }
+
+    private void settleCrash(GameSession current, Instant now) {
+        GameConfig snap = current.getConfigSnapshot();
+        int scoredLine = crashMath.lineForMultiplier(
+                current.getCrashPoint().doubleValue(),
+                snap.getMath().getGrowthRate(),
+                snap.getAscentSpeedLinesPerSec());
+        applyScoring(current, scoredLine);
+        int piece = awardPuzzle(current, RoundStatus.CRASHED, null);
+        persistCrash(current, now, piece);
+        current.setStatus(RoundStatus.CRASHED);
+        current.setEndedAt(now);
+        current.setPuzzlePieceIndex(piece);
+        log.info("Round crashed: gameId={} puzzlePiece={}", current.getGameId(), piece);
+    }
+
+    /**
+     * Cash out at {@code rawK} (manual click uses the server K; auto uses the target, not the overshoot).
+     * Scoring uses the line of that multiplier so a late tick does not award height past the cashout.
+     */
+    private void settleCashout(GameSession current, BigDecimal rawK, Instant now) {
+        GameConfig snap = current.getConfigSnapshot();
+        int scoredLine = crashMath.lineForMultiplier(
+                rawK.doubleValue(),
+                snap.getMath().getGrowthRate(),
+                snap.getAscentSpeedLinesPerSec());
+        applyScoring(current, scoredLine);
+        BigDecimal paid = capPayout(current, effectiveMultiplier(current, rawK));
+        BigDecimal win = current.getBetAmount().multiply(paid).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+        int piece = awardPuzzle(current, RoundStatus.CASHED_OUT, paid);
+        persistCashout(current, paid, win, now, piece);
+        current.setStatus(RoundStatus.CASHED_OUT);
+        current.setCashoutMultiplier(paid);
+        current.setWinAmount(win);
+        current.setEndedAt(now);
+        current.setPuzzlePieceIndex(piece);
+        log.info("Cashout OK: gameId={} win={} puzzlePiece={}", current.getGameId(), win, piece);
     }
 
     /**

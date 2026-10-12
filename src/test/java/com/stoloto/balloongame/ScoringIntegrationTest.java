@@ -104,7 +104,7 @@ class ScoringIntegrationTest {
     }
 
     private StartGameResponse startOk(String playerId) throws Exception {
-        BetRequest body = new BetRequest(playerId, new BigDecimal("100"), "STANDARD", "AUTO", null);
+        BetRequest body = new BetRequest(playerId, new BigDecimal("100"), "STANDARD", "AUTO", null, null);
         MvcResult result = mockMvc.perform(post("/api/game/start")
                         .header("X-Player-Id", playerId)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -266,7 +266,12 @@ class ScoringIntegrationTest {
         assertThat(state.pointsTotal()).isGreaterThanOrEqualTo(0);
         if (state.booster() != null) {
             assertThat(state.booster().spawned()).isTrue();
-            assertThat(state.booster().tier()).isPositive();
+            if (state.booster().activated()) {
+                assertThat(state.booster().tier()).isPositive();
+            } else {
+                assertThat(state.booster().tier()).isNull();
+                assertThat(state.booster().triggerLine()).isNull();
+            }
         }
     }
 }

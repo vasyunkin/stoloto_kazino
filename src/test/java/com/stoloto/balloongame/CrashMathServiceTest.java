@@ -98,7 +98,8 @@ class CrashMathServiceTest {
         double u = extractURef(hmacRef);
 
         // Service output
-        BigDecimal actual = crashMath.drawCrashMultiplier(SERVER_HEX, CLIENT, NONCE, defaultConfig);
+        BigDecimal actual = crashMath.drawCrashMultiplier(
+                SERVER_HEX, CLIENT, NONCE, defaultConfig, "crash-v1");
 
         if (u < 0.03) {
             // This seed happens to produce instant crash → floor at minCrashPoint
@@ -144,9 +145,9 @@ class CrashMathServiceTest {
     void drawCrashMultiplier_goldenVector_instantCrash_whenRateIs100Percent() {
         GameConfig instantConfig = buildConfig(1.0, 0.04, 100.0);
 
-        BigDecimal crash1 = crashMath.drawCrashMultiplier(SERVER_HEX, CLIENT, NONCE, instantConfig);
-        BigDecimal crash2 = crashMath.drawCrashMultiplier("00".repeat(32), "other", 1L, instantConfig);
-        BigDecimal crash3 = crashMath.drawCrashMultiplier("ff".repeat(32), "", 0L, instantConfig);
+        BigDecimal crash1 = crashMath.drawCrashMultiplier(SERVER_HEX, CLIENT, NONCE, instantConfig, "crash-v1");
+        BigDecimal crash2 = crashMath.drawCrashMultiplier("00".repeat(32), "other", 1L, instantConfig, "crash-v1");
+        BigDecimal crash3 = crashMath.drawCrashMultiplier("ff".repeat(32), "", 0L, instantConfig, "crash-v1");
 
         assertThat(crash1).as("instant-crash: seed1").isEqualByComparingTo("1.0000");
         assertThat(crash2).as("instant-crash: seed2").isEqualByComparingTo("1.0000");
@@ -172,7 +173,7 @@ class CrashMathServiceTest {
     void drawCrashMultiplier_goldenVector_cappedAtMaxWin() {
         GameConfig capConfig = buildConfig(0.0, 0.01, 1.25);
 
-        BigDecimal result = crashMath.drawCrashMultiplier(SERVER_HEX, CLIENT, NONCE, capConfig);
+        BigDecimal result = crashMath.drawCrashMultiplier(SERVER_HEX, CLIENT, NONCE, capConfig, "crash-v1");
 
         assertThat(result)
                 .as("result must not exceed maxWinMultiplier")
@@ -310,5 +311,16 @@ class CrashMathServiceTest {
     @Test
     void zoneFor_crashedBeyondAllLines() {
         assertThat(crashMath.zoneFor(21, 9, 12)).isEqualTo("CRASHED");
+    }
+
+    @Test
+    void crashV2_houseEdgeIsInstantMass_andTailHasNoSecondEdge() {
+        GameConfig cfg = buildConfig(1.0, 0.0, 100);
+        BigDecimal ignoredInstant = crashMath.computeCrashPoint(0.5, cfg, "crash-v2");
+        assertThat(ignoredInstant).isEqualByComparingTo("2.0000");
+
+        GameConfig edge = buildConfig(0.0, 0.08, 100);
+        assertThat(crashMath.computeCrashPoint(0.02, edge, "crash-v2")).isEqualByComparingTo("1.0000");
+        assertThat(crashMath.computeCrashPoint(0.5, edge, "crash-v2")).isGreaterThan(BigDecimal.ONE);
     }
 }

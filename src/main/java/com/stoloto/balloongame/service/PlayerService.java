@@ -2,6 +2,7 @@ package com.stoloto.balloongame.service;
 
 import com.stoloto.balloongame.api.dto.BalanceResponse;
 import com.stoloto.balloongame.api.dto.DepositResponse;
+import com.stoloto.balloongame.api.dto.FairnessResponse;
 import com.stoloto.balloongame.api.exception.GameException;
 import com.stoloto.balloongame.domain.entity.LedgerType;
 import com.stoloto.balloongame.domain.entity.Player;
@@ -34,6 +35,7 @@ public class PlayerService {
     private final PlayerRepository playerRepository;
     private final WalletLedgerRepository walletLedgerRepository;
     private final ConfigService configService;
+    private final PlayerFairnessService playerFairnessService;
     /** Proxy for @Transactional self-invocation (deposit guard runs outside write-TX). */
     private final ObjectProvider<PlayerService> self;
 
@@ -42,6 +44,16 @@ public class PlayerService {
     /**
      * Get current balance. Read-only, no lock required.
      */
+    @Transactional
+    public FairnessResponse fairnessView(String externalId) {
+        getWalletOrCreate(externalId);
+        var player = playerRepository.findByExternalId(externalId)
+                .orElseThrow(GameException::playerNotFound);
+        playerFairnessService.arm(player);
+        String clientSeed = player.getPfClientSeed() == null ? "" : player.getPfClientSeed();
+        return new FairnessResponse(player.getPfServerSeedHash(), player.getPfNonce() + 1, clientSeed);
+    }
+
     public BigDecimal getBalance(String externalId) {
         return getPlayerOrThrow(externalId).getBalance();
     }
@@ -50,7 +62,12 @@ public class PlayerService {
     @Transactional
     public BalanceResponse getWalletOrCreate(String externalId) {
         return playerRepository.findByExternalId(externalId)
-                .map(p -> new BalanceResponse(externalId, p.getBalance(), p.getBoosterCharges()))
+                .map(p -> {
+                    if (p.getPfServerSeed() == null || p.getPfServerSeed().isBlank()) {
+                        playerFairnessService.arm(p);
+                    }
+                    return new BalanceResponse(externalId, p.getBalance(), p.getBoosterCharges());
+                })
                 .orElseGet(() -> createWithWelcome(externalId));
     }
 
@@ -59,12 +76,14 @@ public class PlayerService {
      * (ledger CREDIT_DEPOSIT). Does <strong>not</strong> require {@code allowDeposit}.
      */
     private BalanceResponse createWithWelcome(String externalId) {
-        BigDecimal welcome = configService.getSnapshot().getAdmin().getWelcomeBalance();
-        if (welcome == null || welcome.signum() < 0) {
+        var admin = configService.getSnapshot().getAdmin();
+        BigDecimal welcome = admin.getWelcomeBalance();
+        if (!admin.isDemoMode() || welcome == null || welcome.signum() < 0) {
             welcome = BigDecimal.ZERO;
         }
         log.info("Creating new player: externalId={} welcome={}", externalId, welcome);
         Player player = new Player(externalId);
+        playerFairnessService.arm(player);
         player.setBalance(welcome);
         player = playerRepository.saveAndFlush(player);
         if (welcome.signum() > 0) {
@@ -98,7 +117,9 @@ public class PlayerService {
         return playerRepository.findByExternalId(externalId)
                 .orElseGet(() -> {
                     log.info("Creating new player (no welcome): externalId={}", externalId);
-                    return playerRepository.save(new Player(externalId));
+                    Player created = new Player(externalId);
+                    playerFairnessService.arm(created);
+                    return playerRepository.save(created);
                 });
     }
 
@@ -144,7 +165,12 @@ public class PlayerService {
         // Hibernate L1 cache, and findByExternalIdForUpdate would then return the cached
         // (stale) balance instead of re-reading fresh committed data from PostgreSQL.
         Player player = playerRepository.findByExternalIdForUpdate(externalId)
-                .orElseGet(() -> playerRepository.saveAndFlush(new Player(externalId)));
+                .orElseGet(() -> {
+                    Player created = new Player(externalId);
+                    playerFairnessService.arm(created);
+                    return playerRepository.saveAndFlush(created);
+                });
+        playerFairnessService.arm(player);
 
         BigDecimal newBalance = player.getBalance().add(amount);
         player.setBalance(newBalance);
@@ -169,7 +195,8 @@ public class PlayerService {
     }
 
     private void assertDepositAllowed() {
-        if (!configService.getSnapshot().getAdmin().isAllowDeposit()) {
+        var admin = configService.getSnapshot().getAdmin();
+        if (!admin.isDemoMode() || !admin.isAllowDeposit()) {
             throw GameException.depositNotAllowed();
         }
     }

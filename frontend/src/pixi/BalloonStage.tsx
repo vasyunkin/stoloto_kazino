@@ -1,6 +1,7 @@
 import { Application, Container, Graphics } from 'pixi.js'
 import { useEffect, useRef } from 'react'
 import type { BalloonType } from '../api/types'
+import { shouldKeepFlightVisual } from '../game/ghostFlight'
 import { useGameStore } from '../stores/gameStore'
 import './BalloonStage.css'
 
@@ -29,7 +30,7 @@ const THEME = {
 
 /**
  * Pixi flight canvas — Spec 5 V3.
- * Lerps visual K (Spec 3 §10.1); ticker pause on hidden/terminal (§10.3).
+ * Lerps visual K (Spec 3 §10.1); ticker stays up through cashout spectating (Spec 7 TD-10).
  */
 export function BalloonStage({ balloonType }: BalloonStageProps) {
   const hostRef = useRef<HTMLDivElement>(null)
@@ -45,6 +46,8 @@ export function BalloonStage({ balloonType }: BalloonStageProps) {
     let targetK = displayK
     let lineIndex = useGameStore.getState().lineIndex
     let status = useGameStore.getState().status
+    let phase = useGameStore.getState().phase
+    let ghostBurst = useGameStore.getState().ghostBurst
     let boosterLine = useGameStore.getState().booster?.triggerLine ?? null
     let boosterActivated = useGameStore.getState().booster?.activated ?? false
     let lowDetail = computeLowDetail()
@@ -68,8 +71,11 @@ export function BalloonStage({ balloonType }: BalloonStageProps) {
       if (!app) return
       if (document.visibilityState === 'hidden') {
         app.ticker.stop()
-      } else if (useGameStore.getState().status === 'FLYING') {
-        app.ticker.start()
+      } else {
+        const live = useGameStore.getState()
+        if (shouldKeepFlightVisual(live.status, live.phase, live.ghostBurst)) {
+          app.ticker.start()
+        }
       }
     }
 
@@ -388,7 +394,10 @@ export function BalloonStage({ balloonType }: BalloonStageProps) {
         targetK = s.multiplier
         lineIndex = s.lineIndex
         const prev = status
+        const prevBurst = ghostBurst
         status = s.status
+        phase = s.phase
+        ghostBurst = s.ghostBurst
         boosterLine = s.booster?.triggerLine ?? null
         const nextActivated = s.booster?.activated ?? false
         if (nextActivated && !boosterActivated) {
@@ -414,16 +423,23 @@ export function BalloonStage({ balloonType }: BalloonStageProps) {
           steam.length = 0
           app?.ticker.start()
         }
-        if (status === 'CASHED_OUT') {
+        if (ghostBurst && !prevBurst) {
+          crashed = true
+          burstLife = 450
+          steam.length = 0
+          app?.ticker.start()
+        }
+        const live = shouldKeepFlightVisual(status, phase, ghostBurst)
+        if (!live && status === 'CASHED_OUT' && !ghostBurst && burstLife <= 0) {
           crashed = false
           burstLife = 0
           boosterFlash = 0
         }
-        if (status !== 'FLYING' && burstLife <= 0 && boosterFlash <= 0) {
+        if (!live && burstLife <= 0 && boosterFlash <= 0) {
           displayK = targetK
           layout()
           app?.ticker.stop()
-        } else if (document.visibilityState === 'visible' && status === 'FLYING') {
+        } else if (document.visibilityState === 'visible' && (live || burstLife > 0)) {
           app?.ticker.start()
         }
       })
@@ -433,20 +449,27 @@ export function BalloonStage({ balloonType }: BalloonStageProps) {
       window.addEventListener('orientationchange', onViewportChange)
 
       app.ticker.add((ticker) => {
-        if (status === 'FLYING') {
+        if (shouldKeepFlightVisual(status, phase, ghostBurst)) {
           const alpha = 1 - Math.exp(-ticker.deltaMS / 110)
           displayK += (targetK - displayK) * alpha
         } else {
           displayK = targetK
         }
         layout(ticker.deltaMS)
-        if (status !== 'FLYING' && burstLife <= 0 && boosterFlash <= 0) {
+        if (
+          !shouldKeepFlightVisual(status, phase, ghostBurst) &&
+          burstLife <= 0 &&
+          boosterFlash <= 0
+        ) {
           app?.ticker.stop()
         }
       })
 
       layout()
-      if (document.visibilityState === 'hidden' || (status !== 'FLYING' && burstLife <= 0)) {
+      if (
+        document.visibilityState === 'hidden' ||
+        (!shouldKeepFlightVisual(status, phase, ghostBurst) && burstLife <= 0)
+      ) {
         app.ticker.stop()
       }
     })().catch(() => {

@@ -14,10 +14,13 @@ import { HistoryStrip } from '../components/HistoryStrip'
 import { PuzzleAlbumSheet } from '../components/PuzzleAlbumSheet'
 import { ResultModal } from '../components/ResultModal'
 import { requestCashout } from '../hooks/cashout'
+import { useGhostSpectate } from '../hooks/useGhostSpectate'
 import { markFlightOnboardingSeen, shouldShowFlightOnboarding } from '../hooks/onboarding'
 import { useDisplayMultiplier } from '../hooks/useDisplayMultiplier'
 import { useGameHistory } from '../hooks/useGameHistory'
 import { useGameTransport } from '../hooks/useGameTransport'
+import { syncAlbum } from '../auth/playerApi'
+import { getPlayerAccessToken } from '../auth/playerSession'
 import { ensureWallet } from '../hooks/wallet'
 import { useGameStore } from '../stores/gameStore'
 import { usePlayerStore } from '../stores/playerStore'
@@ -34,10 +37,13 @@ export function FlightScreen() {
   const balance = usePlayerStore((s) => s.balance)
   const playerId = usePlayerStore((s) => s.playerId)
   const gameId = useGameStore((s) => s.gameId)
+  const phase = useGameStore((s) => s.phase)
   const status = useGameStore((s) => s.status)
+  const cashoutMultiplier = useGameStore((s) => s.cashoutMultiplier)
+  const ghostBurst = useGameStore((s) => s.ghostBurst)
+  const fairness = useGameStore((s) => s.fairness)
   const betAmount = useGameStore((s) => s.betAmount)
   const balloonType = useGameStore((s) => s.balloonType)
-  const commitHash = useGameStore((s) => s.commitHash)
   const pointsTotal = useGameStore((s) => s.pointsTotal)
   const pointsDelta = useGameStore((s) => s.pointsDelta)
   const isCashoutPending = useGameStore((s) => s.isCashoutPending)
@@ -49,8 +55,10 @@ export function FlightScreen() {
   const collectPiece = usePuzzleAlbumStore((s) => s.collectPiece)
 
   const flying = status === 'FLYING'
-  const terminal = status === 'CRASHED' || status === 'CASHED_OUT' || status === 'VOID'
+  const spectating = phase === 'spectating'
+  const showResult = phase === 'result'
   useGameTransport(Boolean(gameId) && flying)
+  useGhostSpectate()
   const { items: history, reload: reloadHistory } = useGameHistory(20)
 
   const displayK = useDisplayMultiplier()
@@ -71,7 +79,7 @@ export function FlightScreen() {
   }, [flying, gameId, showHint])
 
   useEffect(() => {
-    if (!terminal) {
+    if (!showResult) {
       setResultOpen(false)
       return
     }
@@ -80,13 +88,21 @@ export function FlightScreen() {
     void ensureWallet(false)
     void reloadHistory()
     return () => window.clearTimeout(t)
-  }, [terminal, status, gameId, reloadHistory])
+  }, [showResult, status, gameId, reloadHistory])
 
   // Spec 5 V4 — persist puzzle fragment on CRASHED / CASHED_OUT (not VOID)
   useEffect(() => {
     if (status !== 'CRASHED' && status !== 'CASHED_OUT') return
     if (puzzlePieceIndex == null) return
     collectPiece(playerId, puzzlePieceIndex, gameId)
+    if (!getPlayerAccessToken()) return
+    const piece = Number.isInteger(puzzlePieceIndex)
+      ? [{ slot: puzzlePieceIndex, ...(gameId ? { gameId } : {}) }]
+      : []
+    if (piece.length === 0) return
+    void syncAlbum(piece).catch(() => {
+      /* local album already has the piece; next login syncs again */
+    })
   }, [status, puzzlePieceIndex, playerId, gameId, collectPiece])
 
   // Spec 5 V5 — game SFX (respect mute)
@@ -98,6 +114,12 @@ export function FlightScreen() {
     if (prev === 'FLYING' && status === 'CASHED_OUT') playCashoutSfx()
   }, [status])
 
+  const prevGhostBurst = useRef(false)
+  useEffect(() => {
+    if (ghostBurst && !prevGhostBurst.current) playCrashSfx()
+    prevGhostBurst.current = ghostBurst
+  }, [ghostBurst])
+
   const prevBoosterOn = useRef(false)
   useEffect(() => {
     const on = Boolean(booster?.activated)
@@ -105,10 +127,11 @@ export function FlightScreen() {
     prevBoosterOn.current = on
   }, [booster?.activated])
 
-  const potentialWin = betAmount * displayK
+  const lockedK = cashoutMultiplier ?? multiplier
+  const potentialWin = spectating || status === 'CASHED_OUT' ? (winAmount ?? betAmount * lockedK) : betAmount * displayK
   const minCashout = 1.01
   const cashoutDisabled =
-    !flying || isCashoutPending || multiplier < minCashout
+    !flying || isCashoutPending || multiplier < minCashout || spectating
 
   const onCashout = async () => {
     if (cashoutDisabled) {
@@ -163,8 +186,18 @@ export function FlightScreen() {
 
           {booster?.spawned && (
             <p className="flight-booster">
-              Бустер {booster.name}
-              {booster.activated ? ' · активен' : ` · линия ${booster.triggerLine}`}
+              {booster.activated
+                ? `Бустер активен${booster.multiplier != null ? ` ×${booster.multiplier}` : ''}`
+                : 'Бустер в этом полёте'}
+            </p>
+          )}
+
+          {spectating && (
+            <p className="flight-spectate">
+              Выигрыш зафиксирован: {Number(winAmount ?? 0).toFixed(0)} ◎ на {lockedK.toFixed(2)}×
+              {fairness
+                ? `. Шар лопнул бы на ${fairness.crashPoint.toFixed(2)}×`
+                : '. Считаем, где он лопнул бы…'}
             </p>
           )}
 
@@ -178,11 +211,12 @@ export function FlightScreen() {
 
       <footer className="flight-footer">
         <div className="flight-stats">
-          <span>Выигрыш:</span>
-          <strong>{potentialWin.toFixed(0)} ◎</strong>
-          <span className="flight-pts">★ {pointsTotal}</span>
-          <span className={`flight-delta${pointsDelta > 0 ? '' : ' is-empty'}`} aria-hidden={pointsDelta <= 0}>
-            {pointsDelta > 0 ? `+${pointsDelta}` : '·'}
+          <span className="flight-payout">
+            Выигрыш <strong>{potentialWin.toFixed(0)} ◎</strong>
+          </span>
+          <span className="flight-pts">
+            ★ {pointsTotal}
+            {pointsDelta > 0 && <span className="flight-delta">+{pointsDelta}</span>}
           </span>
         </div>
         <button
@@ -195,25 +229,24 @@ export function FlightScreen() {
           {...disabledPressHandlers(cashoutDisabled)}
           onClick={onCashout}
         >
-          {isCashoutPending
-            ? 'Забираю…'
-            : flying && multiplier < minCashout
-              ? `С ${minCashout.toFixed(2)}x`
-              : 'Забрать'}
+          {spectating
+            ? ghostBurst
+              ? 'Лопнул'
+              : 'Смотрим…'
+            : isCashoutPending
+              ? 'Забираю…'
+              : flying && multiplier < minCashout
+                ? `С ${minCashout.toFixed(2)}x`
+                : 'Забрать'}
         </button>
       </footer>
 
-      {commitHash && (
-        <p className="flight-commit" title={commitHash}>
-          commit {commitHash.slice(0, 12)}…
-        </p>
-      )}
-
       <ResultModal
-        open={resultOpen && terminal && !albumOpen}
+        open={resultOpen && showResult && !albumOpen}
         status={status}
         betAmount={betAmount}
-        multiplier={multiplier}
+        multiplier={status === 'CASHED_OUT' ? lockedK : multiplier}
+        theoreticalCrash={fairness?.crashPoint ?? null}
         winAmount={winAmount}
         pointsTotal={pointsTotal}
         puzzlePieceIndex={puzzlePieceIndex}

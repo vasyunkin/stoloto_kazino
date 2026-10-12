@@ -12,7 +12,7 @@
 }
 
 .admin-shell {
-  width: min(960px, calc(100% - 32px));
+  width: min(1080px, calc(100% - 32px));
   margin: 0 auto;
   padding: 24px 0 48px;
 }
@@ -162,6 +162,156 @@
 .admin-table th {
   color: #5b6573;
   font-weight: 600;
+}
+
+.admin-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.admin-tabs button {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid #d7dde6;
+  border-radius: 8px;
+  background: #fff;
+  color: #1c2430;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.admin-tabs button.is-active {
+  background: #2f6f94;
+  border-color: #2f6f94;
+  color: #fff;
+}
+
+.admin-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.admin-section {
+  border: 1px solid #e2e7ee;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  background: #fbfcfe;
+}
+
+.admin-section summary {
+  cursor: pointer;
+  padding: 12px 14px;
+  font-weight: 650;
+}
+
+.admin-section-body {
+  padding: 0 14px 14px;
+}
+
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.admin-theme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.admin-theme {
+  border: 1px solid #e2e7ee;
+  border-radius: 8px;
+  padding: 12px;
+  background: #fff;
+}
+
+.admin-theme h3 {
+  margin: 0 0 10px;
+  font-size: 1rem;
+}
+
+.admin-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.admin-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #e7eef5;
+  color: #2f6f94;
+}
+
+.admin-badge.is-now {
+  background: #e7f6ec;
+  color: #21643a;
+}
+
+.admin-hint,
+.admin-range {
+  margin: 0 0 6px;
+  color: #5b6573;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.admin-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.admin-field.is-invalid .admin-input,
+.admin-input.is-invalid {
+  border-color: #c24752;
+  background: #fff6f7;
+}
+
+.admin-field-error {
+  margin: 4px 0 0;
+  color: #8a2430;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.admin-diff {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f4f7fb;
+  border: 1px solid #d7dde6;
+}
+
+.admin-diff ul,
+.admin-diff-list {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 12px;
+}
+
+.admin-diff-empty {
+  margin-top: 12px;
+}
+
+.admin-link {
+  border: 0;
+  background: transparent;
+  color: #2f6f94;
+  font-weight: 650;
+  cursor: pointer;
+  padding: 0;
 }
 
 .admin-preview {

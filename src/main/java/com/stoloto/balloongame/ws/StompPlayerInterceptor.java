@@ -2,6 +2,7 @@ package com.stoloto.balloongame.ws;
 
 import com.stoloto.balloongame.api.exception.GameException;
 import com.stoloto.balloongame.service.GameOrchestrator;
+import com.stoloto.balloongame.service.JwtService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.lang.Nullable;
 import org.springframework.messaging.Message;
@@ -31,6 +32,7 @@ public class StompPlayerInterceptor implements ChannelInterceptor {
 
     private final GameOrchestrator orchestrator;
     private final GameWsSubscriptionRegistry registry;
+    private final JwtService jwtService;
 
     @Override
     public Message<?> preSend(@Nullable Message<?> message, MessageChannel channel) {
@@ -44,10 +46,7 @@ public class StompPlayerInterceptor implements ChannelInterceptor {
 
         StompCommand command = accessor.getCommand();
         if (StompCommand.CONNECT.equals(command)) {
-            String playerId = firstHeader(accessor, "X-Player-Id");
-            if (playerId == null || playerId.isBlank()) {
-                throw new MessageDeliveryException("Missing X-Player-Id");
-            }
+            String playerId = resolveConnectPlayer(accessor);
             Map<String, Object> attrs = accessor.getSessionAttributes();
             if (attrs == null) {
                 attrs = new ConcurrentHashMap<>();
@@ -99,6 +98,26 @@ public class StompPlayerInterceptor implements ChannelInterceptor {
             }
         }
         return message;
+    }
+
+    private String resolveConnectPlayer(StompHeaderAccessor accessor) {
+        String headerId = firstHeader(accessor, "X-Player-Id");
+        String authorization = firstHeader(accessor, "Authorization");
+        if (authorization != null && authorization.startsWith("Bearer ")) {
+            String token = authorization.substring("Bearer ".length()).trim();
+            if (jwtService.parse(token) instanceof JwtService.ParseResult.PlayerOk ok) {
+                String accountId = ok.principal().playerId();
+                if (headerId != null && !headerId.isBlank() && !accountId.equals(headerId.trim())) {
+                    throw new MessageDeliveryException("Player id does not match the access token");
+                }
+                return accountId;
+            }
+            throw new MessageDeliveryException("Unauthorized");
+        }
+        if (headerId == null || headerId.isBlank()) {
+            throw new MessageDeliveryException("Missing X-Player-Id");
+        }
+        return headerId.trim();
     }
 
     private static String playerId(StompHeaderAccessor accessor) {

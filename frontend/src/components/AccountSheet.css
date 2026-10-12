@@ -1,0 +1,49 @@
+.account-form {
+  display: grid;
+  gap: 12px;
+}
+
+.account-label {
+  display: grid;
+  gap: 6px;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.account-label input {
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 2px solid var(--steam-copper);
+  background: #fffaf1;
+  color: var(--steam-parchment-ink);
+  font: inherit;
+}
+
+.account-submit,
+.account-switch {
+  min-height: 44px;
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.account-submit {
+  border: 2px solid var(--steam-copper);
+  background: linear-gradient(180deg, var(--steam-brass-light) 0%, var(--steam-brass) 100%);
+  color: var(--steam-parchment-ink);
+}
+
+.account-submit:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.account-switch {
+  margin-top: 12px;
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--steam-copper);
+  text-decoration: underline;
+}

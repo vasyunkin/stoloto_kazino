@@ -85,6 +85,30 @@
   gap: 10px;
 }
 
+.my-bets {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.my-bets-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.my-bets-list li {
+  display: grid;
+  grid-template-columns: 72px 1fr auto;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--steam-parchment);
+}
+
 .hub-wallet {
   display: flex;
   flex-direction: column;
@@ -120,6 +144,17 @@
   color: rgba(243, 235, 224, 0.65);
   font-weight: 600;
   font-family: var(--steam-font-meter);
+}
+
+.hub-account-btn {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid rgba(243, 235, 224, 0.45);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--steam-parchment);
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .hub-status {

@@ -173,6 +173,23 @@
   cursor: pointer;
 }
 
+.flight-spectate {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 12px;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-plate);
+  background: rgba(28, 23, 18, 0.92);
+  border: 2px solid var(--steam-safe);
+  color: var(--steam-parchment);
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-align: center;
+  pointer-events: none;
+}
+
 .flight-cashout-error {
   position: absolute;
   left: 10px;
@@ -193,36 +210,37 @@
 
 .flight-footer {
   flex: 0 0 auto;
-  display: grid;
-  grid-template-columns: 1fr 1.1fr;
-  gap: 10px;
-  align-items: stretch;
-  min-height: 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .flight-stats {
   display: flex;
-  flex-wrap: nowrap;
   align-items: center;
-  gap: 6px 8px;
-  padding: 12px 12px;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
   border-radius: var(--radius-plate);
   background: linear-gradient(180deg, #5a4a38 0%, var(--steam-soot) 100%);
   border: 2px solid var(--steam-copper);
   font-weight: 700;
   color: var(--steam-parchment);
-  min-height: 56px;
-  overflow: hidden;
+}
+
+.flight-payout {
+  white-space: nowrap;
 }
 
 .flight-stats strong {
   font-family: var(--steam-font-meter);
   font-variant-numeric: tabular-nums;
-  min-width: 4.5ch;
 }
 
 .flight-pts {
-  margin-left: auto;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
   font-family: var(--steam-font-meter);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -232,13 +250,6 @@
   color: var(--steam-gold);
   font-family: var(--steam-font-meter);
   font-variant-numeric: tabular-nums;
-  min-width: 2.75ch;
-  text-align: right;
-  opacity: 1;
-}
-
-.flight-delta.is-empty {
-  opacity: 0;
 }
 
 .cashout-btn {
@@ -294,17 +305,6 @@
   }
 }
 
-.flight-commit {
-  flex: 0 0 auto;
-  margin: 0;
-  text-align: center;
-  font-size: 0.65rem;
-  line-height: 1.2;
-  min-height: 1.2em;
-  color: rgba(243, 235, 224, 0.55);
-  font-family: var(--steam-font-meter);
-}
-
 @media (max-height: 700px) {
   .flight-screen > .history-strip {
     display: none;
@@ -312,9 +312,5 @@
 
   .flight-stage {
     min-height: 0;
-  }
-
-  .flight-commit {
-    display: none;
   }
 }

@@ -36,3 +36,67 @@
   opacity: 0.4;
   cursor: default;
 }
+
+.bet-picker {
+  display: grid;
+  gap: 10px;
+}
+
+.bet-custom {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: end;
+}
+
+.bet-custom-label {
+  display: grid;
+  gap: 6px;
+  color: var(--steam-parchment);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.bet-custom-label input {
+  min-height: 48px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 2px solid var(--steam-copper);
+  background: #fffaf1;
+  color: var(--steam-parchment-ink);
+  font-family: var(--steam-font-meter);
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.bet-custom-label input[aria-invalid='true'] {
+  border-color: var(--steam-lucky-accent);
+}
+
+.bet-max {
+  min-height: 48px;
+  padding: 0 16px;
+  border-radius: 12px;
+  border: 2px solid var(--steam-copper);
+  background: transparent;
+  color: var(--steam-parchment);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.bet-max:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.bet-range {
+  margin: 0;
+  text-align: center;
+  color: rgba(243, 235, 224, 0.75);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.bet-range.is-problem {
+  color: #f0c7b0;
+}

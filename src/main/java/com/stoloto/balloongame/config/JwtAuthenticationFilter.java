@@ -43,24 +43,30 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
         JwtService.ParseResult parsed = jwtService.parse(token);
-        if (parsed instanceof JwtService.ParseResult.Ok ok) {
-            var authentication = new UsernamePasswordAuthenticationToken(
-                    ok.principal(),
-                    token,
-                    List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))
-            );
-            authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-            SecurityContextHolder.getContext().setAuthentication(authentication);
-            filterChain.doFilter(request, response);
-            return;
+        switch (parsed) {
+            case JwtService.ParseResult.Ok ok -> {
+                authenticate(request, ok.principal(), List.of(new SimpleGrantedAuthority("ROLE_ADMIN")), token);
+                filterChain.doFilter(request, response);
+            }
+            case JwtService.ParseResult.PlayerOk ok -> {
+                authenticate(request, ok.principal(), List.of(new SimpleGrantedAuthority("ROLE_PLAYER")), token);
+                filterChain.doFilter(request, response);
+            }
+            case JwtService.ParseResult.Err err -> writeUnauthorized(response,
+                    err.failure() == JwtService.Failure.EXPIRED
+                            ? ErrorCode.AUTH_TOKEN_EXPIRED
+                            : ErrorCode.AUTH_UNAUTHORIZED,
+                    err.failure() == JwtService.Failure.EXPIRED
+                            ? "Access token expired"
+                            : "Unauthorized");
         }
-        JwtService.ParseResult.Err err = (JwtService.ParseResult.Err) parsed;
-        ErrorCode code = err.failure() == JwtService.Failure.EXPIRED
-                ? ErrorCode.AUTH_TOKEN_EXPIRED
-                : ErrorCode.AUTH_UNAUTHORIZED;
-        writeUnauthorized(response, code, err.failure() == JwtService.Failure.EXPIRED
-                ? "Access token expired"
-                : "Unauthorized");
+    }
+
+    private void authenticate(HttpServletRequest request, Object principal,
+                              List<SimpleGrantedAuthority> roles, String token) {
+        var authentication = new UsernamePasswordAuthenticationToken(principal, token, roles);
+        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+        SecurityContextHolder.getContext().setAuthentication(authentication);
     }
 
     private void writeUnauthorized(HttpServletResponse response, ErrorCode code, String message)

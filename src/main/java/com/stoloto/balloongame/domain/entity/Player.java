@@ -45,6 +45,19 @@ public class Player {
     @Column(name = "booster_charges", nullable = false)
     private int boosterCharges = 5;
 
+    /** Unused server seed for the next round. Committed via {@code pfServerSeedHash} before the bet. */
+    @Column(name = "pf_server_seed", columnDefinition = "TEXT")
+    private String pfServerSeed;
+
+    @Column(name = "pf_server_seed_hash", length = 64)
+    private String pfServerSeedHash;
+
+    @Column(name = "pf_nonce", nullable = false)
+    private long pfNonce = 0;
+
+    @Column(name = "pf_client_seed", nullable = false, length = 64)
+    private String pfClientSeed = "";
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 

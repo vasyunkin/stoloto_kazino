@@ -16,6 +16,13 @@ public interface PlayerRepository extends JpaRepository<Player, UUID> {
 
     Optional<Player> findByExternalId(String externalId);
 
+    @Query("""
+            SELECT p FROM Player p
+            WHERE lower(p.externalId) LIKE lower(concat('%', :q, '%'))
+            ORDER BY p.createdAt DESC
+            """)
+    List<Player> searchByExternalId(@Param("q") String q, Pageable pageable);
+
     /**
      * Pessimistic write lock on a single player row.
      * Used by PlayerService before any balance mutation (I5).

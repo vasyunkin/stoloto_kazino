@@ -8,6 +8,7 @@ interface ResultModalProps {
   status: RoundStatus | 'IDLE'
   betAmount: number
   multiplier: number
+  theoreticalCrash: number | null
   winAmount: number | null
   pointsTotal: number
   puzzlePieceIndex: number | null
@@ -20,6 +21,7 @@ export function ResultModal({
   status,
   betAmount,
   multiplier,
+  theoreticalCrash,
   winAmount,
   pointsTotal,
   puzzlePieceIndex,
@@ -73,8 +75,14 @@ export function ResultModal({
               )}
               {win && (
                 <div>
-                  <dt>Коэффициент</dt>
+                  <dt>Забрали на</dt>
                   <dd>{multiplier.toFixed(2)}x</dd>
+                </div>
+              )}
+              {win && theoreticalCrash != null && (
+                <div>
+                  <dt>Лопнул бы на</dt>
+                  <dd>{theoreticalCrash.toFixed(2)}x</dd>
                 </div>
               )}
               <div>

@@ -1,13 +1,20 @@
 package com.stoloto.balloongame.api;
 
+import com.stoloto.balloongame.api.dto.BetLimitsResponse;
 import com.stoloto.balloongame.api.dto.BetRequest;
 import com.stoloto.balloongame.api.dto.CashoutResponse;
+import com.stoloto.balloongame.api.dto.FairnessResponse;
 import com.stoloto.balloongame.api.dto.GameStateResponse;
 import com.stoloto.balloongame.api.dto.HistoryItemResponse;
+import com.stoloto.balloongame.api.dto.OwnRoundResponse;
 import com.stoloto.balloongame.api.dto.StartGameResponse;
 import com.stoloto.balloongame.api.dto.VerifyResponse;
+import com.stoloto.balloongame.config.GameConfig;
+import com.stoloto.balloongame.service.ConfigService;
 import com.stoloto.balloongame.service.GameHistoryService;
 import com.stoloto.balloongame.service.GameOrchestrator;
+import com.stoloto.balloongame.service.PlayerIdentity;
+import com.stoloto.balloongame.service.PlayerService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -38,6 +45,9 @@ public class GameController {
 
     private final GameOrchestrator orchestrator;
     private final GameHistoryService historyService;
+    private final PlayerIdentity identity;
+    private final PlayerService playerService;
+    private final ConfigService configService;
 
     /**
      * POST /api/game/start
@@ -50,9 +60,9 @@ public class GameController {
     @PostMapping("/start")
     public ResponseEntity<StartGameResponse> start(
             @Parameter(hidden = true)
-            @RequestHeader("X-Player-Id") String xPlayerId,
+            @RequestHeader(value = "X-Player-Id", required = false) String xPlayerId,
             @Valid @RequestBody BetRequest request) {
-        return ResponseEntity.ok(orchestrator.start(request, xPlayerId));
+        return ResponseEntity.ok(orchestrator.start(request, identity.resolve(xPlayerId)));
     }
 
     /**
@@ -63,10 +73,10 @@ public class GameController {
     @GetMapping("/state/{gameId}")
     public ResponseEntity<GameStateResponse> state(
             @Parameter(hidden = true)
-            @RequestHeader("X-Player-Id") String xPlayerId,
+            @RequestHeader(value = "X-Player-Id", required = false) String xPlayerId,
             @Parameter(description = "Скопировать из ответа POST /start. Пример 3fa85f64-... — не настоящая игра.")
             @PathVariable UUID gameId) {
-        return ResponseEntity.ok(orchestrator.state(gameId, xPlayerId));
+        return ResponseEntity.ok(orchestrator.state(gameId, identity.resolve(xPlayerId)));
     }
 
     /**
@@ -77,10 +87,10 @@ public class GameController {
     @PostMapping("/cashout/{gameId}")
     public ResponseEntity<CashoutResponse> cashout(
             @Parameter(hidden = true)
-            @RequestHeader("X-Player-Id") String xPlayerId,
+            @RequestHeader(value = "X-Player-Id", required = false) String xPlayerId,
             @Parameter(description = "Скопировать из ответа POST /start. Пример 3fa85f64-... — не настоящая игра.")
             @PathVariable UUID gameId) {
-        return ResponseEntity.ok(orchestrator.cashout(gameId, xPlayerId));
+        return ResponseEntity.ok(orchestrator.cashout(gameId, identity.resolve(xPlayerId)));
     }
 
     /**
@@ -91,21 +101,49 @@ public class GameController {
     @GetMapping("/verify/{gameId}")
     public ResponseEntity<VerifyResponse> verify(
             @Parameter(hidden = true)
-            @RequestHeader("X-Player-Id") String xPlayerId,
+            @RequestHeader(value = "X-Player-Id", required = false) String xPlayerId,
             @Parameter(description = "Скопировать из ответа POST /start. Пример 3fa85f64-... — не настоящая игра.")
             @PathVariable UUID gameId) {
-        return ResponseEntity.ok(orchestrator.verify(gameId, xPlayerId));
+        return ResponseEntity.ok(orchestrator.verify(gameId, identity.resolve(xPlayerId)));
+    }
+
+    @Operation(summary = "Мин. и макс. ставка зелёного и красного шара")
+    @GetMapping("/limits")
+    public ResponseEntity<BetLimitsResponse> limits() {
+        GameConfig config = configService.getSnapshot();
+        return ResponseEntity.ok(new BetLimitsResponse(
+                themeLimit(config.getThemes().getStandard()),
+                themeLimit(config.getThemes().getLucky())));
     }
 
     /**
      * GET /api/game/history — public feed of terminal rounds (S11, variant A: no player id).
      * No {@code X-Player-Id}. No secrets. No JOIN on player.
      */
-    @Operation(summary = "Лента завершённых раундов (CRASHED/CASHED_OUT/VOID). Без seed/crashPoint и без id игрока")
+    @Operation(summary = "Хеш серверного seed следующего раунда. Запросить до ставки.")
+    @GetMapping("/fairness")
+    public ResponseEntity<FairnessResponse> fairness(
+            @RequestHeader(value = "X-Player-Id", required = false) String xPlayerId) {
+        return ResponseEntity.ok(playerService.fairnessView(identity.resolve(xPlayerId)));
+    }
+
+    @Operation(summary = "Свои завершённые раунды: ставка, забор, множитель взрыва, commit. Без server seed.")
+    @GetMapping("/me/history")
+    public ResponseEntity<List<OwnRoundResponse>> ownHistory(
+            @RequestHeader(value = "X-Player-Id", required = false) String xPlayerId,
+            @RequestParam(required = false) Integer limit) {
+        return ResponseEntity.ok(historyService.ownHistory(identity.resolve(xPlayerId), limit));
+    }
+
+    @Operation(summary = "Лента завершённых раундов. Множитель взрыва публичен, seed и id игрока — нет.")
     @GetMapping("/history")
     public ResponseEntity<List<HistoryItemResponse>> history(
             @Parameter(description = "Max items, default 20, max 100")
             @RequestParam(required = false) Integer limit) {
         return ResponseEntity.ok(historyService.history(limit));
+    }
+
+    private static BetLimitsResponse.ThemeLimit themeLimit(GameConfig.ThemeProfile profile) {
+        return new BetLimitsResponse.ThemeLimit(profile.getMinBetAmount(), profile.getMaxBetAmount());
     }
 }

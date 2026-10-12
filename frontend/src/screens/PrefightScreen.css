@@ -28,6 +28,17 @@
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
 }
 
+.prefight-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--steam-copper);
+  background: rgba(18, 14, 10, 0.55);
+  color: var(--steam-parchment);
+  font: inherit;
+}
+
 .prefight-section h3 {
   margin: 0 0 8px;
   color: var(--steam-parchment);

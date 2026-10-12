@@ -90,7 +90,7 @@ class HistoryIntegrationTest {
     }
 
     private StartGameResponse startOk(String playerId) throws Exception {
-        BetRequest body = new BetRequest(playerId, new BigDecimal("100"), "STANDARD", "AUTO", null);
+        BetRequest body = new BetRequest(playerId, new BigDecimal("100"), "STANDARD", "AUTO", null, null);
         MvcResult result = mockMvc.perform(post("/api/game/start")
                         .header("X-Player-Id", playerId)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -164,7 +164,6 @@ class HistoryIntegrationTest {
         String json = result.getResponse().getContentAsString();
         assertThat(json)
                 .doesNotContain("\"serverSeed\"")
-                .doesNotContain("\"crashPoint\"")
                 .doesNotContain("\"clientSeed\"")
                 .doesNotContain("\"playerId\"")
                 .doesNotContain("\"playerExternalId\"");
@@ -193,6 +192,7 @@ class HistoryIntegrationTest {
             assertThat(item.status()).isEqualTo(RoundStatus.CASHED_OUT);
             assertThat(item.winAmount()).isNotNull();
             assertThat(item.betAmount()).isEqualByComparingTo("100");
+            assertThat(item.crashPoint()).isEqualByComparingTo(flying.round().getCrashPoint());
         });
     }
 

@@ -37,6 +37,7 @@ public class GameSession {
     private final Integer boostTier;
     private final Integer boostTriggerLine;
     private final BigDecimal boostMultiplier;
+    private final BigDecimal autoCashoutMultiplier;
     private final GameConfig configSnapshot;
     private final Instant createdAt;
 

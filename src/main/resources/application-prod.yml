@@ -1,0 +1,9 @@
+# Activate with SPRING_PROFILES_ACTIVE=prod.
+# ProdSafetyChecker refuses to boot if demo money or default secrets are still on.
+game:
+  admin:
+    demo-mode: false
+    allow-deposit: false
+    welcome-balance: 0
+    legacy-api-key-enabled: false
+    accepting-bets: true

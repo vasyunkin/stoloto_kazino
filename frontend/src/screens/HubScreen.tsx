@@ -2,10 +2,14 @@ import { motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 import { ApiError } from '../api/client'
 import type { BalloonType } from '../api/types'
+import { logoutPlayer } from '../auth/playerApi'
+import { readPlayerSession } from '../auth/playerSession'
+import { AccountSheet } from '../components/AccountSheet'
 import { AlbumBanner } from '../components/AlbumBanner'
 import { Header } from '../components/Header'
 import { HelpModal } from '../components/HelpModal'
 import { HistoryStrip } from '../components/HistoryStrip'
+import { MyBets } from '../components/MyBets'
 import { LeaderboardBanner } from '../components/LeaderboardBanner'
 import { LeaderboardSheet } from '../components/LeaderboardSheet'
 import { PuzzleAlbumSheet } from '../components/PuzzleAlbumSheet'
@@ -15,13 +19,14 @@ import { disabledPressHandlers, hoverHandlers } from '../audio/sfxHandlers'
 import { useGameHistory } from '../hooks/useGameHistory'
 import { demoDeposit, ensureWallet } from '../hooks/wallet'
 import { useGameStore } from '../stores/gameStore'
-import { usePlayerStore } from '../stores/playerStore'
+import { loadGuestId, usePlayerStore } from '../stores/playerStore'
 import { usePuzzleAlbumStore } from '../stores/puzzleAlbumStore'
 import './HubScreen.css'
 
 export function HubScreen() {
   const balance = usePlayerStore((s) => s.balance)
   const playerId = usePlayerStore((s) => s.playerId)
+  const email = usePlayerStore((s) => s.email)
   const balloonType = useGameStore((s) => s.balloonType)
   const setBalloonType = useGameStore((s) => s.setBalloonType)
   const setPhase = useGameStore((s) => s.setPhase)
@@ -32,6 +37,7 @@ export function HubScreen() {
   const [helpOpen, setHelpOpen] = useState(false)
   const [lbOpen, setLbOpen] = useState(false)
   const [albumOpen, setAlbumOpen] = useState(false)
+  const [authOpen, setAuthOpen] = useState(false)
   const [depositBusy, setDepositBusy] = useState(false)
   const loadAlbum = usePuzzleAlbumStore((s) => s.loadForPlayer)
 
@@ -87,6 +93,7 @@ export function HubScreen() {
     <div className="hub-screen">
       <Header balance={balance} onHelp={() => setHelpOpen(true)} />
       <HistoryStrip items={history} />
+      <MyBets />
 
       <motion.section
         className="hub-hero"
@@ -128,7 +135,28 @@ export function HubScreen() {
           >
             {depositBusy ? 'Пополняю…' : 'Пополнить +500'}
           </button>
-          <p className="hub-player">id: {playerId}</p>
+          {email ? (
+            <p className="hub-player">{email}</p>
+          ) : (
+            <p className="hub-player">Гость · {playerId}</p>
+          )}
+          <button
+            type="button"
+            className="hub-account-btn"
+            onClick={() => {
+              playClickSfx()
+              if (email) {
+                void logoutPlayer(readPlayerSession()?.refreshToken).then(() => {
+                  usePlayerStore.getState().restoreGuest()
+                  usePuzzleAlbumStore.getState().loadForPlayer(loadGuestId())
+                })
+                return
+              }
+              setAuthOpen(true)
+            }}
+          >
+            {email ? 'Выйти' : 'Войти'}
+          </button>
         </div>
 
         {busy && <p className="hub-status">Синхронизация баланса…</p>}
@@ -138,6 +166,14 @@ export function HubScreen() {
       <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
       <LeaderboardSheet open={lbOpen} onClose={() => setLbOpen(false)} />
       <PuzzleAlbumSheet open={albumOpen} onClose={() => setAlbumOpen(false)} />
+      <AccountSheet
+        open={authOpen}
+        onClose={() => setAuthOpen(false)}
+        onSignedIn={() => {
+          setAuthOpen(false)
+          void ensureWallet(false)
+        }}
+      />
     </div>
   )
 }

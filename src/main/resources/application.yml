@@ -93,8 +93,11 @@ game:
   # Crash Math: K(t) = e^(α·t) — α reduced ~1.5× vs original for slower climb
   math:
     growth-rate: 0.0433       # Default α (overridden per theme at round start)
-    house-edge: 0.08          # 8% house edge
-    instant-crash-rate: 0.08  # Chance of instant crash at 1.00x
+    # crash-v2: this is the whole edge before the win cap.
+    # P(bust at 1.00x) = house-edge. A fixed cashout below the cap returns RTP = 1 - house-edge.
+    # instant-crash-rate is kept for crash-v1 rows and is ignored by new rounds.
+    house-edge: 0.08
+    instant-crash-rate: 0.08
     min-crash-point: 1.00     # Classic: can bust at 1.00
     min-cashout-multiplier: 1.01  # Cashout from 1.01x (no free +20% wait)
 
@@ -139,7 +142,9 @@ game:
     jwt-secret: ${ADMIN_JWT_SECRET:change-me-jwt-secret-use-long-value-32b}
     access-token-ttl: 20m
     refresh-token-ttl: 14d
-    legacy-api-key-enabled: true
+    legacy-api-key-enabled: false
+    demo-mode: true
+    accepting-bets: true
     bootstrap-username: ${ADMIN_BOOTSTRAP_USER:admin}
     bootstrap-password: ${ADMIN_BOOTSTRAP_PASSWORD:admin}
     min-bet-amount: 10.0
