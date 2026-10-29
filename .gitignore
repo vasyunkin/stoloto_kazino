@@ -76,7 +76,10 @@ postgres-data/
 # --- Test / coverage artifacts ---
 .jacoco/
 coverage/
+!docs/module4/coverage/
+!docs/module4/coverage/**
 *.exec
+.venv-docx/
 
 # --- Frontend (если появится рядом) ---
 node_modules/

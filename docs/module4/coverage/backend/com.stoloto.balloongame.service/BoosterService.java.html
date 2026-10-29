@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BoosterService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">balloon-game</a> &gt; <a href="index.source.html" class="el_package">com.stoloto.balloongame.service</a> &gt; <span class="el_source">BoosterService.java</span></div><h1>BoosterService.java</h1><pre class="source lang-java linenums">package com.stoloto.balloongame.service;
+
+import com.stoloto.balloongame.config.GameConfig;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * Determines whether a booster spawns for a given round and, if so, which tier
+ * and trigger line — all derived deterministically from {@code serverSeedHex}.
+ *
+ * &lt;h3&gt;Algorithm (§6.2, crash-v1):&lt;/h3&gt;
+ * &lt;ol&gt;
+ *   &lt;li&gt;Spawn check: {@code p = hash(serverSeedHex + &quot;:booster:spawn&quot;)} → unit interval.
+ *       If {@code p ≥ spawnProbability} → no booster.&lt;/li&gt;
+ *   &lt;li&gt;Room check: if the crash happens at or before line 0, there is no room for a booster.&lt;/li&gt;
+ *   &lt;li&gt;Tier selection: weighted random from config tiers using
+ *       {@code hash(serverSeedHex + &quot;:booster:tier&quot;)}.&lt;/li&gt;
+ *   &lt;li&gt;Trigger line: {@code hash(serverSeedHex + &quot;:booster:line&quot;)} → random line in
+ *       {@code [0, crashLine)} — strictly before crash.&lt;/li&gt;
+ * &lt;/ol&gt;
+ *
+ * &lt;p&gt;&lt;b&gt;I2:&lt;/b&gt; {@link #rollForRound} is called exactly once at round start; result is stored
+ * in {@code GameSession} and {@code game_round.boost_*} columns.
+ * &lt;p&gt;&lt;b&gt;I8:&lt;/b&gt; all config reads use the passed {@code configSnapshot}, not the live bean.
+ */
+@Service
+@RequiredArgsConstructor
+public class BoosterService {
+
+    private final CrashMathService crashMathService;
+
+    /**
+     * Rolls for a booster for the given round.
+     *
+     * @param serverSeedHex hex-encoded server seed (as stored in DB)
+     * @param crashPoint    the round's crash multiplier (from {@link CrashMathService#drawCrashMultiplier})
+     * @param config        the round's immutable {@code configSnapshot}
+     * @return {@link BoosterResult} if a booster spawned, or {@code Optional.empty()}
+     */
+    public Optional&lt;BoosterResult&gt; rollForRound(String serverSeedHex, BigDecimal crashPoint,
+                                                GameConfig config) {
+<span class="fc" id="L48">        GameConfig.BoostersConfig bc = config.getBoosters();</span>
+<span class="pc bpc" id="L49" title="1 of 4 branches missed.">        if (bc.getTiers() == null || bc.getTiers().isEmpty()) {</span>
+<span class="fc" id="L50">            return Optional.empty();</span>
+        }
+
+        // Step 1: spawn probability check
+<span class="fc" id="L54">        double spawnRoll = hashToUnitInterval(serverSeedHex + &quot;:booster:spawn&quot;);</span>
+<span class="fc bfc" id="L55" title="All 2 branches covered.">        if (spawnRoll &gt;= bc.getSpawnProbability()) {</span>
+<span class="fc" id="L56">            return Optional.empty(); // booster does not spawn this round</span>
+        }
+
+        // Step 2: room check — booster must trigger before crash line
+<span class="fc" id="L60">        int crashLine = crashMathService.lineForMultiplier(</span>
+<span class="fc" id="L61">                crashPoint.doubleValue(),</span>
+<span class="fc" id="L62">                config.getMath().getGrowthRate(),</span>
+<span class="fc" id="L63">                config.getAscentSpeedLinesPerSec());</span>
+<span class="fc bfc" id="L64" title="All 2 branches covered.">        if (crashLine &lt;= 0) {</span>
+            // No altitude lines before crash (instant crash or very early crash)
+<span class="fc" id="L66">            return Optional.empty();</span>
+        }
+
+        // Step 3: weighted tier selection
+<span class="fc" id="L70">        GameConfig.BoosterTier tier = selectTier(</span>
+<span class="fc" id="L71">                hashToUnitInterval(serverSeedHex + &quot;:booster:tier&quot;), bc.getTiers());</span>
+
+        // Step 4: trigger line — biased toward lower altitudes (lineBiasPower &gt; 1)
+<span class="fc" id="L74">        double lineRoll = hashToUnitInterval(serverSeedHex + &quot;:booster:line&quot;);</span>
+<span class="pc bpc" id="L75" title="1 of 2 branches missed.">        double power = bc.getLineBiasPower() &lt;= 0 ? 2.0 : bc.getLineBiasPower();</span>
+<span class="fc" id="L76">        int triggerLine = (int) (Math.pow(lineRoll, power) * crashLine);</span>
+<span class="pc bpc" id="L77" title="1 of 2 branches missed.">        if (triggerLine &gt;= crashLine) {</span>
+<span class="nc" id="L78">            triggerLine = crashLine - 1;</span>
+        }
+<span class="pc bpc" id="L80" title="1 of 2 branches missed.">        if (triggerLine &lt; 0) {</span>
+<span class="nc" id="L81">            triggerLine = 0;</span>
+        }
+
+<span class="fc" id="L84">        return Optional.of(new BoosterResult(</span>
+<span class="fc" id="L85">                tier.getTier(), tier.getName(), tier.getMultiplier(), triggerLine));</span>
+    }
+
+    // ── Internals ─────────────────────────────────────────────────────────
+
+    /**
+     * Hashes the input string with SHA-256 and returns the first 52 bits as a unit interval.
+     * Deterministic: same input → same output, always ∈ [0, 1).
+     */
+    public static double hashToUnitInterval(String input) {
+        try {
+<span class="fc" id="L96">            MessageDigest md = MessageDigest.getInstance(&quot;SHA-256&quot;);</span>
+<span class="fc" id="L97">            byte[] digest = md.digest(input.getBytes(StandardCharsets.UTF_8));</span>
+
+<span class="fc" id="L99">            long top7 = 0L;</span>
+<span class="fc bfc" id="L100" title="All 2 branches covered.">            for (int i = 0; i &lt; 7; i++) {</span>
+<span class="fc" id="L101">                top7 = (top7 &lt;&lt; 8) | (digest[i] &amp; 0xFFL);</span>
+            }
+<span class="fc" id="L103">            long first52 = top7 &gt;&gt;&gt; 4;</span>
+<span class="fc" id="L104">            return (double) first52 / (double) (1L &lt;&lt; 52);</span>
+<span class="nc" id="L105">        } catch (Exception e) {</span>
+<span class="nc" id="L106">            throw new IllegalStateException(&quot;SHA-256 not available&quot;, e);</span>
+        }
+    }
+
+    /**
+     * Weighted random tier selection.
+     * The {@code roll} (∈ [0, 1)) is scaled to the total weight and used to pick a tier.
+     */
+    public static GameConfig.BoosterTier selectTier(double roll, List&lt;GameConfig.BoosterTier&gt; tiers) {
+<span class="fc" id="L115">        int totalWeight = tiers.stream().mapToInt(GameConfig.BoosterTier::getProbabilityWeight).sum();</span>
+<span class="fc" id="L116">        double target = roll * totalWeight;</span>
+<span class="fc" id="L117">        double cumulative = 0;</span>
+<span class="pc bpc" id="L118" title="1 of 2 branches missed.">        for (GameConfig.BoosterTier t : tiers) {</span>
+<span class="fc" id="L119">            cumulative += t.getProbabilityWeight();</span>
+<span class="pc bpc" id="L120" title="1 of 2 branches missed.">            if (target &lt; cumulative) {</span>
+<span class="fc" id="L121">                return t;</span>
+            }
+<span class="nc" id="L123">        }</span>
+        // Fallback (should not happen with well-defined weights): return last tier
+<span class="nc" id="L125">        return tiers.get(tiers.size() - 1);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AdminKeyFilter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">balloon-game</a> &gt; <a href="index.source.html" class="el_package">com.stoloto.balloongame.config</a> &gt; <span class="el_source">AdminKeyFilter.java</span></div><h1>AdminKeyFilter.java</h1><pre class="source lang-java linenums">package com.stoloto.balloongame.config;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.List;
+
+/**
+ * Dual-mode admin auth (A2): if JWT already authenticated, pass through;
+ * otherwise accept legacy {@code X-Admin-Key} when enabled.
+ * Does not write 401 itself — Spring Security entry point owns the JSON envelope.
+ */
+@Component
+@RequiredArgsConstructor
+public class AdminKeyFilter extends OncePerRequestFilter {
+
+    private static final String HEADER = &quot;X-Admin-Key&quot;;
+    private static final String ADMIN_PATH_PREFIX = &quot;/api/admin&quot;;
+    private static final String AUTH_PATH_PREFIX = &quot;/api/admin/auth/&quot;;
+
+    private final GameConfig gameConfig;
+    private final AdminAuthProperties adminAuthProperties;
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+<span class="nc bnc" id="L39" title="All 2 branches missed.">        if (&quot;OPTIONS&quot;.equalsIgnoreCase(request.getMethod())) {</span>
+<span class="nc" id="L40">            return true;</span>
+        }
+<span class="nc" id="L42">        String path = request.getRequestURI();</span>
+<span class="nc bnc" id="L43" title="All 2 branches missed.">        if (!path.startsWith(ADMIN_PATH_PREFIX)) {</span>
+<span class="nc" id="L44">            return true;</span>
+        }
+<span class="nc" id="L46">        return path.startsWith(AUTH_PATH_PREFIX);</span>
+    }
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain filterChain)
+            throws ServletException, IOException {
+
+<span class="nc bnc" id="L55" title="All 2 branches missed.">        if (isAuthenticated()) {</span>
+<span class="nc" id="L56">            filterChain.doFilter(request, response);</span>
+<span class="nc" id="L57">            return;</span>
+        }
+
+<span class="nc bnc" id="L60" title="All 4 branches missed.">        if (adminAuthProperties.isLegacyApiKeyEnabled() &amp;&amp; keyMatches(request.getHeader(HEADER))) {</span>
+<span class="nc" id="L61">            var principal = new AdminPrincipal(null, &quot;admin&quot;, &quot;ADMIN&quot;);</span>
+<span class="nc" id="L62">            var authentication = new UsernamePasswordAuthenticationToken(</span>
+                    principal,
+                    &quot;legacy-key&quot;,
+<span class="nc" id="L65">                    List.of(new SimpleGrantedAuthority(&quot;ROLE_ADMIN&quot;))</span>
+            );
+<span class="nc" id="L67">            SecurityContextHolder.getContext().setAuthentication(authentication);</span>
+        }
+
+<span class="nc" id="L70">        filterChain.doFilter(request, response);</span>
+<span class="nc" id="L71">    }</span>
+
+    private static boolean isAuthenticated() {
+<span class="nc" id="L74">        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();</span>
+<span class="nc bnc" id="L75" title="All 2 branches missed.">        return authentication != null</span>
+<span class="nc bnc" id="L76" title="All 4 branches missed.">                &amp;&amp; authentication.isAuthenticated()</span>
+                &amp;&amp; !(authentication instanceof AnonymousAuthenticationToken);
+    }
+
+    private boolean keyMatches(String providedKey) {
+<span class="nc" id="L81">        String expectedKey = gameConfig.getAdmin().getApiKey();</span>
+<span class="nc bnc" id="L82" title="All 4 branches missed.">        if (providedKey == null || expectedKey == null) {</span>
+<span class="nc" id="L83">            return false;</span>
+        }
+<span class="nc" id="L85">        byte[] expected = expectedKey.getBytes(StandardCharsets.UTF_8);</span>
+<span class="nc" id="L86">        byte[] provided = providedKey.getBytes(StandardCharsets.UTF_8);</span>
+<span class="nc" id="L87">        return MessageDigest.isEqual(expected, provided);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GameWsTicker.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">balloon-game</a> &gt; <a href="index.source.html" class="el_package">com.stoloto.balloongame.ws</a> &gt; <span class="el_source">GameWsTicker.java</span></div><h1>GameWsTicker.java</h1><pre class="source lang-java linenums">package com.stoloto.balloongame.ws;
+
+import com.stoloto.balloongame.api.dto.PublicGameState;
+import com.stoloto.balloongame.api.dto.WsGameEvent;
+import com.stoloto.balloongame.api.exception.GameException;
+import com.stoloto.balloongame.domain.entity.RoundStatus;
+import com.stoloto.balloongame.service.GameOrchestrator;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+
+import java.util.Map;
+import java.util.UUID;
+
+/**
+ * Pushes public ticks to {@code /topic/game/{gameId}} using the same lifecycle resolve as REST (I3).
+ */
+<span class="nc" id="L20">@Slf4j</span>
+@Component
+@RequiredArgsConstructor
+public class GameWsTicker {
+
+    private final GameWsSubscriptionRegistry registry;
+    private final GameOrchestrator orchestrator;
+    private final SimpMessagingTemplate messagingTemplate;
+
+    @Scheduled(fixedRateString = &quot;${app.ws.tick-interval-ms:200}&quot;)
+    public void pushWatchedRounds() {
+<span class="nc" id="L31">        Map&lt;UUID, String&gt; snapshot = registry.snapshot();</span>
+<span class="nc bnc" id="L32" title="All 2 branches missed.">        for (Map.Entry&lt;UUID, String&gt; entry : snapshot.entrySet()) {</span>
+<span class="nc" id="L33">            UUID gameId = entry.getKey();</span>
+<span class="nc" id="L34">            String playerId = entry.getValue();</span>
+            try {
+<span class="nc" id="L36">                PublicGameState state = orchestrator.resolvePublicState(gameId, playerId);</span>
+<span class="nc" id="L37">                messagingTemplate.convertAndSend(</span>
+                        StompPlayerInterceptor.TOPIC_PREFIX + gameId,
+<span class="nc" id="L39">                        new WsGameEvent(eventType(state.status()), state));</span>
+<span class="nc" id="L40">            } catch (GameException ex) {</span>
+<span class="nc" id="L41">                log.debug(&quot;WS tick dropped for gameId={}: {}&quot;, gameId, ex.getErrorCode());</span>
+<span class="nc" id="L42">                registry.unregister(gameId);</span>
+<span class="nc" id="L43">            } catch (RuntimeException ex) {</span>
+<span class="nc" id="L44">                log.warn(&quot;WS tick failed for gameId={}: {}&quot;, gameId, ex.toString());</span>
+<span class="nc" id="L45">            }</span>
+<span class="nc" id="L46">        }</span>
+<span class="nc" id="L47">    }</span>
+
+    static String eventType(RoundStatus status) {
+<span class="nc bnc" id="L50" title="All 4 branches missed.">        return switch (status) {</span>
+<span class="nc" id="L51">            case FLYING -&gt; &quot;tick&quot;;</span>
+<span class="nc" id="L52">            case CRASHED -&gt; &quot;crash&quot;;</span>
+<span class="nc" id="L53">            case CASHED_OUT -&gt; &quot;cashout&quot;;</span>
+<span class="nc" id="L54">            case VOID -&gt; &quot;void&quot;;</span>
+        };
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

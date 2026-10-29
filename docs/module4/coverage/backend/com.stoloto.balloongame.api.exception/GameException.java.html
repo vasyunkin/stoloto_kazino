@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GameException.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">balloon-game</a> &gt; <a href="index.source.html" class="el_package">com.stoloto.balloongame.api.exception</a> &gt; <span class="el_source">GameException.java</span></div><h1>GameException.java</h1><pre class="source lang-java linenums">package com.stoloto.balloongame.api.exception;
+
+import lombok.Getter;
+import org.springframework.http.HttpStatus;
+
+import java.math.BigDecimal;
+
+/**
+ * Business logic exception that carries an HTTP status and error code.
+ * Caught by GlobalExceptionHandler and serialized as ErrorResponse.
+ */
+@Getter
+public class GameException extends RuntimeException {
+
+    private final ErrorCode errorCode;
+    private final HttpStatus httpStatus;
+
+    public GameException(ErrorCode errorCode, String message, HttpStatus httpStatus) {
+<span class="fc" id="L19">        super(message);</span>
+<span class="fc" id="L20">        this.errorCode = errorCode;</span>
+<span class="fc" id="L21">        this.httpStatus = httpStatus;</span>
+<span class="fc" id="L22">    }</span>
+
+    // ── Convenience factories ─────────────────────────────────────────────
+
+    public static GameException insufficientBalance() {
+<span class="nc" id="L27">        return new GameException(ErrorCode.INSUFFICIENT_BALANCE,</span>
+                &quot;Insufficient balance for this bet&quot;, HttpStatus.PAYMENT_REQUIRED);
+    }
+
+    public static GameException gameNotFound() {
+<span class="nc" id="L32">        return new GameException(ErrorCode.GAME_NOT_FOUND,</span>
+                &quot;Game round not found&quot;, HttpStatus.NOT_FOUND);
+    }
+
+    public static GameException alreadyCrashed() {
+<span class="nc" id="L37">        return new GameException(ErrorCode.ALREADY_CRASHED,</span>
+                &quot;Balloon has already crashed&quot;, HttpStatus.CONFLICT);
+    }
+
+    public static GameException alreadyCashedOut() {
+<span class="nc" id="L42">        return new GameException(ErrorCode.ALREADY_CASHED_OUT,</span>
+                &quot;Cashout was already performed&quot;, HttpStatus.CONFLICT);
+    }
+
+    public static GameException invalidBet(String detail) {
+<span class="nc" id="L47">        return new GameException(ErrorCode.INVALID_BET, detail, HttpStatus.BAD_REQUEST);</span>
+    }
+
+    public static GameException roundNotTerminal() {
+<span class="nc" id="L51">        return new GameException(ErrorCode.ROUND_NOT_TERMINAL,</span>
+                &quot;Provably Fair data is available only after the round ends&quot;, HttpStatus.CONFLICT);
+    }
+
+    public static GameException roundExpired() {
+<span class="nc" id="L56">        return new GameException(ErrorCode.ROUND_EXPIRED,</span>
+                &quot;Round is no longer active&quot;, HttpStatus.GONE);
+    }
+
+    public static GameException configValidationFailed(String detail) {
+<span class="fc" id="L61">        return new GameException(ErrorCode.CONFIG_VALIDATION_FAILED, detail, HttpStatus.BAD_REQUEST);</span>
+    }
+
+    public static GameException playerNotFound() {
+<span class="nc" id="L65">        return new GameException(ErrorCode.PLAYER_NOT_FOUND,</span>
+                &quot;Player not found&quot;, HttpStatus.NOT_FOUND);
+    }
+
+    public static GameException depositNotAllowed() {
+<span class="nc" id="L70">        return new GameException(ErrorCode.DEPOSIT_NOT_ALLOWED,</span>
+                &quot;Deposit endpoint is disabled in this environment&quot;, HttpStatus.FORBIDDEN);
+    }
+
+    public static GameException forbidden() {
+<span class="nc" id="L75">        return new GameException(ErrorCode.FORBIDDEN, &quot;Access denied&quot;, HttpStatus.FORBIDDEN);</span>
+    }
+
+    public static GameException missingPlayerHeader() {
+<span class="nc" id="L79">        return new GameException(ErrorCode.VALIDATION_ERROR,</span>
+                &quot;Missing required header: X-Player-Id&quot;, HttpStatus.BAD_REQUEST);
+    }
+
+    public static GameException cashoutTooEarly(BigDecimal minMultiplier) {
+<span class="nc" id="L84">        return new GameException(ErrorCode.CASHOUT_TOO_EARLY,</span>
+                &quot;Cashout available from &quot; + minMultiplier + &quot;x&quot;, HttpStatus.CONFLICT);
+    }
+
+    public static GameException noBoosterCharges() {
+<span class="nc" id="L89">        return new GameException(ErrorCode.NO_BOOSTER_CHARGES,</span>
+                &quot;No booster charges left — choose NONE or deposit for more&quot;, HttpStatus.BAD_REQUEST);
+    }
+
+    public static GameException authInvalidCredentials() {
+<span class="nc" id="L94">        return new GameException(ErrorCode.AUTH_INVALID_CREDENTIALS,</span>
+                &quot;Invalid username or password&quot;, HttpStatus.UNAUTHORIZED);
+    }
+
+    public static GameException authDisabled() {
+<span class="nc" id="L99">        return new GameException(ErrorCode.AUTH_DISABLED,</span>
+                &quot;Admin account is disabled&quot;, HttpStatus.FORBIDDEN);
+    }
+
+    public static GameException authTokenExpired() {
+<span class="nc" id="L104">        return new GameException(ErrorCode.AUTH_TOKEN_EXPIRED,</span>
+                &quot;Access token expired&quot;, HttpStatus.UNAUTHORIZED);
+    }
+
+    public static GameException emailTaken() {
+<span class="nc" id="L109">        return new GameException(ErrorCode.AUTH_EMAIL_TAKEN,</span>
+                &quot;Email is already registered&quot;, HttpStatus.CONFLICT);
+    }
+
+    public static GameException authUnauthorized() {
+<span class="nc" id="L114">        return new GameException(ErrorCode.AUTH_UNAUTHORIZED,</span>
+                &quot;Unauthorized&quot;, HttpStatus.UNAUTHORIZED);
+    }
+
+    public static GameException roundInProgress() {
+<span class="nc" id="L119">        return new GameException(ErrorCode.ROUND_IN_PROGRESS,</span>
+                &quot;Finish the current flight before starting another&quot;, HttpStatus.CONFLICT);
+    }
+
+    public static GameException betsClosed() {
+<span class="nc" id="L124">        return new GameException(ErrorCode.BETS_CLOSED,</span>
+                &quot;Betting is temporarily closed&quot;, HttpStatus.FORBIDDEN);
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

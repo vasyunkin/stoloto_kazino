@@ -1,0 +1,459 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GameOrchestrator.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">balloon-game</a> &gt; <a href="index.source.html" class="el_package">com.stoloto.balloongame.service</a> &gt; <span class="el_source">GameOrchestrator.java</span></div><h1>GameOrchestrator.java</h1><pre class="source lang-java linenums">package com.stoloto.balloongame.service;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.stoloto.balloongame.api.dto.BetRequest;
+import com.stoloto.balloongame.api.dto.BoosterStateDto;
+import com.stoloto.balloongame.api.dto.CashoutResponse;
+import com.stoloto.balloongame.api.dto.GameStateResponse;
+import com.stoloto.balloongame.api.dto.PublicGameState;
+import com.stoloto.balloongame.api.dto.StartGameResponse;
+import com.stoloto.balloongame.api.dto.VerifyResponse;
+import com.stoloto.balloongame.api.exception.GameException;
+import com.stoloto.balloongame.config.GameConfig;
+import com.stoloto.balloongame.domain.entity.GameRound;
+import com.stoloto.balloongame.domain.entity.RoundStatus;
+import com.stoloto.balloongame.domain.repository.GameRoundRepository;
+import com.stoloto.balloongame.domain.repository.PlayerRepository;
+import com.stoloto.balloongame.provablyfair.ProvablyFairService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
+import java.util.Optional;
+import java.util.UUID;
+
+/**
+ * Coordinates round start: snapshot config, draw PF/crash/booster, debit bet,
+ * persist {@code game_round} (variant A — seed + crashPoint written immediately),
+ * and facade for state/cashout which delegate to {@link RoundLifecycleService}.
+ */
+<span class="nc" id="L35">@Slf4j</span>
+@Service
+@RequiredArgsConstructor
+public class GameOrchestrator {
+
+    private static final String BOOSTER_NONE = &quot;NONE&quot;;
+
+    private final ConfigService configService;
+    private final ProvablyFairService provablyFairService;
+    private final PlayerFairnessService playerFairnessService;
+    private final CrashMathService crashMathService;
+    private final BoosterService boosterService;
+    private final PlayerRepository playerRepository;
+    private final PlayerService playerService;
+    private final GameRoundRepository gameRoundRepository;
+    private final GameSessionCache sessionCache;
+    private final RoundLifecycleService lifecycle;
+    private final ObjectMapper objectMapper;
+    private final Clock clock;
+
+    /**
+     * Starts a round. Business rules live here, not in the controller.
+     *
+     * @param request   validated bet payload
+     * @param xPlayerId value of {@code X-Player-Id} (must match {@code request.playerId})
+     */
+    @Transactional
+    public StartGameResponse start(BetRequest request, String xPlayerId) {
+<span class="nc bnc" id="L63" title="All 4 branches missed.">        if (xPlayerId == null || !xPlayerId.equals(request.playerId())) {</span>
+<span class="nc" id="L64">            throw GameException.forbidden();</span>
+        }
+
+<span class="nc" id="L67">        GameConfig snapshot = configService.getSnapshot();</span>
+<span class="nc bnc" id="L68" title="All 2 branches missed.">        if (!snapshot.getAdmin().isAcceptingBets()) {</span>
+<span class="nc" id="L69">            throw GameException.betsClosed();</span>
+        }
+<span class="nc" id="L71">        snapshot.applyTheme(request.balloonType());</span>
+<span class="nc" id="L72">        validateBet(request, snapshot);</span>
+
+        // FIRST DB call in this transaction must be the pessimistic lock (I5).
+<span class="nc" id="L75">        var player = playerRepository.findByExternalIdForUpdate(request.playerId())</span>
+<span class="nc" id="L76">                .orElseThrow(GameException::playerNotFound);</span>
+
+<span class="nc bnc" id="L78" title="All 2 branches missed.">        if (gameRoundRepository.countByPlayer_IdAndStatus(player.getId(), RoundStatus.FLYING) &gt; 0) {</span>
+<span class="nc" id="L79">            throw GameException.roundInProgress();</span>
+        }
+
+<span class="nc bnc" id="L82" title="All 2 branches missed.">        if (player.getBalance().compareTo(request.betAmount()) &lt; 0) {</span>
+<span class="nc" id="L83">            throw GameException.insufficientBalance();</span>
+        }
+
+<span class="nc" id="L86">        playerFairnessService.arm(player);</span>
+<span class="nc bnc" id="L87" title="All 2 branches missed.">        String storedClientSeed = player.getPfClientSeed() == null ? &quot;&quot; : player.getPfClientSeed();</span>
+<span class="nc bnc" id="L88" title="All 4 branches missed.">        String clientSeed = request.clientSeed() == null || request.clientSeed().isBlank()</span>
+<span class="nc" id="L89">                ? storedClientSeed</span>
+<span class="nc" id="L90">                : request.clientSeed();</span>
+<span class="nc" id="L91">        String serverSeed = player.getPfServerSeed();</span>
+<span class="nc" id="L92">        String seedPrecommit = player.getPfServerSeedHash();</span>
+<span class="nc" id="L93">        long nonce = player.getPfNonce() + 1;</span>
+
+<span class="nc bnc" id="L95" title="All 2 branches missed.">        boolean wantBooster = request.boosterPreference() != null</span>
+<span class="nc bnc" id="L96" title="All 2 branches missed.">                &amp;&amp; !BOOSTER_NONE.equalsIgnoreCase(request.boosterPreference());</span>
+<span class="nc bnc" id="L97" title="All 2 branches missed.">        if (wantBooster) {</span>
+<span class="nc" id="L98">            playerService.consumeBoosterCharge(player);</span>
+        }
+
+<span class="nc" id="L101">        String commit = provablyFairService.computeCommitHash(</span>
+<span class="nc" id="L102">                serverSeed, clientSeed, nonce, snapshot.getProvablyFair().getHashAlgorithm());</span>
+<span class="nc" id="L103">        BigDecimal crashPoint = crashMathService.drawCrashMultiplier(</span>
+<span class="nc" id="L104">                serverSeed, clientSeed, nonce, snapshot, provablyFairService.algorithmVersion());</span>
+<span class="nc" id="L105">        Optional&lt;BoosterResult&gt; booster = rollBooster(</span>
+<span class="nc" id="L106">                request.boosterPreference(), serverSeed, crashPoint, snapshot);</span>
+
+<span class="nc" id="L108">        Instant startedAt = clock.instant();</span>
+<span class="nc" id="L109">        GameRound round = new GameRound();</span>
+<span class="nc" id="L110">        round.setPlayer(player);</span>
+<span class="nc" id="L111">        round.setBetAmount(request.betAmount());</span>
+<span class="nc" id="L112">        round.setBalloonType(request.balloonType());</span>
+<span class="nc" id="L113">        round.setStatus(RoundStatus.FLYING);</span>
+<span class="nc" id="L114">        round.setCrashPoint(crashPoint);</span>
+<span class="nc" id="L115">        round.setServerSeed(serverSeed);</span>
+<span class="nc" id="L116">        round.setServerSeedHash(commit);</span>
+<span class="nc" id="L117">        round.setSeedPrecommit(seedPrecommit);</span>
+<span class="nc" id="L118">        round.setAlgorithmVersion(provablyFairService.algorithmVersion());</span>
+<span class="nc" id="L119">        round.setAutoCashoutMultiplier(request.autoCashoutMultiplier());</span>
+<span class="nc" id="L120">        round.setClientSeed(clientSeed);</span>
+<span class="nc" id="L121">        round.setNonce(nonce);</span>
+<span class="nc" id="L122">        round.setStartedAt(startedAt);</span>
+<span class="nc" id="L123">        round.setGameConfigSnapshot(toJson(snapshot));</span>
+<span class="nc" id="L124">        booster.ifPresent(b -&gt; {</span>
+<span class="nc" id="L125">            round.setBoostTier(b.tier());</span>
+<span class="nc" id="L126">            round.setBoostTriggerLine(b.triggerLine());</span>
+<span class="nc" id="L127">        });</span>
+
+        // Persist round BEFORE debit so wallet_ledger.game_round_id FK is satisfied.
+<span class="nc" id="L130">        GameRound saved = gameRoundRepository.saveAndFlush(round);</span>
+<span class="nc" id="L131">        playerService.debitBet(player, request.betAmount(), saved);</span>
+<span class="nc" id="L132">        player.setPfNonce(nonce);</span>
+<span class="nc" id="L133">        player.setPfClientSeed(clientSeed);</span>
+<span class="nc" id="L134">        playerFairnessService.rotate(player);</span>
+
+<span class="nc" id="L136">        GameSession session = GameSession.builder()</span>
+<span class="nc" id="L137">                .gameId(saved.getId())</span>
+<span class="nc" id="L138">                .playerId(player.getExternalId())</span>
+<span class="nc" id="L139">                .betAmount(request.betAmount())</span>
+<span class="nc" id="L140">                .balloonType(request.balloonType())</span>
+<span class="nc" id="L141">                .crashPoint(crashPoint)</span>
+<span class="nc" id="L142">                .startTime(startedAt)</span>
+<span class="nc" id="L143">                .serverSeedHex(serverSeed)</span>
+<span class="nc" id="L144">                .clientSeed(clientSeed)</span>
+<span class="nc" id="L145">                .nonce(nonce)</span>
+<span class="nc" id="L146">                .commitHash(commit)</span>
+<span class="nc" id="L147">                .autoCashoutMultiplier(request.autoCashoutMultiplier())</span>
+<span class="nc" id="L148">                .boostTier(booster.map(BoosterResult::tier).orElse(null))</span>
+<span class="nc" id="L149">                .boostTriggerLine(booster.map(BoosterResult::triggerLine).orElse(null))</span>
+<span class="nc" id="L150">                .boostMultiplier(booster.map(BoosterResult::multiplier).orElse(null))</span>
+<span class="nc" id="L151">                .configSnapshot(snapshot)</span>
+<span class="nc" id="L152">                .createdAt(startedAt)</span>
+<span class="nc" id="L153">                .status(RoundStatus.FLYING)</span>
+<span class="nc" id="L154">                .build();</span>
+<span class="nc" id="L155">        sessionCache.put(session);</span>
+
+        // I7: do not log serverSeed or crashPoint while the round is FLYING.
+<span class="nc" id="L158">        log.info(&quot;Round started: gameId={} playerId={} bet={} commitHash={}&quot;,</span>
+<span class="nc" id="L159">                saved.getId(), player.getExternalId(), request.betAmount(), commit);</span>
+
+<span class="nc" id="L161">        return new StartGameResponse(</span>
+<span class="nc" id="L162">                saved.getId(),</span>
+                commit,
+                seedPrecommit,
+                startedAt,
+<span class="nc" id="L166">                player.getPfServerSeedHash(),</span>
+                nonce);
+    }
+
+    /**
+     * Polling snapshot. Not {@code @Transactional} — lifecycle opens its own write TX
+     * under the round lock (must not join a read-only outer transaction).
+     */
+    public GameStateResponse state(UUID gameId, String xPlayerId) {
+<span class="nc" id="L175">        GameSession session = requireOwnedSession(gameId, xPlayerId);</span>
+<span class="nc" id="L176">        RoundView view = lifecycle.resolve(session, ResolveIntent.STATE_ONLY);</span>
+<span class="nc" id="L177">        return toStateResponse(view);</span>
+    }
+
+    /**
+     * Ownership gate for STOMP SUBSCRIBE (I6). Does not advance lifecycle.
+     */
+    public void assertOwnedSession(UUID gameId, String xPlayerId) {
+<span class="nc" id="L184">        requireOwnedSession(gameId, xPlayerId);</span>
+<span class="nc" id="L185">    }</span>
+
+    /**
+     * Public projection for WebSocket ticks — same resolve path as REST state (I3), no PF secrets.
+     */
+    public PublicGameState resolvePublicState(UUID gameId, String xPlayerId) {
+<span class="nc" id="L191">        GameSession session = requireOwnedSession(gameId, xPlayerId);</span>
+<span class="nc" id="L192">        RoundView view = lifecycle.resolve(session, ResolveIntent.STATE_ONLY);</span>
+<span class="nc" id="L193">        return toPublicState(view);</span>
+    }
+
+    public CashoutResponse cashout(UUID gameId, String xPlayerId) {
+<span class="nc" id="L197">        GameSession session = requireOwnedSession(gameId, xPlayerId);</span>
+<span class="nc" id="L198">        RoundView view = lifecycle.resolve(session, ResolveIntent.CASHOUT);</span>
+<span class="nc" id="L199">        GameSession done = view.session();</span>
+<span class="nc" id="L200">        return new CashoutResponse(</span>
+<span class="nc" id="L201">                done.getGameId(),</span>
+<span class="nc" id="L202">                done.getCashoutMultiplier(),</span>
+<span class="nc" id="L203">                done.getWinAmount(),</span>
+<span class="nc" id="L204">                view.pointsTotal(),</span>
+<span class="nc" id="L205">                done.getServerSeedHex(),</span>
+<span class="nc" id="L206">                done.getPuzzlePieceIndex());</span>
+    }
+
+    /**
+     * Provably Fair reveal. Reads PostgreSQL (not the TTL cache) so terminal data
+     * survives eviction. Seed is returned only when status is terminal (I1).
+     */
+    public VerifyResponse verify(UUID gameId, String xPlayerId) {
+<span class="nc" id="L214">        GameRound round = gameRoundRepository.findByIdWithPlayer(gameId)</span>
+<span class="nc" id="L215">                .orElseThrow(GameException::gameNotFound);</span>
+<span class="nc bnc" id="L216" title="All 2 branches missed.">        if (!round.getPlayer().getExternalId().equals(xPlayerId)) {</span>
+<span class="nc" id="L217">            throw GameException.forbidden();</span>
+        }
+<span class="nc bnc" id="L219" title="All 2 branches missed.">        if (!round.getStatus().isTerminal()) {</span>
+<span class="nc" id="L220">            throw GameException.roundNotTerminal();</span>
+        }
+<span class="nc" id="L222">        GameConfig snapshot = readSnapshot(round.getGameConfigSnapshot());</span>
+<span class="nc bnc" id="L223" title="All 2 branches missed.">        String algorithm = round.getAlgorithmVersion() == null</span>
+<span class="nc" id="L224">                ? ProvablyFairService.ALGORITHM_V1</span>
+<span class="nc" id="L225">                : round.getAlgorithmVersion();</span>
+<span class="nc" id="L226">        return new VerifyResponse(</span>
+<span class="nc" id="L227">                round.getId(),</span>
+<span class="nc" id="L228">                round.getServerSeed(),</span>
+<span class="nc" id="L229">                round.getClientSeed(),</span>
+<span class="nc" id="L230">                round.getNonce(),</span>
+<span class="nc" id="L231">                round.getServerSeedHash(),</span>
+<span class="nc" id="L232">                round.getCrashPoint(),</span>
+                algorithm,
+<span class="nc" id="L234">                round.getBoostTier(),</span>
+<span class="nc" id="L235">                round.getBoostTriggerLine(),</span>
+<span class="nc" id="L236">                lookupBoostMultiplier(snapshot, round.getBoostTier()),</span>
+<span class="nc" id="L237">                round.getSeedPrecommit(),</span>
+<span class="nc bnc" id="L238" title="All 2 branches missed.">                snapshot == null ? null : BigDecimal.valueOf(snapshot.getMath().getHouseEdge()),</span>
+<span class="nc bnc" id="L239" title="All 2 branches missed.">                snapshot == null ? null : snapshot.getAdmin().getMaxWinMultiplier(),</span>
+<span class="nc bnc" id="L240" title="All 2 branches missed.">                snapshot == null ? null : snapshot.getMath().getMinCrashPoint(),</span>
+<span class="nc bnc" id="L241" title="All 2 branches missed.">                snapshot == null ? null : BigDecimal.valueOf(snapshot.getMath().getInstantCrashRate()));</span>
+    }
+
+    /**
+     * Put a DB FLYING round back into the session cache so the settler can finish it
+     * without a connected client. Throws if the snapshot cannot be read.
+     */
+    public Optional&lt;GameSession&gt; restoreFlying(UUID gameId) {
+<span class="nc" id="L249">        Optional&lt;GameSession&gt; cached = sessionCache.get(gameId);</span>
+<span class="nc bnc" id="L250" title="All 2 branches missed.">        if (cached.isPresent()) {</span>
+<span class="nc" id="L251">            return cached;</span>
+        }
+<span class="nc" id="L253">        GameRound round = gameRoundRepository.findByIdWithPlayer(gameId).orElse(null);</span>
+<span class="nc bnc" id="L254" title="All 4 branches missed.">        if (round == null || round.getStatus() != RoundStatus.FLYING) {</span>
+<span class="nc" id="L255">            return Optional.empty();</span>
+        }
+<span class="nc" id="L257">        GameSession session = toSession(round);</span>
+<span class="nc" id="L258">        sessionCache.put(session);</span>
+<span class="nc" id="L259">        return Optional.of(session);</span>
+    }
+
+    private GameSession requireOwnedSession(UUID gameId, String xPlayerId) {
+<span class="nc" id="L263">        Optional&lt;GameSession&gt; cached = sessionCache.get(gameId);</span>
+<span class="nc bnc" id="L264" title="All 2 branches missed.">        if (cached.isPresent()) {</span>
+<span class="nc" id="L265">            GameSession session = cached.get();</span>
+<span class="nc bnc" id="L266" title="All 2 branches missed.">            if (!session.getPlayerId().equals(xPlayerId)) {</span>
+<span class="nc" id="L267">                throw GameException.forbidden();</span>
+            }
+<span class="nc" id="L269">            return session;</span>
+        }
+<span class="nc" id="L271">        GameRound round = gameRoundRepository.findByIdWithPlayer(gameId)</span>
+<span class="nc" id="L272">                .orElseThrow(GameException::gameNotFound);</span>
+<span class="nc bnc" id="L273" title="All 2 branches missed.">        if (!round.getPlayer().getExternalId().equals(xPlayerId)) {</span>
+<span class="nc" id="L274">            throw GameException.forbidden();</span>
+        }
+<span class="nc bnc" id="L276" title="All 2 branches missed.">        if (round.getStatus() == RoundStatus.FLYING) {</span>
+<span class="nc" id="L277">            GameSession restored = toSession(round);</span>
+<span class="nc" id="L278">            sessionCache.put(restored);</span>
+<span class="nc" id="L279">            return restored;</span>
+        }
+<span class="nc bnc" id="L281" title="All 2 branches missed.">        if (round.getStatus() == RoundStatus.VOID) {</span>
+<span class="nc" id="L282">            throw GameException.roundExpired();</span>
+        }
+<span class="nc" id="L284">        GameSession session = toSession(round);</span>
+<span class="nc" id="L285">        sessionCache.put(session);</span>
+<span class="nc" id="L286">        return session;</span>
+    }
+
+    private GameSession toSession(GameRound round) {
+<span class="nc" id="L290">        GameConfig snapshot = fromJson(round.getGameConfigSnapshot());</span>
+<span class="nc" id="L291">        GameSession session = GameSession.builder()</span>
+<span class="nc" id="L292">                .gameId(round.getId())</span>
+<span class="nc" id="L293">                .playerId(round.getPlayer().getExternalId())</span>
+<span class="nc" id="L294">                .betAmount(round.getBetAmount())</span>
+<span class="nc" id="L295">                .balloonType(round.getBalloonType())</span>
+<span class="nc" id="L296">                .crashPoint(round.getCrashPoint())</span>
+<span class="nc" id="L297">                .startTime(round.getStartedAt())</span>
+<span class="nc" id="L298">                .serverSeedHex(round.getServerSeed())</span>
+<span class="nc" id="L299">                .clientSeed(round.getClientSeed())</span>
+<span class="nc" id="L300">                .nonce(round.getNonce())</span>
+<span class="nc" id="L301">                .commitHash(round.getServerSeedHash())</span>
+<span class="nc" id="L302">                .autoCashoutMultiplier(round.getAutoCashoutMultiplier())</span>
+<span class="nc" id="L303">                .boostTier(round.getBoostTier())</span>
+<span class="nc" id="L304">                .boostTriggerLine(round.getBoostTriggerLine())</span>
+<span class="nc" id="L305">                .boostMultiplier(lookupBoostMultiplier(snapshot, round.getBoostTier()))</span>
+<span class="nc" id="L306">                .configSnapshot(snapshot)</span>
+<span class="nc" id="L307">                .createdAt(round.getStartedAt())</span>
+<span class="nc" id="L308">                .status(round.getStatus())</span>
+<span class="nc" id="L309">                .cashoutMultiplier(round.getCashoutMultiplier())</span>
+<span class="nc" id="L310">                .winAmount(round.getWinAmount())</span>
+<span class="nc" id="L311">                .endedAt(round.getEndedAt())</span>
+<span class="nc bnc" id="L312" title="All 2 branches missed.">                .boostActivated(round.getBoostTriggerLine() != null</span>
+<span class="nc bnc" id="L313" title="All 2 branches missed.">                        &amp;&amp; round.getStatus().isTerminal())</span>
+<span class="nc" id="L314">                .pointsEarned(round.getPointsEarned())</span>
+<span class="nc" id="L315">                .linesPassedSnapshot(0)</span>
+<span class="nc" id="L316">                .puzzlePieceIndex(round.getPuzzlePieceIndex())</span>
+<span class="nc" id="L317">                .build();</span>
+<span class="nc" id="L318">        return session;</span>
+    }
+
+    private GameStateResponse toStateResponse(RoundView view) {
+<span class="nc" id="L322">        PublicGameState pub = toPublicState(view);</span>
+<span class="nc" id="L323">        GameSession session = view.session();</span>
+<span class="nc bnc" id="L324" title="All 2 branches missed.">        boolean flying = view.status() == RoundStatus.FLYING;</span>
+<span class="nc" id="L325">        return new GameStateResponse(</span>
+<span class="nc" id="L326">                pub.gameId(),</span>
+<span class="nc" id="L327">                pub.status(),</span>
+<span class="nc" id="L328">                pub.multiplier(),</span>
+<span class="nc" id="L329">                pub.lineIndex(),</span>
+<span class="nc" id="L330">                pub.zone(),</span>
+<span class="nc" id="L331">                pub.pointsTotal(),</span>
+<span class="nc" id="L332">                pub.pointsDelta(),</span>
+<span class="nc" id="L333">                pub.booster(),</span>
+<span class="nc bnc" id="L334" title="All 2 branches missed.">                flying ? null : session.getCrashPoint(),</span>
+<span class="nc bnc" id="L335" title="All 2 branches missed.">                flying ? null : session.getServerSeedHex(),</span>
+<span class="nc" id="L336">                pub.winAmount(),</span>
+<span class="nc" id="L337">                pub.puzzlePieceIndex());</span>
+    }
+
+    /**
+     * Maps a resolve tick to the secret-free public model used by WebSocket (S14).
+     */
+    public PublicGameState toPublicState(RoundView view) {
+<span class="nc" id="L344">        GameSession session = view.session();</span>
+<span class="nc bnc" id="L345" title="All 2 branches missed.">        boolean flying = view.status() == RoundStatus.FLYING;</span>
+<span class="nc" id="L346">        return new PublicGameState(</span>
+<span class="nc" id="L347">                session.getGameId(),</span>
+<span class="nc" id="L348">                view.status(),</span>
+<span class="nc" id="L349">                view.multiplier(),</span>
+<span class="nc" id="L350">                view.lineIndex(),</span>
+<span class="nc" id="L351">                view.zone(),</span>
+<span class="nc" id="L352">                view.pointsTotal(),</span>
+<span class="nc" id="L353">                view.pointsDelta(),</span>
+<span class="nc" id="L354">                boosterDto(session),</span>
+<span class="nc bnc" id="L355" title="All 2 branches missed.">                view.status() == RoundStatus.CASHED_OUT ? session.getWinAmount() : null,</span>
+<span class="nc bnc" id="L356" title="All 2 branches missed.">                flying ? null : session.getPuzzlePieceIndex());</span>
+    }
+
+    private BoosterStateDto boosterDto(GameSession session) {
+<span class="nc bnc" id="L360" title="All 2 branches missed.">        if (session.getBoostTier() == null) {</span>
+<span class="nc" id="L361">            return null;</span>
+        }
+<span class="nc bnc" id="L363" title="All 2 branches missed.">        if (!session.isBoostActivated()) {</span>
+<span class="nc" id="L364">            return new BoosterStateDto(true, null, null, null, null, false);</span>
+        }
+<span class="nc" id="L366">        String name = &quot;Booster&quot;;</span>
+<span class="nc bnc" id="L367" title="All 2 branches missed.">        if (session.getConfigSnapshot().getBoosters() != null) {</span>
+<span class="nc" id="L368">            name = session.getConfigSnapshot().getBoosters().getTiers().stream()</span>
+<span class="nc bnc" id="L369" title="All 2 branches missed.">                    .filter(t -&gt; t.getTier() == session.getBoostTier())</span>
+<span class="nc" id="L370">                    .map(GameConfig.BoosterTier::getName)</span>
+<span class="nc" id="L371">                    .findFirst()</span>
+<span class="nc" id="L372">                    .orElse(name);</span>
+        }
+<span class="nc" id="L374">        return new BoosterStateDto(</span>
+                true,
+<span class="nc" id="L376">                session.getBoostTier(),</span>
+                name,
+<span class="nc" id="L378">                session.getBoostMultiplier(),</span>
+<span class="nc" id="L379">                session.getBoostTriggerLine(),</span>
+                true);
+    }
+
+    private static BigDecimal lookupBoostMultiplier(GameConfig snapshot, Integer tier) {
+<span class="nc bnc" id="L384" title="All 6 branches missed.">        if (tier == null || snapshot == null || snapshot.getBoosters() == null) {</span>
+<span class="nc" id="L385">            return null;</span>
+        }
+<span class="nc" id="L387">        return snapshot.getBoosters().getTiers().stream()</span>
+<span class="nc bnc" id="L388" title="All 2 branches missed.">                .filter(t -&gt; t.getTier() == tier)</span>
+<span class="nc" id="L389">                .map(GameConfig.BoosterTier::getMultiplier)</span>
+<span class="nc" id="L390">                .findFirst()</span>
+<span class="nc" id="L391">                .orElse(null);</span>
+    }
+
+    private GameConfig fromJson(String json) {
+<span class="nc bnc" id="L395" title="All 4 branches missed.">        if (json == null || json.isBlank()) {</span>
+<span class="nc" id="L396">            throw new IllegalStateException(&quot;game_config_snapshot missing on game_round&quot;);</span>
+        }
+        try {
+<span class="nc" id="L399">            return objectMapper.readValue(json, GameConfig.class);</span>
+<span class="nc" id="L400">        } catch (JsonProcessingException e) {</span>
+<span class="nc" id="L401">            throw new IllegalStateException(&quot;Failed to deserialize config snapshot&quot;, e);</span>
+        }
+    }
+
+    /** Verify still reveals the seed when a voided round has an unreadable snapshot. */
+    private GameConfig readSnapshot(String json) {
+        try {
+<span class="nc" id="L408">            return fromJson(json);</span>
+<span class="nc" id="L409">        } catch (IllegalStateException ex) {</span>
+<span class="nc" id="L410">            return null;</span>
+        }
+    }
+
+    private void validateBet(BetRequest request, GameConfig snapshot) {
+<span class="nc" id="L415">        BigDecimal min = snapshot.getAdmin().getMinBetAmount();</span>
+<span class="nc" id="L416">        BigDecimal max = snapshot.getAdmin().getMaxBetAmount();</span>
+<span class="nc" id="L417">        BigDecimal bet = request.betAmount();</span>
+<span class="nc bnc" id="L418" title="All 4 branches missed.">        if (bet.compareTo(min) &lt; 0 || bet.compareTo(max) &gt; 0) {</span>
+<span class="nc" id="L419">            throw GameException.invalidBet(&quot;betAmount must be between &quot; + min + &quot; and &quot; + max);</span>
+        }
+<span class="nc" id="L421">        String type = request.balloonType();</span>
+<span class="nc bnc" id="L422" title="All 4 branches missed.">        if (!&quot;STANDARD&quot;.equals(type) &amp;&amp; !&quot;LUCKY&quot;.equals(type)) {</span>
+<span class="nc" id="L423">            throw GameException.invalidBet(&quot;balloonType must be STANDARD or LUCKY&quot;);</span>
+        }
+<span class="nc bnc" id="L425" title="All 4 branches missed.">        if (request.clientSeed() != null &amp;&amp; request.clientSeed().length() &gt; 64) {</span>
+<span class="nc" id="L426">            throw GameException.invalidBet(&quot;clientSeed must be at most 64 characters&quot;);</span>
+        }
+<span class="nc bnc" id="L428" title="All 2 branches missed.">        if (request.autoCashoutMultiplier() != null) {</span>
+<span class="nc" id="L429">            BigDecimal auto = request.autoCashoutMultiplier();</span>
+<span class="nc" id="L430">            BigDecimal autoMin = snapshot.getMath().getMinCashoutMultiplier();</span>
+<span class="nc" id="L431">            BigDecimal autoMax = snapshot.getAdmin().getMaxWinMultiplier();</span>
+<span class="nc bnc" id="L432" title="All 4 branches missed.">            if (autoMin != null &amp;&amp; auto.compareTo(autoMin) &lt; 0) {</span>
+<span class="nc" id="L433">                throw GameException.invalidBet(&quot;autoCashoutMultiplier must be at least &quot; + autoMin);</span>
+            }
+<span class="nc bnc" id="L435" title="All 4 branches missed.">            if (autoMax != null &amp;&amp; auto.compareTo(autoMax) &gt; 0) {</span>
+<span class="nc" id="L436">                throw GameException.invalidBet(&quot;autoCashoutMultiplier must be at most &quot; + autoMax);</span>
+            }
+        }
+<span class="nc" id="L439">    }</span>
+
+    private Optional&lt;BoosterResult&gt; rollBooster(String preference,
+                                                String serverSeedHex,
+                                                BigDecimal crashPoint,
+                                                GameConfig snapshot) {
+<span class="nc bnc" id="L445" title="All 2 branches missed.">        if (BOOSTER_NONE.equalsIgnoreCase(preference)) {</span>
+<span class="nc" id="L446">            return Optional.empty();</span>
+        }
+<span class="nc" id="L448">        return boosterService.rollForRound(serverSeedHex, crashPoint, snapshot);</span>
+    }
+
+    private String toJson(GameConfig snapshot) {
+        try {
+<span class="nc" id="L453">            return objectMapper.writeValueAsString(snapshot);</span>
+<span class="nc" id="L454">        } catch (JsonProcessingException e) {</span>
+<span class="nc" id="L455">            throw new IllegalStateException(&quot;Failed to serialize config snapshot&quot;, e);</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

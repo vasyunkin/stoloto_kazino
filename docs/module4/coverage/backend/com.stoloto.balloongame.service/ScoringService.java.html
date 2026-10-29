@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ScoringService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">balloon-game</a> &gt; <a href="index.source.html" class="el_package">com.stoloto.balloongame.service</a> &gt; <span class="el_source">ScoringService.java</span></div><h1>ScoringService.java</h1><pre class="source lang-java linenums">package com.stoloto.balloongame.service;
+
+import com.stoloto.balloongame.config.GameConfig;
+import org.springframework.stereotype.Service;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+
+/**
+ * Idempotent points calculation for a single polling tick or cashout (§6.3).
+ *
+ * &lt;h3&gt;Scoring rules (crash-v1):&lt;/h3&gt;
+ * &lt;ul&gt;
+ *   &lt;li&gt;Each newly passed line awards {@code pointsPerLine} (configSnapshot).&lt;/li&gt;
+ *   &lt;li&gt;GREEN zone (lines 0…greenLevels-1): base points.&lt;/li&gt;
+ *   &lt;li&gt;RED zone (lines greenLevels…greenLevels+redLevels-1): base × {@code redZoneMultiplier}
+ *       (default 1.0 — no bonus, adjustable via admin PUT).&lt;/li&gt;
+ *   &lt;li&gt;Booster bonus: awarded once when the booster's {@code triggerLine} is crossed.&lt;/li&gt;
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;&lt;b&gt;Idempotency:&lt;/b&gt; only lines from {@code previousLines} (exclusive) to
+ * {@code currentLine} (inclusive) are scored. Calling this multiple times for the
+ * same window returns 0 on repeat calls, preventing double-counting on state polls.
+ *
+ * &lt;p&gt;&lt;b&gt;I8:&lt;/b&gt; all parameters come from the round's {@code configSnapshot}; this service
+ * never touches the live {@code GameConfig} bean.
+ */
+@Service
+<span class="fc" id="L29">public class ScoringService {</span>
+
+    /**
+     * Computes points earned for lines crossed in the interval {@code (previousLines, currentLine]}.
+     *
+     * @param previousLines exclusive lower bound (lines already scored, stored in session)
+     * @param currentLine   current line index
+     * @param config        the round's immutable {@code configSnapshot}
+     * @return delta points to add (may be 0 if no new lines)
+     */
+    public int pointsForNewLines(int previousLines, int currentLine, GameConfig config) {
+<span class="fc bfc" id="L40" title="All 2 branches covered.">        if (currentLine &lt;= previousLines) return 0;</span>
+
+<span class="fc" id="L42">        int greenLines = config.getGreenLevels();</span>
+<span class="fc" id="L43">        int redLines = config.getRedLevels();</span>
+<span class="fc" id="L44">        int pointsPerLine = config.getPointsPerLine();</span>
+<span class="pc bpc" id="L45" title="1 of 2 branches missed.">        double redMultiplier = config.getScoring() != null</span>
+<span class="fc" id="L46">                ? config.getScoring().getRedZoneMultiplier()</span>
+<span class="pc" id="L47">                : 1.0;</span>
+
+<span class="fc" id="L49">        int total = 0;</span>
+
+<span class="fc bfc" id="L51" title="All 2 branches covered.">        for (int line = previousLines + 1; line &lt;= currentLine; line++) {</span>
+<span class="fc bfc" id="L52" title="All 2 branches covered.">            if (line &lt; greenLines) {</span>
+                // GREEN zone
+<span class="fc" id="L54">                total += pointsPerLine;</span>
+<span class="pc bpc" id="L55" title="1 of 2 branches missed.">            } else if (line &lt; greenLines + redLines) {</span>
+                // RED zone — apply multiplier (rounded to nearest int)
+<span class="fc" id="L57">                total += (int) Math.round(pointsPerLine * redMultiplier);</span>
+            }
+            // Beyond the altitude map: no additional points (would be CRASHED zone)
+        }
+
+<span class="fc" id="L62">        return total;</span>
+    }
+
+    /**
+     * Returns the booster bonus points when the booster activates (first cross of triggerLine).
+     *
+     * &lt;p&gt;Awarded exactly once per round. Callers must track whether the booster has already
+     * been activated (stored in {@code GameSession.boostActivated}).
+     *
+     * @param booster the round's booster (non-null)
+     * @param config  the round's immutable {@code configSnapshot}
+     * @return additional points to award
+     */
+    public int boosterBonus(BoosterResult booster, GameConfig config) {
+        // §6.2: bonus = pointsPerLine × boostTierMultiplier (HALF_UP, TD-06 BigDecimal)
+<span class="fc" id="L77">        return BigDecimal.valueOf(config.getPointsPerLine())</span>
+<span class="fc" id="L78">                .multiply(booster.multiplier())</span>
+<span class="fc" id="L79">                .setScale(0, RoundingMode.HALF_UP)</span>
+<span class="fc" id="L80">                .intValue();</span>
+    }
+
+    /**
+     * Checks whether the booster should activate at the current line.
+     *
+     * @param booster       the round's booster result (may be null if no booster spawned)
+     * @param currentLine   current line index
+     * @param alreadyActive whether the booster already activated in a previous tick
+     * @return {@code true} if the booster activates NOW (first time trigger line crossed)
+     */
+    public boolean isBoosterActivating(BoosterResult booster, int currentLine, boolean alreadyActive) {
+<span class="fc bfc" id="L92" title="All 4 branches covered.">        if (booster == null || alreadyActive) return false;</span>
+<span class="fc bfc" id="L93" title="All 2 branches covered.">        return currentLine &gt;= booster.triggerLine();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

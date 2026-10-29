@@ -1,0 +1,36 @@
+# Git hooks: формат и проверки перед коммитом (модуль 4)
+# Установка: pip install pre-commit && pre-commit install
+# Ручной прогон: pre-commit run --all-files
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+        args: ['--maxkb=2048']
+
+  - repo: local
+    hooks:
+      - id: frontend-oxlint
+        name: frontend oxlint
+        entry: bash -c 'cd frontend && npm run lint'
+        language: system
+        pass_filenames: false
+        files: ^frontend/
+
+      - id: frontend-vitest
+        name: frontend vitest
+        entry: bash -c 'cd frontend && npm test'
+        language: system
+        pass_filenames: false
+        files: ^frontend/
+
+      - id: maven-unit-tests
+        name: maven unit tests (no Testcontainers)
+        entry: bash -c './mvnw -q test -Dtest=ProvablyFairServiceTest,CrashMathServiceTest,BoosterScoringTest,ConfigServiceTest,PuzzleServiceTest,GameClockServiceTest,EffectiveMultiplierTest,BoosterBigDecimalTest,HistoryMapperTest,GameSessionCacheTest,GameRateLimitFilterTest,PublicGameStateArchitectureTest'
+        language: system
+        pass_filenames: false
+        files: ^src/(main|test)/java/

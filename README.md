@@ -26,6 +26,7 @@
 6. [Конфиг и админка](#6-конфиг-и-админка)
 7. [API](#7-api)
 8. [Roadmap](#8-roadmap)
+9. [Тесты и качество кода](#9-тесты-и-качество-кода)
 
 ---
 
@@ -366,3 +367,21 @@ CONNECT с native-header `X-Player-Id` → подписка `/topic/game/{gameId
 - [ ] Опционально: серверный альбом пазла (синхронизация между устройствами)  
 - [ ] Stretch: PWA / installable mobile  
 - [ ] Stretch: CC0 sample-pack вместо чистого синтеза звука  
+
+---
+
+## 9. Тесты и качество кода
+
+Подробности модуля 4: [`docs/module4/`](docs/module4/).
+
+| Проверка | Команда |
+|----------|---------|
+| Backend unit/integration | `./mvnw test` или `./mvnw verify` (Docker для Testcontainers) |
+| JaCoCo HTML | `./mvnw test jacoco:report` → `target/site/jacoco/index.html` |
+| Checkstyle | `./mvnw checkstyle:checkstyle` |
+| Frontend lint | `cd frontend && npm run lint` |
+| Frontend tests | `cd frontend && npm test` |
+| Frontend coverage | `cd frontend && npm run test:coverage` → `docs/module4/coverage/frontend/` |
+| Git hooks | `pip install pre-commit && pre-commit install` |
+
+Корневые конфиги: [`.editorconfig`](.editorconfig), [`checkstyle.xml`](checkstyle.xml), [`.pre-commit-config.yaml`](.pre-commit-config.yaml), [`frontend/oxlint.json`](frontend/oxlint.json).

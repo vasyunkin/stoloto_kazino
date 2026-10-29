@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ErrorCode.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">balloon-game</a> &gt; <a href="index.source.html" class="el_package">com.stoloto.balloongame.api.exception</a> &gt; <span class="el_source">ErrorCode.java</span></div><h1>ErrorCode.java</h1><pre class="source lang-java linenums">package com.stoloto.balloongame.api.exception;
+
+/**
+ * Application error codes used in ErrorResponse.
+ * Stable strings — frontEnd maps them to locale-specific messages.
+ */
+<span class="fc" id="L7">public enum ErrorCode {</span>
+<span class="fc" id="L8">    INSUFFICIENT_BALANCE,</span>
+<span class="fc" id="L9">    GAME_NOT_FOUND,</span>
+<span class="fc" id="L10">    PLAYER_NOT_FOUND,</span>
+<span class="fc" id="L11">    ALREADY_CASHED_OUT,</span>
+<span class="fc" id="L12">    ALREADY_CRASHED,</span>
+<span class="fc" id="L13">    INVALID_BET,</span>
+<span class="fc" id="L14">    DEPOSIT_NOT_ALLOWED,     // game.admin.allow-deposit=false</span>
+<span class="fc" id="L15">    ROUND_NOT_TERMINAL,      // verify called before round ended</span>
+<span class="fc" id="L16">    ROUND_EXPIRED,           // FLYING cache miss / recovered VOID — 410</span>
+<span class="fc" id="L17">    CONFIG_VALIDATION_FAILED,</span>
+<span class="fc" id="L18">    AUTH_INVALID_CREDENTIALS,</span>
+<span class="fc" id="L19">    AUTH_DISABLED,</span>
+<span class="fc" id="L20">    AUTH_TOKEN_EXPIRED,</span>
+<span class="fc" id="L21">    AUTH_UNAUTHORIZED,</span>
+<span class="fc" id="L22">    AUTH_EMAIL_TAKEN,</span>
+<span class="fc" id="L23">    FORBIDDEN,</span>
+<span class="fc" id="L24">    VALIDATION_ERROR,</span>
+<span class="fc" id="L25">    RATE_LIMITED,            // 429 — start/cashout spam (optional filter)</span>
+<span class="fc" id="L26">    CASHOUT_TOO_EARLY,       // 409 — K below minCashoutMultiplier</span>
+<span class="fc" id="L27">    NO_BOOSTER_CHARGES,      // 400 — AUTO requested with zero charges</span>
+<span class="fc" id="L28">    ROUND_IN_PROGRESS,       // 409 — player already has a FLYING round</span>
+<span class="fc" id="L29">    BETS_CLOSED,             // 403 — operator stopped new bets</span>
+<span class="fc" id="L30">    INTERNAL_ERROR</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

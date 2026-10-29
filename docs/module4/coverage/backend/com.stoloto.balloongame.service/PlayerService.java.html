@@ -1,0 +1,255 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PlayerService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">balloon-game</a> &gt; <a href="index.source.html" class="el_package">com.stoloto.balloongame.service</a> &gt; <span class="el_source">PlayerService.java</span></div><h1>PlayerService.java</h1><pre class="source lang-java linenums">package com.stoloto.balloongame.service;
+
+import com.stoloto.balloongame.api.dto.BalanceResponse;
+import com.stoloto.balloongame.api.dto.DepositResponse;
+import com.stoloto.balloongame.api.dto.FairnessResponse;
+import com.stoloto.balloongame.api.exception.GameException;
+import com.stoloto.balloongame.domain.entity.LedgerType;
+import com.stoloto.balloongame.domain.entity.Player;
+import com.stoloto.balloongame.domain.entity.WalletLedger;
+import com.stoloto.balloongame.domain.repository.PlayerRepository;
+import com.stoloto.balloongame.domain.repository.WalletLedgerRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+
+/**
+ * Wallet operations for a player.
+ *
+ * Money rules (I5):
+ *  - Every balance change goes through wallet_ledger.
+ *  - Balance mutations always hold PESSIMISTIC_WRITE lock on the player row.
+ *  - player.balance == SUM(ledger) at all times (invariant verifiable by sumBalanceByPlayerId).
+ */
+<span class="nc" id="L29">@Slf4j</span>
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+public class PlayerService {
+
+    private final PlayerRepository playerRepository;
+    private final WalletLedgerRepository walletLedgerRepository;
+    private final ConfigService configService;
+    private final PlayerFairnessService playerFairnessService;
+    /** Proxy for @Transactional self-invocation (deposit guard runs outside write-TX). */
+    private final ObjectProvider&lt;PlayerService&gt; self;
+
+    // ── Read operations ───────────────────────────────────────────────────
+
+    /**
+     * Get current balance. Read-only, no lock required.
+     */
+    @Transactional
+    public FairnessResponse fairnessView(String externalId) {
+<span class="nc" id="L49">        getWalletOrCreate(externalId);</span>
+<span class="nc" id="L50">        var player = playerRepository.findByExternalId(externalId)</span>
+<span class="nc" id="L51">                .orElseThrow(GameException::playerNotFound);</span>
+<span class="nc" id="L52">        playerFairnessService.arm(player);</span>
+<span class="nc bnc" id="L53" title="All 2 branches missed.">        String clientSeed = player.getPfClientSeed() == null ? &quot;&quot; : player.getPfClientSeed();</span>
+<span class="nc" id="L54">        return new FairnessResponse(player.getPfServerSeedHash(), player.getPfNonce() + 1, clientSeed);</span>
+    }
+
+    public BigDecimal getBalance(String externalId) {
+<span class="nc" id="L58">        return getPlayerOrThrow(externalId).getBalance();</span>
+    }
+
+    /** Wallet snapshot for balance API. Creates player + welcome credit if missing (demo). */
+    @Transactional
+    public BalanceResponse getWalletOrCreate(String externalId) {
+<span class="nc" id="L64">        return playerRepository.findByExternalId(externalId)</span>
+<span class="nc" id="L65">                .map(p -&gt; {</span>
+<span class="nc bnc" id="L66" title="All 4 branches missed.">                    if (p.getPfServerSeed() == null || p.getPfServerSeed().isBlank()) {</span>
+<span class="nc" id="L67">                        playerFairnessService.arm(p);</span>
+                    }
+<span class="nc" id="L69">                    return new BalanceResponse(externalId, p.getBalance(), p.getBoosterCharges());</span>
+                })
+<span class="nc" id="L71">                .orElseGet(() -&gt; createWithWelcome(externalId));</span>
+    }
+
+    /**
+     * First-visit bootstrap: create player and optionally credit {@code welcomeBalance}
+     * (ledger CREDIT_DEPOSIT). Does &lt;strong&gt;not&lt;/strong&gt; require {@code allowDeposit}.
+     */
+    private BalanceResponse createWithWelcome(String externalId) {
+<span class="nc" id="L79">        var admin = configService.getSnapshot().getAdmin();</span>
+<span class="nc" id="L80">        BigDecimal welcome = admin.getWelcomeBalance();</span>
+<span class="nc bnc" id="L81" title="All 6 branches missed.">        if (!admin.isDemoMode() || welcome == null || welcome.signum() &lt; 0) {</span>
+<span class="nc" id="L82">            welcome = BigDecimal.ZERO;</span>
+        }
+<span class="nc" id="L84">        log.info(&quot;Creating new player: externalId={} welcome={}&quot;, externalId, welcome);</span>
+<span class="nc" id="L85">        Player player = new Player(externalId);</span>
+<span class="nc" id="L86">        playerFairnessService.arm(player);</span>
+<span class="nc" id="L87">        player.setBalance(welcome);</span>
+<span class="nc" id="L88">        player = playerRepository.saveAndFlush(player);</span>
+<span class="nc bnc" id="L89" title="All 2 branches missed.">        if (welcome.signum() &gt; 0) {</span>
+<span class="nc" id="L90">            walletLedgerRepository.save(new WalletLedger(player, null, LedgerType.CREDIT_DEPOSIT, welcome));</span>
+        }
+<span class="nc" id="L92">        return new BalanceResponse(externalId, player.getBalance(), player.getBoosterCharges());</span>
+    }
+
+    public static final int MAX_BOOSTER_CHARGES = 20;
+
+    /**
+     * Fetch player or throw PLAYER_NOT_FOUND (404).
+     * Used by game services (S4+) to look up players.
+     */
+    public Player getPlayerOrThrow(String externalId) {
+<span class="nc" id="L102">        return playerRepository.findByExternalId(externalId)</span>
+<span class="nc" id="L103">                .orElseThrow(GameException::playerNotFound);</span>
+    }
+
+    // ── Write operations ──────────────────────────────────────────────────
+
+    /**
+     * Get existing player or create a new one (zero balance, no welcome — used by deposit path).
+     *
+     * &lt;p&gt;Not fully safe under extreme concurrent first-creation races, but acceptable
+     * for the hackathon scope. The unique constraint on external_id ensures the DB
+     * stays consistent even if two threads race here.
+     */
+    @Transactional
+    public Player getOrCreate(String externalId) {
+<span class="nc" id="L117">        return playerRepository.findByExternalId(externalId)</span>
+<span class="nc" id="L118">                .orElseGet(() -&gt; {</span>
+<span class="nc" id="L119">                    log.info(&quot;Creating new player (no welcome): externalId={}&quot;, externalId);</span>
+<span class="nc" id="L120">                    Player created = new Player(externalId);</span>
+<span class="nc" id="L121">                    playerFairnessService.arm(created);</span>
+<span class="nc" id="L122">                    return playerRepository.save(created);</span>
+                });
+    }
+
+    /**
+     * Deposit funds into player wallet.
+     *
+     * &lt;p&gt;Guards run &lt;strong&gt;outside&lt;/strong&gt; the write transaction (S10 / Spec 2):
+     * &lt;ul&gt;
+     *   &lt;li&gt;{@code ConfigService} snapshot {@code admin.allowDeposit} must be true&lt;/li&gt;
+     *   &lt;li&gt;amount &amp;gt; 0&lt;/li&gt;
+     * &lt;/ul&gt;
+     * Reject path must not acquire a player lock or write ledger.
+     *
+     * &lt;p&gt;Flow (I5):
+     * &lt;ol&gt;
+     *   &lt;li&gt;Validate allow-deposit flag (runtime snapshot) and amount.&lt;/li&gt;
+     *   &lt;li&gt;Write-TX: lock player → credit balance → {@code CREDIT_DEPOSIT} ledger.&lt;/li&gt;
+     * &lt;/ol&gt;
+     *
+     * @param externalId player identifier
+     * @param amount     positive deposit amount
+     * @return DepositResponse with new balance
+     */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public DepositResponse deposit(String externalId, BigDecimal amount) {
+<span class="nc" id="L148">        assertDepositAllowed();</span>
+<span class="nc bnc" id="L149" title="All 4 branches missed.">        if (amount == null || amount.compareTo(BigDecimal.ZERO) &lt;= 0) {</span>
+<span class="nc" id="L150">            throw GameException.invalidBet(&quot;Deposit amount must be positive&quot;);</span>
+        }
+<span class="nc" id="L152">        return self.getObject().depositInTransaction(externalId, amount);</span>
+    }
+
+    /**
+     * Money write path for deposit. First DB call must be {@code FOR UPDATE} (I5).
+     */
+    @Transactional
+    public DepositResponse depositInTransaction(String externalId, BigDecimal amount) {
+        // Defense in depth if admin flipped the flag between guard and TX entry.
+<span class="nc" id="L161">        assertDepositAllowed();</span>
+
+        // Acquire PESSIMISTIC_WRITE lock as the FIRST DB call in this transaction.
+        // Must NOT call findByExternalId() before this — that would put a stale entity into
+        // Hibernate L1 cache, and findByExternalIdForUpdate would then return the cached
+        // (stale) balance instead of re-reading fresh committed data from PostgreSQL.
+<span class="nc" id="L167">        Player player = playerRepository.findByExternalIdForUpdate(externalId)</span>
+<span class="nc" id="L168">                .orElseGet(() -&gt; {</span>
+<span class="nc" id="L169">                    Player created = new Player(externalId);</span>
+<span class="nc" id="L170">                    playerFairnessService.arm(created);</span>
+<span class="nc" id="L171">                    return playerRepository.saveAndFlush(created);</span>
+                });
+<span class="nc" id="L173">        playerFairnessService.arm(player);</span>
+
+<span class="nc" id="L175">        BigDecimal newBalance = player.getBalance().add(amount);</span>
+<span class="nc" id="L176">        player.setBalance(newBalance);</span>
+<span class="nc" id="L177">        int charges = Math.min(MAX_BOOSTER_CHARGES, player.getBoosterCharges() + 1);</span>
+<span class="nc" id="L178">        player.setBoosterCharges(charges);</span>
+
+<span class="nc" id="L180">        walletLedgerRepository.save(new WalletLedger(player, null, LedgerType.CREDIT_DEPOSIT, amount));</span>
+
+<span class="nc" id="L182">        log.info(&quot;Deposit OK: player={} amount={} newBalance={} boosterCharges={}&quot;,</span>
+<span class="nc" id="L183">                externalId, amount, newBalance, charges);</span>
+<span class="nc" id="L184">        return new DepositResponse(externalId, amount, newBalance, charges);</span>
+    }
+
+    /**
+     * Consume one AUTO booster charge. Caller must hold player FOR UPDATE.
+     */
+    public void consumeBoosterCharge(Player player) {
+<span class="nc bnc" id="L191" title="All 2 branches missed.">        if (player.getBoosterCharges() &lt;= 0) {</span>
+<span class="nc" id="L192">            throw GameException.noBoosterCharges();</span>
+        }
+<span class="nc" id="L194">        player.setBoosterCharges(player.getBoosterCharges() - 1);</span>
+<span class="nc" id="L195">    }</span>
+
+    private void assertDepositAllowed() {
+<span class="nc" id="L198">        var admin = configService.getSnapshot().getAdmin();</span>
+<span class="nc bnc" id="L199" title="All 4 branches missed.">        if (!admin.isDemoMode() || !admin.isAllowDeposit()) {</span>
+<span class="nc" id="L200">            throw GameException.depositNotAllowed();</span>
+        }
+<span class="nc" id="L202">    }</span>
+
+    /**
+     * Debit bet amount from player balance.
+     * Called from GameOrchestrator.start() (S4) — always inside an outer transaction with lock.
+     *
+     * &lt;p&gt;Precondition: caller must hold PESSIMISTIC_WRITE lock on the player row.
+     *
+     * @param player    locked player entity
+     * @param amount    positive bet amount
+     * @param gameRound the game round being started (for ledger FK)
+     */
+    @Transactional
+    public void debitBet(Player player,
+                         BigDecimal amount,
+                         com.stoloto.balloongame.domain.entity.GameRound gameRound) {
+<span class="nc bnc" id="L218" title="All 2 branches missed.">        if (player.getBalance().compareTo(amount) &lt; 0) {</span>
+<span class="nc" id="L219">            throw GameException.insufficientBalance();</span>
+        }
+<span class="nc" id="L221">        player.setBalance(player.getBalance().subtract(amount));</span>
+<span class="nc" id="L222">        walletLedgerRepository.save(new WalletLedger(player, gameRound, LedgerType.DEBIT_BET, amount));</span>
+<span class="nc" id="L223">    }</span>
+
+    /**
+     * Credit win amount to player balance.
+     * Called from RoundLifecycleService.cashout() (S5) — inside transaction with lock.
+     *
+     * &lt;p&gt;Precondition: caller must hold PESSIMISTIC_WRITE lock on the player row.
+     *
+     * @param player    locked player entity
+     * @param amount    positive win amount
+     * @param gameRound the finished game round
+     */
+    @Transactional
+    public void creditWin(Player player,
+                          BigDecimal amount,
+                          com.stoloto.balloongame.domain.entity.GameRound gameRound) {
+<span class="nc" id="L239">        player.setBalance(player.getBalance().add(amount));</span>
+<span class="nc" id="L240">        walletLedgerRepository.save(new WalletLedger(player, gameRound, LedgerType.CREDIT_WIN, amount));</span>
+<span class="nc" id="L241">    }</span>
+
+    /**
+     * Refund bet to player (used in startup recovery for VOID rounds — S7).
+     * Precondition: caller must hold PESSIMISTIC_WRITE lock on the player row.
+     */
+    @Transactional
+    public void refundBet(Player player,
+                          BigDecimal amount,
+                          com.stoloto.balloongame.domain.entity.GameRound gameRound) {
+<span class="nc" id="L251">        player.setBalance(player.getBalance().add(amount));</span>
+<span class="nc" id="L252">        walletLedgerRepository.save(new WalletLedger(player, gameRound, LedgerType.CREDIT_REFUND, amount));</span>
+<span class="nc" id="L253">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

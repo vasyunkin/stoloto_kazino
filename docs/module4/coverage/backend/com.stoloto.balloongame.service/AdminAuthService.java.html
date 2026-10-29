@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AdminAuthService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">balloon-game</a> &gt; <a href="index.source.html" class="el_package">com.stoloto.balloongame.service</a> &gt; <span class="el_source">AdminAuthService.java</span></div><h1>AdminAuthService.java</h1><pre class="source lang-java linenums">package com.stoloto.balloongame.service;
+
+import com.stoloto.balloongame.api.dto.AdminProfileResponse;
+import com.stoloto.balloongame.api.dto.AdminTokenResponse;
+import com.stoloto.balloongame.api.exception.GameException;
+import com.stoloto.balloongame.config.AdminAuthProperties;
+import com.stoloto.balloongame.domain.entity.AdminRefreshTokenEntity;
+import com.stoloto.balloongame.domain.entity.AdminUserEntity;
+import com.stoloto.balloongame.domain.repository.AdminRefreshTokenRepository;
+import com.stoloto.balloongame.domain.repository.AdminUserRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.time.Clock;
+import java.time.Instant;
+import java.util.Base64;
+import java.util.HexFormat;
+import java.util.UUID;
+
+@Service
+@RequiredArgsConstructor
+public class AdminAuthService {
+
+<span class="nc" id="L30">    private static final SecureRandom RANDOM = new SecureRandom();</span>
+
+    private final AdminUserRepository userRepository;
+    private final AdminRefreshTokenRepository refreshTokenRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
+    private final AdminAuthProperties properties;
+    private final Clock clock;
+
+    @Transactional
+    public AdminTokenResponse login(String username, String password, String userAgent, String ip) {
+<span class="nc" id="L41">        AdminUserEntity user = userRepository.findByUsername(username).orElse(null);</span>
+<span class="nc bnc" id="L42" title="All 4 branches missed.">        if (user == null || !passwordEncoder.matches(password, user.getPasswordHash())) {</span>
+<span class="nc" id="L43">            throw GameException.authInvalidCredentials();</span>
+        }
+<span class="nc bnc" id="L45" title="All 2 branches missed.">        if (!user.isEnabled()) {</span>
+<span class="nc" id="L46">            throw GameException.authDisabled();</span>
+        }
+<span class="nc" id="L48">        user.setLastLoginAt(clock.instant());</span>
+<span class="nc" id="L49">        return issueTokens(user, userAgent, ip);</span>
+    }
+
+    @Transactional
+    public AdminTokenResponse refresh(String refreshToken, String userAgent, String ip) {
+<span class="nc" id="L54">        AdminRefreshTokenEntity stored = resolveActive(refreshToken);</span>
+<span class="nc" id="L55">        AdminUserEntity user = stored.getAdminUser();</span>
+<span class="nc bnc" id="L56" title="All 2 branches missed.">        if (!user.isEnabled()) {</span>
+<span class="nc" id="L57">            stored.setRevokedAt(clock.instant());</span>
+<span class="nc" id="L58">            throw GameException.authDisabled();</span>
+        }
+<span class="nc" id="L60">        stored.setRevokedAt(clock.instant());</span>
+<span class="nc" id="L61">        return issueTokens(user, userAgent, ip);</span>
+    }
+
+    @Transactional
+    public void logout(String refreshToken) {
+<span class="nc bnc" id="L66" title="All 4 branches missed.">        if (refreshToken == null || refreshToken.isBlank()) {</span>
+<span class="nc" id="L67">            return;</span>
+        }
+<span class="nc" id="L69">        refreshTokenRepository.findByTokenHash(sha256Hex(refreshToken)).ifPresent(stored -&gt; {</span>
+<span class="nc bnc" id="L70" title="All 2 branches missed.">            if (stored.getRevokedAt() == null) {</span>
+<span class="nc" id="L71">                stored.setRevokedAt(clock.instant());</span>
+            }
+<span class="nc" id="L73">        });</span>
+<span class="nc" id="L74">    }</span>
+
+    @Transactional(readOnly = true)
+    public AdminProfileResponse me(UUID adminId) {
+<span class="nc" id="L78">        AdminUserEntity user = userRepository.findById(adminId)</span>
+<span class="nc" id="L79">                .orElseThrow(GameException::authUnauthorized);</span>
+<span class="nc bnc" id="L80" title="All 2 branches missed.">        if (!user.isEnabled()) {</span>
+<span class="nc" id="L81">            throw GameException.authDisabled();</span>
+        }
+<span class="nc" id="L83">        return toProfile(user);</span>
+    }
+
+    @Transactional
+    public void changePassword(UUID adminId, String currentPassword, String newPassword) {
+<span class="nc" id="L88">        AdminUserEntity user = userRepository.findById(adminId)</span>
+<span class="nc" id="L89">                .orElseThrow(GameException::authUnauthorized);</span>
+<span class="nc bnc" id="L90" title="All 2 branches missed.">        if (!user.isEnabled()) {</span>
+<span class="nc" id="L91">            throw GameException.authDisabled();</span>
+        }
+<span class="nc bnc" id="L93" title="All 2 branches missed.">        if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {</span>
+<span class="nc" id="L94">            throw GameException.authInvalidCredentials();</span>
+        }
+<span class="nc" id="L96">        user.setPasswordHash(passwordEncoder.encode(newPassword));</span>
+<span class="nc" id="L97">        refreshTokenRepository.revokeAllActiveForUser(user.getId(), clock.instant());</span>
+<span class="nc" id="L98">    }</span>
+
+    private AdminTokenResponse issueTokens(AdminUserEntity user, String userAgent, String ip) {
+<span class="nc" id="L101">        Instant now = clock.instant();</span>
+<span class="nc" id="L102">        String refreshRaw = newRefreshToken();</span>
+<span class="nc" id="L103">        AdminRefreshTokenEntity row = new AdminRefreshTokenEntity();</span>
+<span class="nc" id="L104">        row.setAdminUser(user);</span>
+<span class="nc" id="L105">        row.setTokenHash(sha256Hex(refreshRaw));</span>
+<span class="nc" id="L106">        row.setExpiresAt(now.plus(properties.getRefreshTokenTtl()));</span>
+<span class="nc" id="L107">        row.setUserAgent(truncate(userAgent, 256));</span>
+<span class="nc" id="L108">        row.setIp(truncate(ip, 64));</span>
+<span class="nc" id="L109">        refreshTokenRepository.save(row);</span>
+
+<span class="nc" id="L111">        return new AdminTokenResponse(</span>
+<span class="nc" id="L112">                jwtService.createAccessToken(user),</span>
+                refreshRaw,
+<span class="nc" id="L114">                jwtService.accessExpiresInSeconds(),</span>
+<span class="nc" id="L115">                toProfile(user)</span>
+        );
+    }
+
+    private AdminRefreshTokenEntity resolveActive(String refreshToken) {
+<span class="nc bnc" id="L120" title="All 4 branches missed.">        if (refreshToken == null || refreshToken.isBlank()) {</span>
+<span class="nc" id="L121">            throw GameException.authUnauthorized();</span>
+        }
+<span class="nc" id="L123">        AdminRefreshTokenEntity stored = refreshTokenRepository.findByTokenHash(sha256Hex(refreshToken))</span>
+<span class="nc" id="L124">                .orElseThrow(GameException::authUnauthorized);</span>
+<span class="nc bnc" id="L125" title="All 2 branches missed.">        if (!stored.isActive(clock.instant())) {</span>
+<span class="nc" id="L126">            throw GameException.authUnauthorized();</span>
+        }
+<span class="nc" id="L128">        return stored;</span>
+    }
+
+    private static AdminProfileResponse toProfile(AdminUserEntity user) {
+<span class="nc" id="L132">        return new AdminProfileResponse(user.getId(), user.getUsername(), user.getDisplayName());</span>
+    }
+
+    private static String newRefreshToken() {
+<span class="nc" id="L136">        byte[] raw = new byte[32];</span>
+<span class="nc" id="L137">        RANDOM.nextBytes(raw);</span>
+<span class="nc" id="L138">        return Base64.getUrlEncoder().withoutPadding().encodeToString(raw);</span>
+    }
+
+    private static String sha256Hex(String value) {
+        try {
+<span class="nc" id="L143">            MessageDigest md = MessageDigest.getInstance(&quot;SHA-256&quot;);</span>
+<span class="nc" id="L144">            byte[] digest = md.digest(value.getBytes(StandardCharsets.UTF_8));</span>
+<span class="nc" id="L145">            return HexFormat.of().formatHex(digest);</span>
+<span class="nc" id="L146">        } catch (NoSuchAlgorithmException e) {</span>
+<span class="nc" id="L147">            throw new IllegalStateException(&quot;SHA-256 not available&quot;, e);</span>
+        }
+    }
+
+    private static String truncate(String value, int max) {
+<span class="nc bnc" id="L152" title="All 2 branches missed.">        if (value == null) {</span>
+<span class="nc" id="L153">            return null;</span>
+        }
+<span class="nc bnc" id="L155" title="All 2 branches missed.">        return value.length() &lt;= max ? value : value.substring(0, max);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

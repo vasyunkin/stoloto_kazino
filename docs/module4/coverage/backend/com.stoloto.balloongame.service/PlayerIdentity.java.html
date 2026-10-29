@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PlayerIdentity.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">balloon-game</a> &gt; <a href="index.source.html" class="el_package">com.stoloto.balloongame.service</a> &gt; <span class="el_source">PlayerIdentity.java</span></div><h1>PlayerIdentity.java</h1><pre class="source lang-java linenums">package com.stoloto.balloongame.service;
+
+import com.stoloto.balloongame.api.exception.GameException;
+import com.stoloto.balloongame.config.PlayerPrincipal;
+import com.stoloto.balloongame.domain.repository.PlayerAccountRepository;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Component;
+
+/**
+ * Logged-in players are the JWT subject. A mismatched {@code X-Player-Id} is rejected.
+ * Guests (no bearer token) keep using the header or path id.
+ */
+@Component
+public class PlayerIdentity {
+
+    private final PlayerAccountRepository accountRepository;
+
+<span class="nc" id="L19">    public PlayerIdentity(PlayerAccountRepository accountRepository) {</span>
+<span class="nc" id="L20">        this.accountRepository = accountRepository;</span>
+<span class="nc" id="L21">    }</span>
+
+    public String resolve(String claimedId) {
+<span class="nc" id="L24">        PlayerPrincipal account = currentAccount();</span>
+<span class="nc bnc" id="L25" title="All 2 branches missed.">        if (account != null) {</span>
+<span class="nc bnc" id="L26" title="All 6 branches missed.">            if (claimedId != null &amp;&amp; !claimedId.isBlank() &amp;&amp; !account.playerId().equals(claimedId.trim())) {</span>
+<span class="nc" id="L27">                throw GameException.forbidden();</span>
+            }
+<span class="nc" id="L29">            return account.playerId();</span>
+        }
+<span class="nc bnc" id="L31" title="All 4 branches missed.">        if (claimedId == null || claimedId.isBlank()) {</span>
+<span class="nc" id="L32">            throw GameException.missingPlayerHeader();</span>
+        }
+<span class="nc" id="L34">        String id = claimedId.trim();</span>
+<span class="nc bnc" id="L35" title="All 2 branches missed.">        if (accountRepository.existsByPlayer_ExternalId(id)) {</span>
+<span class="nc" id="L36">            throw GameException.authUnauthorized();</span>
+        }
+<span class="nc" id="L38">        return id;</span>
+    }
+
+    public String requireAccount() {
+<span class="nc" id="L42">        PlayerPrincipal account = currentAccount();</span>
+<span class="nc bnc" id="L43" title="All 2 branches missed.">        if (account == null) {</span>
+<span class="nc" id="L44">            throw GameException.authUnauthorized();</span>
+        }
+<span class="nc" id="L46">        return account.playerId();</span>
+    }
+
+    private static PlayerPrincipal currentAccount() {
+<span class="nc" id="L50">        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();</span>
+<span class="nc bnc" id="L51" title="All 2 branches missed.">        if (authentication == null) {</span>
+<span class="nc" id="L52">            return null;</span>
+        }
+<span class="nc" id="L54">        Object principal = authentication.getPrincipal();</span>
+<span class="nc bnc" id="L55" title="All 2 branches missed.">        return principal instanceof PlayerPrincipal player ? player : null;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>LeaderboardService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">balloon-game</a> &gt; <a href="index.source.html" class="el_package">com.stoloto.balloongame.service</a> &gt; <span class="el_source">LeaderboardService.java</span></div><h1>LeaderboardService.java</h1><pre class="source lang-java linenums">package com.stoloto.balloongame.service;
+
+import com.stoloto.balloongame.api.dto.LeaderboardEntryResponse;
+import com.stoloto.balloongame.domain.repository.PlayerRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Public points leaderboard (S15). Aggregates {@code game_round.points_earned} — no PF secrets.
+ */
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+public class LeaderboardService {
+
+    private final PlayerRepository playerRepository;
+
+    public List&lt;LeaderboardEntryResponse&gt; leaderboard(Integer limit) {
+<span class="nc" id="L24">        int size = GameHistoryService.clampLimit(limit);</span>
+<span class="nc" id="L25">        List&lt;Object[]&gt; rows = playerRepository.findLeaderboardByPoints(PageRequest.of(0, size));</span>
+<span class="nc" id="L26">        List&lt;LeaderboardEntryResponse&gt; out = new ArrayList&lt;&gt;(rows.size());</span>
+<span class="nc" id="L27">        int rank = 1;</span>
+<span class="nc bnc" id="L28" title="All 2 branches missed.">        for (Object[] row : rows) {</span>
+<span class="nc" id="L29">            String externalId = (String) row[0];</span>
+<span class="nc" id="L30">            long total = ((Number) row[1]).longValue();</span>
+<span class="nc" id="L31">            out.add(new LeaderboardEntryResponse(rank++, externalId, total));</span>
+<span class="nc" id="L32">        }</span>
+<span class="nc" id="L33">        return out;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

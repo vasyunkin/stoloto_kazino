@@ -140,7 +140,8 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
 				<configuration>
-					<argLine>-Dapi.version=1.40</argLine>
+					<!-- @{argLine} — JaCoCo agent; см. docs/module4/test_coverage_report.md -->
+					<argLine>@{argLine} -Dapi.version=1.40</argLine>
 					<environmentVariables>
 						<TESTCONTAINERS_RYUK_DISABLED>true</TESTCONTAINERS_RYUK_DISABLED>
 						<DOCKER_HOST>unix:///var/run/docker.sock</DOCKER_HOST>
@@ -170,6 +171,36 @@
 							<artifactId>lombok</artifactId>
 						</exclude>
 					</excludes>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<version>0.8.12</version>
+				<executions>
+					<execution>
+						<goals>
+							<goal>prepare-agent</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>report</id>
+						<phase>test</phase>
+						<goals>
+							<goal>report</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-checkstyle-plugin</artifactId>
+				<version>3.6.0</version>
+				<configuration>
+					<configLocation>checkstyle.xml</configLocation>
+					<consoleOutput>true</consoleOutput>
+					<failsOnError>false</failsOnError>
+					<violationSeverity>warning</violationSeverity>
 				</configuration>
 			</plugin>
 			<plugin>

@@ -1,0 +1,346 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GameConfig.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">balloon-game</a> &gt; <a href="index.source.html" class="el_package">com.stoloto.balloongame.config</a> &gt; <span class="el_source">GameConfig.java</span></div><h1>GameConfig.java</h1><pre class="source lang-java linenums">package com.stoloto.balloongame.config;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonMerge;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.*;
+import lombok.Data;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
+
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Runtime-configurable game parameters.
+ * Loaded from application.yml (prefix &quot;game&quot;).
+ * At round start, a deep copy is stored in GameSession.configSnapshot (S4/I8).
+ * During FLYING, all math reads configSnapshot — NOT this live bean.
+ */
+@Data
+@Validated
+@ConfigurationProperties(prefix = &quot;game&quot;)
+public class GameConfig {
+
+    @Positive
+    private int greenLevels = 9;
+
+    @Positive
+    private int redLevels = 12;
+
+    @Positive
+    private int pointsPerLine = 10;
+
+    @Positive
+    private double ascentSpeedLinesPerSec = 1.5;
+
+    @JsonMerge
+    @Valid
+    private MathConfig math = new MathConfig();
+
+    @JsonMerge
+    @Valid
+    private BoostersConfig boosters = new BoostersConfig();
+
+    @JsonMerge
+    @Valid
+    private AdminConfig admin = new AdminConfig();
+
+    @JsonMerge
+    @Valid
+    private ScoringConfig scoring = new ScoringConfig();
+
+    @JsonMerge
+    @Valid
+    private ProvablyFairConfig provablyFair = new ProvablyFairConfig();
+
+    @JsonMerge
+    @Valid
+    private ThemesConfig themes = new ThemesConfig();
+
+    // ── Nested configs ────────────────────────────────────────────────────
+
+    @Data
+    public static class MathConfig {
+
+        /** Exponential growth rate α in K(t) = e^(α·t). */
+        @Positive
+        private double growthRate = 0.0433;
+
+        /** House edge fraction [0, 1). E.g. 0.04 = 4%. */
+        @DecimalMin(&quot;0.0&quot;) @DecimalMax(&quot;0.5&quot;)
+        private double houseEdge = 0.08;
+
+        /**
+         * Probability of instant crash at {@link #minCrashPoint} [0, 1).
+         * Classic: often ~3–8% at 1.00x.
+         */
+        @DecimalMin(&quot;0.0&quot;) @DecimalMax(&quot;1.0&quot;)
+        private double instantCrashRate = 0.08;
+
+        /** Floor for crash draw (classic: 1.00). */
+        @NotNull @DecimalMin(&quot;1.0&quot;)
+        private BigDecimal minCrashPoint = new BigDecimal(&quot;1.00&quot;);
+
+        /**
+         * Cashout rejected while raw K is below this (classic: 1.01).
+         * May be slightly above {@link #minCrashPoint} so instant 1.00 busts before cashout unlocks.
+         */
+        @NotNull @DecimalMin(&quot;1.0&quot;)
+        private BigDecimal minCashoutMultiplier = new BigDecimal(&quot;1.01&quot;);
+    }
+
+    @Data
+    public static class BoostersConfig {
+
+        /** Probability that a booster spawns in a round [0, 1]. */
+        @DecimalMin(&quot;0.0&quot;) @DecimalMax(&quot;1.0&quot;)
+        private double spawnProbability = 0.45;
+
+        /**
+         * Line pick bias: triggerLine = floor(roll^power * crashLine).
+         * power &amp;gt; 1 favours lower altitude lines.
+         */
+        @Positive
+        private double lineBiasPower = 2.0;
+
+        @Valid
+        @NotEmpty
+        private List&lt;BoosterTier&gt; tiers = new ArrayList&lt;&gt;();
+    }
+
+    @Data
+    public static class BoosterTier {
+
+        @Positive
+        private int tier;
+
+        @NotBlank
+        private String name;
+
+        /** Multiplier applied to payout K and to booster points bonus. */
+        @NotNull
+        @Positive
+        private BigDecimal multiplier;
+
+        /** Relative weight for weighted random selection. */
+        @Positive
+        private int probabilityWeight;
+    }
+
+    @Data
+    public static class AdminConfig {
+
+        /** Secret key for X-Admin-Key. Bound from YAML/env; never in admin JSON (I7-adjacent). */
+        @JsonIgnore
+        @NotBlank
+        private String apiKey = &quot;change-me-in-prod&quot;;
+
+        @NotNull @Positive
+        private BigDecimal minBetAmount = new BigDecimal(&quot;10.0&quot;);
+
+        @NotNull @Positive
+        private BigDecimal maxBetAmount = new BigDecimal(&quot;10000.0&quot;);
+
+        @NotNull @Positive
+        private BigDecimal minWinAmount = new BigDecimal(&quot;50.0&quot;);
+
+        @NotNull @Positive
+        private BigDecimal maxWinMultiplier = new BigDecimal(&quot;100.0&quot;);
+
+        /** Allow /api/players/{id}/deposit. Also requires {@link #demoMode}. */
+        private boolean allowDeposit = true;
+
+        /**
+         * Demo faucet: welcome credit and {@code POST /deposit}.
+         * Profile {@code prod} must set this false; {@code ProdSafetyChecker} refuses otherwise.
+         */
+        private boolean demoMode = true;
+
+        /** When false, new rounds are rejected. Rounds already FLYING keep running. */
+        private boolean acceptingBets = true;
+
+        /**
+         * Balance granted once when a player is auto-created via GET balance.
+         * {@code 0} = create with empty wallet (Hub must deposit). Demo default 1000.
+         */
+        @NotNull @DecimalMin(&quot;0.0&quot;)
+        private BigDecimal welcomeBalance = new BigDecimal(&quot;1000.0&quot;);
+    }
+
+    @Data
+    public static class ScoringConfig {
+
+        /** RED-zone line points multiplier. Default 1.0 = same as GREEN (jury-tunable). */
+        @DecimalMin(&quot;0.0&quot;)
+        private double redZoneMultiplier = 1.0;
+    }
+
+    @Data
+    public static class ProvablyFairConfig {
+
+        @Positive
+        private int serverSeedLengthBytes = 32;
+
+        @NotBlank
+        private String hashAlgorithm = &quot;SHA-256&quot;;
+
+        /**
+         * Optional fixed server seed (lowercase hex) for reproducible demos.
+         * Honoured only when Spring profile {@code dev} or {@code test} is active (S15).
+         * Never set a prod default. Excluded from admin JSON (I7-adjacent).
+         */
+        @JsonIgnore
+        private String devFixedServerSeed;
+    }
+
+    @Data
+    public static class ThemesConfig {
+
+        @JsonMerge
+        @Valid
+        private ThemeProfile standard = ThemeProfile.standardDefaults();
+
+        @JsonMerge
+        @Valid
+        private ThemeProfile lucky = ThemeProfile.luckyDefaults();
+    }
+
+    @Data
+    public static class ThemeProfile {
+
+        @NotNull @Positive
+        private BigDecimal minBetAmount;
+
+        @NotNull @Positive
+        private BigDecimal maxBetAmount;
+
+        @Positive
+        private double growthRate;
+
+        @NotNull @Positive
+        private BigDecimal maxWinMultiplier;
+
+        @Positive
+        private int greenLevels;
+
+        @Positive
+        private int redLevels;
+
+        public static ThemeProfile standardDefaults() {
+<span class="fc" id="L232">            ThemeProfile t = new ThemeProfile();</span>
+<span class="fc" id="L233">            t.minBetAmount = new BigDecimal(&quot;12.0&quot;);</span>
+<span class="fc" id="L234">            t.maxBetAmount = new BigDecimal(&quot;5000.0&quot;);</span>
+<span class="fc" id="L235">            t.growthRate = 0.0367;</span>
+<span class="fc" id="L236">            t.maxWinMultiplier = new BigDecimal(&quot;50.0&quot;);</span>
+<span class="fc" id="L237">            t.greenLevels = 9;</span>
+<span class="fc" id="L238">            t.redLevels = 6;</span>
+<span class="fc" id="L239">            return t;</span>
+        }
+
+        public static ThemeProfile luckyDefaults() {
+<span class="fc" id="L243">            ThemeProfile t = new ThemeProfile();</span>
+<span class="fc" id="L244">            t.minBetAmount = new BigDecimal(&quot;25.0&quot;);</span>
+<span class="fc" id="L245">            t.maxBetAmount = new BigDecimal(&quot;10000.0&quot;);</span>
+<span class="fc" id="L246">            t.growthRate = 0.0567;</span>
+<span class="fc" id="L247">            t.maxWinMultiplier = new BigDecimal(&quot;100.0&quot;);</span>
+<span class="fc" id="L248">            t.greenLevels = 9;</span>
+<span class="fc" id="L249">            t.redLevels = 12;</span>
+<span class="fc" id="L250">            return t;</span>
+        }
+
+        public ThemeProfile copy() {
+<span class="fc" id="L254">            ThemeProfile t = new ThemeProfile();</span>
+<span class="fc" id="L255">            t.minBetAmount = this.minBetAmount;</span>
+<span class="fc" id="L256">            t.maxBetAmount = this.maxBetAmount;</span>
+<span class="fc" id="L257">            t.growthRate = this.growthRate;</span>
+<span class="fc" id="L258">            t.maxWinMultiplier = this.maxWinMultiplier;</span>
+<span class="fc" id="L259">            t.greenLevels = this.greenLevels;</span>
+<span class="fc" id="L260">            t.redLevels = this.redLevels;</span>
+<span class="fc" id="L261">            return t;</span>
+        }
+    }
+
+    // ── Deep copy (used in S4 to snapshot config at round start) ─────────
+
+    /**
+     * Returns a deep copy of this config for use as an immutable GameSession snapshot.
+     * During FLYING, only this snapshot is used for all math — not the live bean.
+     */
+    public GameConfig deepCopy() {
+<span class="fc" id="L272">        GameConfig copy = new GameConfig();</span>
+<span class="fc" id="L273">        copy.greenLevels = this.greenLevels;</span>
+<span class="fc" id="L274">        copy.redLevels = this.redLevels;</span>
+<span class="fc" id="L275">        copy.pointsPerLine = this.pointsPerLine;</span>
+<span class="fc" id="L276">        copy.ascentSpeedLinesPerSec = this.ascentSpeedLinesPerSec;</span>
+
+<span class="fc" id="L278">        ScoringConfig sc = new ScoringConfig();</span>
+<span class="pc bpc" id="L279" title="1 of 2 branches missed.">        if (this.scoring != null) {</span>
+<span class="fc" id="L280">            sc.redZoneMultiplier = this.scoring.redZoneMultiplier;</span>
+        }
+<span class="fc" id="L282">        copy.scoring = sc;</span>
+
+<span class="fc" id="L284">        MathConfig m = new MathConfig();</span>
+<span class="fc" id="L285">        m.growthRate = this.math.growthRate;</span>
+<span class="fc" id="L286">        m.houseEdge = this.math.houseEdge;</span>
+<span class="fc" id="L287">        m.instantCrashRate = this.math.instantCrashRate;</span>
+<span class="fc" id="L288">        m.minCrashPoint = this.math.minCrashPoint;</span>
+<span class="fc" id="L289">        m.minCashoutMultiplier = this.math.minCashoutMultiplier;</span>
+<span class="fc" id="L290">        copy.math = m;</span>
+
+<span class="fc" id="L292">        BoostersConfig b = new BoostersConfig();</span>
+<span class="fc" id="L293">        b.spawnProbability = this.boosters.spawnProbability;</span>
+<span class="fc" id="L294">        b.lineBiasPower = this.boosters.lineBiasPower;</span>
+<span class="fc" id="L295">        List&lt;BoosterTier&gt; tiers = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L296" title="All 2 branches covered.">        for (BoosterTier t : this.boosters.tiers) {</span>
+<span class="fc" id="L297">            BoosterTier tc = new BoosterTier();</span>
+<span class="fc" id="L298">            tc.tier = t.tier;</span>
+<span class="fc" id="L299">            tc.name = t.name;</span>
+<span class="fc" id="L300">            tc.multiplier = t.multiplier;</span>
+<span class="fc" id="L301">            tc.probabilityWeight = t.probabilityWeight;</span>
+<span class="fc" id="L302">            tiers.add(tc);</span>
+<span class="fc" id="L303">        }</span>
+<span class="fc" id="L304">        b.tiers = tiers;</span>
+<span class="fc" id="L305">        copy.boosters = b;</span>
+
+<span class="fc" id="L307">        AdminConfig a = new AdminConfig();</span>
+<span class="fc" id="L308">        a.apiKey = this.admin.apiKey;</span>
+<span class="fc" id="L309">        a.minBetAmount = this.admin.minBetAmount;</span>
+<span class="fc" id="L310">        a.maxBetAmount = this.admin.maxBetAmount;</span>
+<span class="fc" id="L311">        a.minWinAmount = this.admin.minWinAmount;</span>
+<span class="fc" id="L312">        a.maxWinMultiplier = this.admin.maxWinMultiplier;</span>
+<span class="fc" id="L313">        a.allowDeposit = this.admin.allowDeposit;</span>
+<span class="fc" id="L314">        a.demoMode = this.admin.demoMode;</span>
+<span class="fc" id="L315">        a.acceptingBets = this.admin.acceptingBets;</span>
+<span class="fc" id="L316">        a.welcomeBalance = this.admin.welcomeBalance;</span>
+<span class="fc" id="L317">        copy.admin = a;</span>
+
+<span class="fc" id="L319">        ProvablyFairConfig pf = new ProvablyFairConfig();</span>
+<span class="fc" id="L320">        pf.serverSeedLengthBytes = this.provablyFair.serverSeedLengthBytes;</span>
+<span class="fc" id="L321">        pf.hashAlgorithm = this.provablyFair.hashAlgorithm;</span>
+<span class="fc" id="L322">        pf.devFixedServerSeed = this.provablyFair.devFixedServerSeed;</span>
+<span class="fc" id="L323">        copy.provablyFair = pf;</span>
+
+<span class="fc" id="L325">        ThemesConfig th = new ThemesConfig();</span>
+<span class="fc" id="L326">        th.standard = this.themes.standard.copy();</span>
+<span class="fc" id="L327">        th.lucky = this.themes.lucky.copy();</span>
+<span class="fc" id="L328">        copy.themes = th;</span>
+
+<span class="fc" id="L330">        return copy;</span>
+    }
+
+    /**
+     * Merges theme profile into this snapshot (mutates). Call once at round start before math.
+     */
+    public void applyTheme(String balloonType) {
+<span class="nc bnc" id="L337" title="All 2 branches missed.">        ThemeProfile profile = &quot;LUCKY&quot;.equals(balloonType) ? themes.getLucky() : themes.getStandard();</span>
+<span class="nc" id="L338">        admin.setMinBetAmount(profile.getMinBetAmount());</span>
+<span class="nc" id="L339">        admin.setMaxBetAmount(profile.getMaxBetAmount());</span>
+<span class="nc" id="L340">        admin.setMaxWinMultiplier(profile.getMaxWinMultiplier());</span>
+<span class="nc" id="L341">        math.setGrowthRate(profile.getGrowthRate());</span>
+<span class="nc" id="L342">        greenLevels = profile.getGreenLevels();</span>
+<span class="nc" id="L343">        redLevels = profile.getRedLevels();</span>
+<span class="nc" id="L344">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

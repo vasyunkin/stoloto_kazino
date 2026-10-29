@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>JwtAuthenticationFilter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">balloon-game</a> &gt; <a href="index.source.html" class="el_package">com.stoloto.balloongame.config</a> &gt; <span class="el_source">JwtAuthenticationFilter.java</span></div><h1>JwtAuthenticationFilter.java</h1><pre class="source lang-java linenums">package com.stoloto.balloongame.config;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.stoloto.balloongame.api.exception.ErrorCode;
+import com.stoloto.balloongame.api.exception.ErrorResponse;
+import com.stoloto.balloongame.service.JwtService;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+
+@Component
+@RequiredArgsConstructor
+public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private final JwtService jwtService;
+    private final ObjectMapper objectMapper;
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain filterChain) throws ServletException, IOException {
+<span class="nc" id="L35">        String header = request.getHeader(&quot;Authorization&quot;);</span>
+<span class="nc bnc" id="L36" title="All 4 branches missed.">        if (header == null || !header.startsWith(&quot;Bearer &quot;)) {</span>
+<span class="nc" id="L37">            filterChain.doFilter(request, response);</span>
+<span class="nc" id="L38">            return;</span>
+        }
+<span class="nc" id="L40">        String token = header.substring(&quot;Bearer &quot;.length()).trim();</span>
+<span class="nc bnc" id="L41" title="All 2 branches missed.">        if (token.isEmpty()) {</span>
+<span class="nc" id="L42">            filterChain.doFilter(request, response);</span>
+<span class="nc" id="L43">            return;</span>
+        }
+<span class="nc" id="L45">        JwtService.ParseResult parsed = jwtService.parse(token);</span>
+<span class="nc bnc" id="L46" title="All 3 branches missed.">        switch (parsed) {</span>
+<span class="nc" id="L47">            case JwtService.ParseResult.Ok ok -&gt; {</span>
+<span class="nc" id="L48">                authenticate(request, ok.principal(), List.of(new SimpleGrantedAuthority(&quot;ROLE_ADMIN&quot;)), token);</span>
+<span class="nc" id="L49">                filterChain.doFilter(request, response);</span>
+<span class="nc" id="L50">            }</span>
+<span class="nc" id="L51">            case JwtService.ParseResult.PlayerOk ok -&gt; {</span>
+<span class="nc" id="L52">                authenticate(request, ok.principal(), List.of(new SimpleGrantedAuthority(&quot;ROLE_PLAYER&quot;)), token);</span>
+<span class="nc" id="L53">                filterChain.doFilter(request, response);</span>
+<span class="nc" id="L54">            }</span>
+<span class="nc" id="L55">            case JwtService.ParseResult.Err err -&gt; writeUnauthorized(response,</span>
+<span class="nc bnc" id="L56" title="All 2 branches missed.">                    err.failure() == JwtService.Failure.EXPIRED</span>
+<span class="nc" id="L57">                            ? ErrorCode.AUTH_TOKEN_EXPIRED</span>
+<span class="nc" id="L58">                            : ErrorCode.AUTH_UNAUTHORIZED,</span>
+<span class="nc bnc" id="L59" title="All 2 branches missed.">                    err.failure() == JwtService.Failure.EXPIRED</span>
+<span class="nc" id="L60">                            ? &quot;Access token expired&quot;</span>
+<span class="nc" id="L61">                            : &quot;Unauthorized&quot;);</span>
+        }
+<span class="nc" id="L63">    }</span>
+
+    private void authenticate(HttpServletRequest request, Object principal,
+                              List&lt;SimpleGrantedAuthority&gt; roles, String token) {
+<span class="nc" id="L67">        var authentication = new UsernamePasswordAuthenticationToken(principal, token, roles);</span>
+<span class="nc" id="L68">        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));</span>
+<span class="nc" id="L69">        SecurityContextHolder.getContext().setAuthentication(authentication);</span>
+<span class="nc" id="L70">    }</span>
+
+    private void writeUnauthorized(HttpServletResponse response, ErrorCode code, String message)
+            throws IOException {
+<span class="nc" id="L74">        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);</span>
+<span class="nc" id="L75">        response.setContentType(MediaType.APPLICATION_JSON_VALUE);</span>
+<span class="nc" id="L76">        response.setCharacterEncoding(StandardCharsets.UTF_8.name());</span>
+<span class="nc" id="L77">        response.getWriter().write(objectMapper.writeValueAsString(new ErrorResponse(code, message)));</span>
+<span class="nc" id="L78">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

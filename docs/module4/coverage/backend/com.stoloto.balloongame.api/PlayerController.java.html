@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PlayerController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">balloon-game</a> &gt; <a href="index.source.html" class="el_package">com.stoloto.balloongame.api</a> &gt; <span class="el_source">PlayerController.java</span></div><h1>PlayerController.java</h1><pre class="source lang-java linenums">package com.stoloto.balloongame.api;
+
+import com.stoloto.balloongame.api.dto.BalanceResponse;
+import com.stoloto.balloongame.api.dto.DepositRequest;
+import com.stoloto.balloongame.api.dto.DepositResponse;
+import com.stoloto.balloongame.api.dto.LeaderboardEntryResponse;
+import com.stoloto.balloongame.service.LeaderboardService;
+import com.stoloto.balloongame.service.PlayerIdentity;
+import com.stoloto.balloongame.service.PlayerService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+/**
+ * Wallet API — get balance and deposit funds.
+ *
+ * Deposit is intentionally unprotected by admin key (it is guarded by the
+ * game.admin.allow-deposit config flag instead). In a real deployment, this
+ * flag is set to false and deposits go through a payment gateway.
+ */
+@RestController
+@RequestMapping(&quot;/api/players&quot;)
+@RequiredArgsConstructor
+@Tag(name = &quot;Players&quot;, description = &quot;Кошелёк: баланс и демо-пополнение&quot;)
+public class PlayerController {
+
+    private final PlayerService playerService;
+    private final LeaderboardService leaderboardService;
+    private final PlayerIdentity identity;
+
+    /**
+     * GET /api/players/leaderboard
+     *
+     * Public ranking by sum of round points. No secrets / balances.
+     */
+    @Operation(summary = &quot;Рейтинг по сумме очков за раунды (S15). Без балансов и PF-секретов&quot;)
+    @GetMapping(&quot;/leaderboard&quot;)
+    public ResponseEntity&lt;List&lt;LeaderboardEntryResponse&gt;&gt; leaderboard(
+            @RequestParam(required = false) Integer limit) {
+<span class="nc" id="L45">        return ResponseEntity.ok(leaderboardService.leaderboard(limit));</span>
+    }
+
+    /**
+     * GET /api/players/{externalId}/balance
+     *
+     * Returns the current wallet balance for the given player.
+     * If the player does not exist, returns 404 PLAYER_NOT_FOUND.
+     */
+    @Operation(summary = &quot;Текущий баланс. Создаёт игрока с welcome-balance, если его ещё не было&quot;)
+    @GetMapping(&quot;/{externalId}/balance&quot;)
+    public ResponseEntity&lt;BalanceResponse&gt; getBalance(
+            @PathVariable String externalId,
+            @RequestHeader(value = &quot;X-Player-Id&quot;, required = false) String xPlayerId) {
+<span class="nc bnc" id="L59" title="All 4 branches missed.">        String claimed = xPlayerId != null &amp;&amp; !xPlayerId.isBlank() ? xPlayerId : externalId;</span>
+<span class="nc" id="L60">        String playerId = identity.resolve(claimed);</span>
+<span class="nc bnc" id="L61" title="All 2 branches missed.">        if (!playerId.equals(externalId)) {</span>
+<span class="nc" id="L62">            throw com.stoloto.balloongame.api.exception.GameException.forbidden();</span>
+        }
+<span class="nc" id="L64">        return ResponseEntity.ok(playerService.getWalletOrCreate(playerId));</span>
+    }
+
+    /**
+     * POST /api/players/{externalId}/deposit
+     *
+     * Adds funds to the player wallet. Creates the player if they don't exist yet.
+     * Guarded by game.admin.allow-deposit (disabled in prod by default).
+     *
+     * Body: { &quot;amount&quot;: 500.00 }
+     * Response 200: { &quot;externalId&quot;, &quot;depositedAmount&quot;, &quot;newBalance&quot; }
+     * Response 403: DEPOSIT_NOT_ALLOWED if the flag is false.
+     */
+    @Operation(summary = &quot;Демо-пополнение (создаёт игрока). 403, если allow-deposit=false&quot;)
+    @PostMapping(&quot;/{externalId}/deposit&quot;)
+    public ResponseEntity&lt;DepositResponse&gt; deposit(
+            @PathVariable String externalId,
+            @RequestHeader(value = &quot;X-Player-Id&quot;, required = false) String xPlayerId,
+            @Valid @RequestBody DepositRequest request) {
+<span class="nc bnc" id="L83" title="All 4 branches missed.">        String claimed = xPlayerId != null &amp;&amp; !xPlayerId.isBlank() ? xPlayerId : externalId;</span>
+<span class="nc" id="L84">        String playerId = identity.resolve(claimed);</span>
+<span class="nc bnc" id="L85" title="All 2 branches missed.">        if (!playerId.equals(externalId)) {</span>
+<span class="nc" id="L86">            throw com.stoloto.balloongame.api.exception.GameException.forbidden();</span>
+        }
+<span class="nc" id="L88">        DepositResponse response = playerService.deposit(playerId, request.amount());</span>
+<span class="nc" id="L89">        return ResponseEntity.ok(response);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

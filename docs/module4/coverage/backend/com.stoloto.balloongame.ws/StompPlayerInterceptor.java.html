@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>StompPlayerInterceptor.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">balloon-game</a> &gt; <a href="index.source.html" class="el_package">com.stoloto.balloongame.ws</a> &gt; <span class="el_source">StompPlayerInterceptor.java</span></div><h1>StompPlayerInterceptor.java</h1><pre class="source lang-java linenums">package com.stoloto.balloongame.ws;
+
+import com.stoloto.balloongame.api.exception.GameException;
+import com.stoloto.balloongame.service.GameOrchestrator;
+import com.stoloto.balloongame.service.JwtService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.lang.Nullable;
+import org.springframework.messaging.Message;
+import org.springframework.messaging.MessageChannel;
+import org.springframework.messaging.MessageDeliveryException;
+import org.springframework.messaging.simp.stomp.StompCommand;
+import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
+import org.springframework.messaging.support.ChannelInterceptor;
+import org.springframework.messaging.support.MessageHeaderAccessor;
+import org.springframework.stereotype.Component;
+
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * STOMP auth: {@code X-Player-Id} on CONNECT; ownership check on SUBSCRIBE to {@code /topic/game/{id}} (I6).
+ */
+@Component
+@RequiredArgsConstructor
+public class StompPlayerInterceptor implements ChannelInterceptor {
+
+    public static final String PLAYER_ID_ATTR = &quot;playerId&quot;;
+    public static final String SESSION_GAMES_ATTR = &quot;watchedGameIds&quot;;
+
+    public static final String TOPIC_PREFIX = &quot;/topic/game/&quot;;
+
+    private final GameOrchestrator orchestrator;
+    private final GameWsSubscriptionRegistry registry;
+    private final JwtService jwtService;
+
+    @Override
+    public Message&lt;?&gt; preSend(@Nullable Message&lt;?&gt; message, MessageChannel channel) {
+<span class="nc bnc" id="L39" title="All 2 branches missed.">        if (message == null) {</span>
+<span class="nc" id="L40">            return null;</span>
+        }
+<span class="nc" id="L42">        StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);</span>
+<span class="nc bnc" id="L43" title="All 4 branches missed.">        if (accessor == null || accessor.getCommand() == null) {</span>
+<span class="nc" id="L44">            return message;</span>
+        }
+
+<span class="nc" id="L47">        StompCommand command = accessor.getCommand();</span>
+<span class="nc bnc" id="L48" title="All 2 branches missed.">        if (StompCommand.CONNECT.equals(command)) {</span>
+<span class="nc" id="L49">            String playerId = resolveConnectPlayer(accessor);</span>
+<span class="nc" id="L50">            Map&lt;String, Object&gt; attrs = accessor.getSessionAttributes();</span>
+<span class="nc bnc" id="L51" title="All 2 branches missed.">            if (attrs == null) {</span>
+<span class="nc" id="L52">                attrs = new ConcurrentHashMap&lt;&gt;();</span>
+<span class="nc" id="L53">                accessor.setSessionAttributes(attrs);</span>
+            }
+<span class="nc" id="L55">            attrs.put(PLAYER_ID_ATTR, playerId.trim());</span>
+<span class="nc" id="L56">            attrs.put(SESSION_GAMES_ATTR, ConcurrentHashMap.newKeySet());</span>
+<span class="nc" id="L57">            return message;</span>
+        }
+
+<span class="nc bnc" id="L60" title="All 2 branches missed.">        if (StompCommand.SUBSCRIBE.equals(command)) {</span>
+<span class="nc" id="L61">            String destination = accessor.getDestination();</span>
+<span class="nc" id="L62">            UUID gameId = parseGameId(destination);</span>
+<span class="nc bnc" id="L63" title="All 2 branches missed.">            if (gameId == null) {</span>
+<span class="nc" id="L64">                return message;</span>
+            }
+<span class="nc" id="L66">            String playerId = playerId(accessor);</span>
+            try {
+<span class="nc" id="L68">                orchestrator.assertOwnedSession(gameId, playerId);</span>
+<span class="nc" id="L69">            } catch (GameException ex) {</span>
+<span class="nc" id="L70">                throw new MessageDeliveryException(message, ex);</span>
+<span class="nc" id="L71">            }</span>
+<span class="nc" id="L72">            registry.register(gameId, playerId);</span>
+            @SuppressWarnings(&quot;unchecked&quot;)
+<span class="nc" id="L74">            var watched = (java.util.Set&lt;UUID&gt;) accessor.getSessionAttributes().get(SESSION_GAMES_ATTR);</span>
+<span class="nc bnc" id="L75" title="All 2 branches missed.">            if (watched != null) {</span>
+<span class="nc" id="L76">                watched.add(gameId);</span>
+            }
+<span class="nc" id="L78">            return message;</span>
+        }
+
+<span class="nc bnc" id="L81" title="All 2 branches missed.">        if (StompCommand.UNSUBSCRIBE.equals(command)) {</span>
+<span class="nc" id="L82">            UUID gameId = parseGameId(accessor.getDestination());</span>
+<span class="nc bnc" id="L83" title="All 2 branches missed.">            if (gameId != null) {</span>
+<span class="nc" id="L84">                registry.unregister(gameId);</span>
+            }
+<span class="nc" id="L86">            return message;</span>
+        }
+
+<span class="nc bnc" id="L89" title="All 2 branches missed.">        if (StompCommand.DISCONNECT.equals(command)) {</span>
+<span class="nc" id="L90">            Map&lt;String, Object&gt; attrs = accessor.getSessionAttributes();</span>
+<span class="nc bnc" id="L91" title="All 2 branches missed.">            if (attrs != null) {</span>
+                @SuppressWarnings(&quot;unchecked&quot;)
+<span class="nc" id="L93">                var watched = (java.util.Set&lt;UUID&gt;) attrs.get(SESSION_GAMES_ATTR);</span>
+<span class="nc bnc" id="L94" title="All 2 branches missed.">                if (watched != null) {</span>
+<span class="nc" id="L95">                    registry.unregisterSessionGames(watched);</span>
+<span class="nc" id="L96">                    watched.clear();</span>
+                }
+            }
+        }
+<span class="nc" id="L100">        return message;</span>
+    }
+
+    private String resolveConnectPlayer(StompHeaderAccessor accessor) {
+<span class="nc" id="L104">        String headerId = firstHeader(accessor, &quot;X-Player-Id&quot;);</span>
+<span class="nc" id="L105">        String authorization = firstHeader(accessor, &quot;Authorization&quot;);</span>
+<span class="nc bnc" id="L106" title="All 4 branches missed.">        if (authorization != null &amp;&amp; authorization.startsWith(&quot;Bearer &quot;)) {</span>
+<span class="nc" id="L107">            String token = authorization.substring(&quot;Bearer &quot;.length()).trim();</span>
+<span class="nc bnc" id="L108" title="All 2 branches missed.">            if (jwtService.parse(token) instanceof JwtService.ParseResult.PlayerOk ok) {</span>
+<span class="nc" id="L109">                String accountId = ok.principal().playerId();</span>
+<span class="nc bnc" id="L110" title="All 6 branches missed.">                if (headerId != null &amp;&amp; !headerId.isBlank() &amp;&amp; !accountId.equals(headerId.trim())) {</span>
+<span class="nc" id="L111">                    throw new MessageDeliveryException(&quot;Player id does not match the access token&quot;);</span>
+                }
+<span class="nc" id="L113">                return accountId;</span>
+            }
+<span class="nc" id="L115">            throw new MessageDeliveryException(&quot;Unauthorized&quot;);</span>
+        }
+<span class="nc bnc" id="L117" title="All 4 branches missed.">        if (headerId == null || headerId.isBlank()) {</span>
+<span class="nc" id="L118">            throw new MessageDeliveryException(&quot;Missing X-Player-Id&quot;);</span>
+        }
+<span class="nc" id="L120">        return headerId.trim();</span>
+    }
+
+    private static String playerId(StompHeaderAccessor accessor) {
+<span class="nc" id="L124">        Map&lt;String, Object&gt; attrs = accessor.getSessionAttributes();</span>
+<span class="nc bnc" id="L125" title="All 2 branches missed.">        if (attrs == null) {</span>
+<span class="nc" id="L126">            throw new MessageDeliveryException(&quot;Missing session&quot;);</span>
+        }
+<span class="nc" id="L128">        Object id = attrs.get(PLAYER_ID_ATTR);</span>
+<span class="nc bnc" id="L129" title="All 4 branches missed.">        if (!(id instanceof String s) || s.isBlank()) {</span>
+<span class="nc" id="L130">            throw new MessageDeliveryException(&quot;Missing X-Player-Id&quot;);</span>
+        }
+<span class="nc" id="L132">        return s;</span>
+    }
+
+    @Nullable
+    static UUID parseGameId(@Nullable String destination) {
+<span class="nc bnc" id="L137" title="All 4 branches missed.">        if (destination == null || !destination.startsWith(TOPIC_PREFIX)) {</span>
+<span class="nc" id="L138">            return null;</span>
+        }
+<span class="nc" id="L140">        String id = destination.substring(TOPIC_PREFIX.length());</span>
+        try {
+<span class="nc" id="L142">            return UUID.fromString(id);</span>
+<span class="nc" id="L143">        } catch (IllegalArgumentException e) {</span>
+<span class="nc" id="L144">            return null;</span>
+        }
+    }
+
+    @Nullable
+    private static String firstHeader(StompHeaderAccessor accessor, String name) {
+<span class="nc" id="L150">        String v = accessor.getFirstNativeHeader(name);</span>
+<span class="nc bnc" id="L151" title="All 2 branches missed.">        if (v != null) {</span>
+<span class="nc" id="L152">            return v;</span>
+        }
+<span class="nc" id="L154">        return accessor.getFirstNativeHeader(name.toLowerCase());</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

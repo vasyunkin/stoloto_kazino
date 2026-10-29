@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PlayerFairnessService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">balloon-game</a> &gt; <a href="index.source.html" class="el_package">com.stoloto.balloongame.service</a> &gt; <span class="el_source">PlayerFairnessService.java</span></div><h1>PlayerFairnessService.java</h1><pre class="source lang-java linenums">package com.stoloto.balloongame.service;
+
+import com.stoloto.balloongame.config.GameConfig;
+import com.stoloto.balloongame.domain.entity.Player;
+import com.stoloto.balloongame.provablyfair.ProvablyFairService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+/**
+ * Per-player seed chain. The active server seed is created before the bet that consumes it
+ * (player create, or the rotation at the end of the previous round) and is never chosen
+ * inside the start request after the client seed is known, except for rows migrated
+ * without a seed — those are armed once on first start.
+ */
+@Service
+@RequiredArgsConstructor
+public class PlayerFairnessService {
+
+    private final ProvablyFairService provablyFairService;
+    private final ConfigService configService;
+
+    /** Generate a seed when the player has none. Does not rotate an existing commitment. */
+    public void arm(Player player) {
+<span class="nc bnc" id="L24" title="All 4 branches missed.">        if (player.getPfServerSeed() != null &amp;&amp; !player.getPfServerSeed().isBlank()) {</span>
+<span class="nc" id="L25">            return;</span>
+        }
+<span class="nc" id="L27">        rotate(player);</span>
+<span class="nc" id="L28">    }</span>
+
+    /** Replace the unused seed. Call after the current seed has been copied onto a round. */
+    public void rotate(Player player) {
+<span class="nc" id="L32">        GameConfig.ProvablyFairConfig pf = configService.getSnapshot().getProvablyFair();</span>
+<span class="nc" id="L33">        String hex = provablyFairService.newServerSeedHex(pf);</span>
+<span class="nc" id="L34">        player.setPfServerSeed(hex);</span>
+<span class="nc" id="L35">        player.setPfServerSeedHash(provablyFairService.sha256Utf8(hex));</span>
+<span class="nc" id="L36">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

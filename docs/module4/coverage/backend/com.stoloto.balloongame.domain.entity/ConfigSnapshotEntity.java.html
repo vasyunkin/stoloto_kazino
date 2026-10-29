@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ConfigSnapshotEntity.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">balloon-game</a> &gt; <a href="index.source.html" class="el_package">com.stoloto.balloongame.domain.entity</a> &gt; <span class="el_source">ConfigSnapshotEntity.java</span></div><h1>ConfigSnapshotEntity.java</h1><pre class="source lang-java linenums">package com.stoloto.balloongame.domain.entity;
+
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
+import java.time.Instant;
+import java.util.UUID;
+
+/**
+ * Audit trail for every PUT /api/admin/config call (S8).
+ * payload stores serialized GameConfig JSON.
+ */
+@Entity
+@Table(name = &quot;config_snapshot&quot;)
+@Getter
+@Setter
+@NoArgsConstructor
+public class ConfigSnapshotEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(columnDefinition = &quot;uuid&quot;, updatable = false, nullable = false)
+    private UUID id;
+
+    /** Serialized GameConfig as JSON (stored in JSONB column). */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = &quot;payload&quot;, nullable = false, columnDefinition = &quot;jsonb&quot;)
+    private String payload;
+
+<span class="fc" id="L34">    @Column(name = &quot;applied_at&quot;, nullable = false, updatable = false)</span>
+<span class="fc" id="L35">    private Instant appliedAt = Instant.now();</span>
+
+<span class="fc" id="L37">    @Column(name = &quot;applied_by&quot;, nullable = false, length = 64)</span>
+    private String appliedBy = &quot;system&quot;;
+
+<span class="fc" id="L40">    public ConfigSnapshotEntity(String payload, String appliedBy) {</span>
+<span class="fc" id="L41">        this.payload = payload;</span>
+<span class="fc" id="L42">        this.appliedBy = appliedBy;</span>
+<span class="fc" id="L43">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

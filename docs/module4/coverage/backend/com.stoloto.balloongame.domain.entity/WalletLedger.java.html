@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>WalletLedger.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">balloon-game</a> &gt; <a href="index.source.html" class="el_package">com.stoloto.balloongame.domain.entity</a> &gt; <span class="el_source">WalletLedger.java</span></div><h1>WalletLedger.java</h1><pre class="source lang-java linenums">package com.stoloto.balloongame.domain.entity;
+
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+
+/**
+ * Append-only ledger entry.
+ * Every balance change (bet debit, win credit, refund) has exactly one entry.
+ * Balance integrity: player.balance == sum of ledger entries for that player (I5).
+ */
+@Entity
+@Table(name = &quot;wallet_ledger&quot;)
+@Getter
+@Setter
+@NoArgsConstructor
+public class WalletLedger {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = &quot;player_id&quot;, nullable = false, updatable = false)
+    private Player player;
+
+    /** Nullable — e.g. manual deposit in dev has no game round. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = &quot;game_round_id&quot;, updatable = false)
+    private GameRound gameRound;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = &quot;type&quot;, nullable = false, length = 20)
+    private LedgerType type;
+
+    @Column(name = &quot;amount&quot;, nullable = false, precision = 19, scale = 4)
+    private BigDecimal amount;
+
+<span class="nc" id="L43">    @Column(name = &quot;created_at&quot;, nullable = false, updatable = false)</span>
+<span class="nc" id="L44">    private Instant createdAt = Instant.now();</span>
+
+<span class="nc" id="L46">    public WalletLedger(Player player, GameRound gameRound, LedgerType type, BigDecimal amount) {</span>
+<span class="nc" id="L47">        this.player = player;</span>
+<span class="nc" id="L48">        this.gameRound = gameRound;</span>
+<span class="nc" id="L49">        this.type = type;</span>
+<span class="nc" id="L50">        this.amount = amount;</span>
+<span class="nc" id="L51">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

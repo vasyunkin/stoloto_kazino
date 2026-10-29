@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AdminOpsService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">balloon-game</a> &gt; <a href="index.source.html" class="el_package">com.stoloto.balloongame.service</a> &gt; <span class="el_source">AdminOpsService.java</span></div><h1>AdminOpsService.java</h1><pre class="source lang-java linenums">package com.stoloto.balloongame.service;
+
+import com.stoloto.balloongame.api.dto.GgrResponse;
+import com.stoloto.balloongame.api.dto.LedgerMismatchResponse;
+import com.stoloto.balloongame.api.dto.PlayerAdminResponse;
+import com.stoloto.balloongame.api.dto.RoundAdminResponse;
+import com.stoloto.balloongame.api.exception.GameException;
+import com.stoloto.balloongame.domain.entity.GameRound;
+import com.stoloto.balloongame.domain.entity.Player;
+import com.stoloto.balloongame.domain.repository.GameRoundRepository;
+import com.stoloto.balloongame.domain.repository.PlayerAccountRepository;
+import com.stoloto.balloongame.domain.repository.PlayerRepository;
+import com.stoloto.balloongame.domain.repository.WalletLedgerRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+
+<span class="nc" id="L27">@Slf4j</span>
+@Service
+@RequiredArgsConstructor
+public class AdminOpsService {
+
+    private final PlayerRepository playerRepository;
+    private final PlayerAccountRepository accountRepository;
+    private final GameRoundRepository gameRoundRepository;
+    private final WalletLedgerRepository walletLedgerRepository;
+    private final Clock clock;
+
+    @Transactional(readOnly = true)
+    public GgrResponse ggr(Instant from, Instant to) {
+<span class="nc bnc" id="L40" title="All 2 branches missed.">        Instant end = to == null ? clock.instant().plusSeconds(1) : to;</span>
+<span class="nc bnc" id="L41" title="All 2 branches missed.">        Instant start = from == null ? Instant.EPOCH : from;</span>
+<span class="nc" id="L42">        List&lt;Object[]&gt; rows = gameRoundRepository.sumSettledStakesAndWins(start, end);</span>
+<span class="nc" id="L43">        BigDecimal stakes = BigDecimal.ZERO;</span>
+<span class="nc" id="L44">        BigDecimal wins = BigDecimal.ZERO;</span>
+<span class="nc bnc" id="L45" title="All 4 branches missed.">        if (!rows.isEmpty() &amp;&amp; rows.get(0) != null) {</span>
+<span class="nc" id="L46">            Object[] row = rows.get(0);</span>
+<span class="nc" id="L47">            stakes = toMoney(row[0]);</span>
+<span class="nc" id="L48">            wins = toMoney(row[1]);</span>
+        }
+<span class="nc" id="L50">        return new GgrResponse(stakes, wins, stakes.subtract(wins));</span>
+    }
+
+    @Transactional(readOnly = true)
+    public List&lt;PlayerAdminResponse&gt; searchPlayers(String query) {
+<span class="nc bnc" id="L55" title="All 2 branches missed.">        String q = query == null ? &quot;&quot; : query.trim();</span>
+<span class="nc bnc" id="L56" title="All 2 branches missed.">        if (q.isEmpty()) {</span>
+<span class="nc" id="L57">            return List.of();</span>
+        }
+<span class="nc" id="L59">        return playerRepository.searchByExternalId(q, PageRequest.of(0, 20)).stream()</span>
+<span class="nc" id="L60">                .map(this::toPlayer)</span>
+<span class="nc" id="L61">                .toList();</span>
+    }
+
+    @Transactional(readOnly = true)
+    public RoundAdminResponse round(UUID gameId) {
+<span class="nc" id="L66">        GameRound round = gameRoundRepository.findByIdWithPlayer(gameId)</span>
+<span class="nc" id="L67">                .orElseThrow(GameException::gameNotFound);</span>
+<span class="nc" id="L68">        return new RoundAdminResponse(</span>
+<span class="nc" id="L69">                round.getId(),</span>
+<span class="nc" id="L70">                round.getPlayer().getExternalId(),</span>
+<span class="nc" id="L71">                round.getStatus(),</span>
+<span class="nc" id="L72">                round.getBetAmount(),</span>
+<span class="nc" id="L73">                round.getWinAmount(),</span>
+<span class="nc" id="L74">                round.getCrashPoint(),</span>
+<span class="nc" id="L75">                round.getCashoutMultiplier(),</span>
+<span class="nc" id="L76">                round.getServerSeed(),</span>
+<span class="nc" id="L77">                round.getServerSeedHash(),</span>
+<span class="nc" id="L78">                round.getSeedPrecommit(),</span>
+<span class="nc" id="L79">                round.getClientSeed(),</span>
+<span class="nc" id="L80">                round.getNonce(),</span>
+<span class="nc" id="L81">                round.getAlgorithmVersion(),</span>
+<span class="nc" id="L82">                round.getStartedAt(),</span>
+<span class="nc" id="L83">                round.getEndedAt());</span>
+    }
+
+    @Transactional(readOnly = true)
+    public List&lt;LedgerMismatchResponse&gt; mismatches() {
+<span class="nc" id="L88">        return walletLedgerRepository.findBalanceMismatches().stream()</span>
+<span class="nc" id="L89">                .map(row -&gt; new LedgerMismatchResponse(</span>
+<span class="nc" id="L90">                        String.valueOf(row[0]),</span>
+<span class="nc" id="L91">                        toMoney(row[1]),</span>
+<span class="nc" id="L92">                        toMoney(row[2])))</span>
+<span class="nc" id="L93">                .toList();</span>
+    }
+
+    @Scheduled(fixedDelayString = &quot;PT5M&quot;, initialDelayString = &quot;PT1M&quot;)
+    @Transactional(readOnly = true)
+    public void auditBalances() {
+<span class="nc" id="L99">        List&lt;LedgerMismatchResponse&gt; rows = mismatches();</span>
+<span class="nc bnc" id="L100" title="All 2 branches missed.">        if (!rows.isEmpty()) {</span>
+<span class="nc" id="L101">            log.error(&quot;Wallet ledger mismatch for {} player(s): {}&quot;, rows.size(),</span>
+<span class="nc" id="L102">                    rows.stream().map(LedgerMismatchResponse::externalId).toList());</span>
+        }
+<span class="nc" id="L104">    }</span>
+
+    private PlayerAdminResponse toPlayer(Player player) {
+<span class="nc" id="L107">        return new PlayerAdminResponse(</span>
+<span class="nc" id="L108">                player.getExternalId(),</span>
+<span class="nc" id="L109">                player.getBalance(),</span>
+<span class="nc" id="L110">                player.getBoosterCharges(),</span>
+<span class="nc" id="L111">                accountRepository.existsByPlayer_ExternalId(player.getExternalId()),</span>
+<span class="nc" id="L112">                player.getCreatedAt());</span>
+    }
+
+    private static BigDecimal toMoney(Object value) {
+<span class="nc bnc" id="L116" title="All 2 branches missed.">        if (value == null) {</span>
+<span class="nc" id="L117">            return BigDecimal.ZERO;</span>
+        }
+<span class="nc bnc" id="L119" title="All 2 branches missed.">        if (value instanceof BigDecimal decimal) {</span>
+<span class="nc" id="L120">            return decimal;</span>
+        }
+<span class="nc" id="L122">        return new BigDecimal(value.toString());</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

@@ -1,0 +1,248 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CrashMathService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">balloon-game</a> &gt; <a href="index.source.html" class="el_package">com.stoloto.balloongame.service</a> &gt; <span class="el_source">CrashMathService.java</span></div><h1>CrashMathService.java</h1><pre class="source lang-java linenums">package com.stoloto.balloongame.service;
+
+import com.stoloto.balloongame.config.GameConfig;
+import com.stoloto.balloongame.provablyfair.ProvablyFairService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+
+/**
+ * Pure crash-game mathematics — algorithm {@code crash-v1}.
+ *
+ * &lt;h3&gt;Multiplier over time (I3 — single function):&lt;/h3&gt;
+ * &lt;pre&gt;
+ *   K(t) = e^(r · t)       K(0) = 1, monotonically increasing
+ *   t in seconds, r = game.math.growth-rate (default 0.0433)
+ * &lt;/pre&gt;
+ *
+ * &lt;h3&gt;Crash-point derivation (§6.1):&lt;/h3&gt;
+ * &lt;pre&gt;
+ *   h = HMAC-SHA256(serverSeedBytes, clientSeed + &quot;:&quot; + nonce)
+ *   u = first52bits(h) / 2^52          // ∈ [0, 1)
+ *   crash-v2 (new rounds): houseEdge is the whole edge before the win cap.
+ *   if u &amp;lt; houseEdge → crashPoint = floor (instant 1.00×)
+ *   else v = (u - houseEdge) / (1 - houseEdge); crashPoint = min(maxWin, max(floor, 1 / (1 - v)))
+ *   P(crash &amp;gt; M) = (1 - houseEdge) / M for 1 &amp;lt; M and no cap, so RTP at a fixed cashout is 1 - houseEdge.
+ *   crash-v1 (stored rounds): instantCrashRate and houseEdge were applied together.
+ * &lt;/pre&gt;
+ *
+ * &lt;p&gt;&lt;b&gt;I2:&lt;/b&gt; crash point is drawn once at round start and never recalculated.
+ * &lt;p&gt;&lt;b&gt;I3:&lt;/b&gt; {@link #multiplierAt} is the single multiplier function used by
+ *              {@code GameClockService}, {@code state} and {@code cashout} paths.
+ * &lt;p&gt;&lt;b&gt;I8:&lt;/b&gt; all methods take a {@code GameConfig} parameter (the round's
+ *              {@code configSnapshot}) — they never read the live {@code @ConfigurationProperties} bean.
+ */
+@Service
+@RequiredArgsConstructor
+public class CrashMathService {
+
+<span class="fc" id="L43">    private static final BigDecimal ONE = BigDecimal.ONE;</span>
+    private static final int SCALE = 4;
+
+    private final ProvablyFairService provablyFairService;
+
+    // ── Multiplier over time ──────────────────────────────────────────────
+
+    /**
+     * K(t) = e^(r · t) where t = now - startTime in seconds.
+     *
+     * &lt;p&gt;Use this from {@code GameClockService} only; never call it twice for the
+     * same logical moment (I3). Pass {@code configSnapshot.math.growthRate}.
+     *
+     * @param startTime  when the round started (from {@code GameSession})
+     * @param now        current server time (from the single {@code Clock} bean)
+     * @param growthRate {@code r} from {@code configSnapshot.math.growthRate}
+     * @return K with scale 4, HALF_UP
+     */
+    public BigDecimal multiplierAt(Instant startTime, Instant now, double growthRate) {
+<span class="fc" id="L62">        double t = (now.toEpochMilli() - startTime.toEpochMilli()) / 1000.0;</span>
+<span class="fc bfc" id="L63" title="All 2 branches covered.">        if (t &lt; 0) t = 0; // guard against clock skew</span>
+<span class="fc" id="L64">        double k = Math.exp(growthRate * t);</span>
+<span class="fc" id="L65">        return BigDecimal.valueOf(k).setScale(SCALE, RoundingMode.HALF_UP);</span>
+    }
+
+    /**
+     * Inverse of K(t): given multiplier K, returns the elapsed time in seconds.
+     * &lt;pre&gt;
+     *   t = ln(K) / r
+     * &lt;/pre&gt;
+     */
+    public double timeAtMultiplier(double multiplier, double growthRate) {
+<span class="fc bfc" id="L75" title="All 2 branches covered.">        if (multiplier &lt;= 1.0) return 0.0;</span>
+<span class="fc" id="L76">        return Math.log(multiplier) / growthRate;</span>
+    }
+
+    // ── Line index ────────────────────────────────────────────────────────
+
+    /**
+     * Current line index: floor(t · linesPerSec).
+     * Line 0 = ground, line 1 = first altitude line crossed.
+     *
+     * @param startTime      when the round started
+     * @param now            current server time
+     * @param linesPerSec    {@code configSnapshot.ascentSpeedLinesPerSec}
+     * @return 0-based line index
+     */
+    public int lineIndexAt(Instant startTime, Instant now, double linesPerSec) {
+<span class="fc" id="L91">        double t = (now.toEpochMilli() - startTime.toEpochMilli()) / 1000.0;</span>
+<span class="pc bpc" id="L92" title="1 of 2 branches missed.">        if (t &lt; 0) return 0;</span>
+<span class="fc" id="L93">        return (int) (t * linesPerSec);</span>
+    }
+
+    /**
+     * Line index at which the given multiplier is reached.
+     * Useful for determining on which line a booster triggers or the balloon crashes.
+     *
+     * @param multiplier the target multiplier K
+     * @param growthRate {@code r} from configSnapshot
+     * @param linesPerSec {@code ascentSpeedLinesPerSec} from configSnapshot
+     * @return 0-based line index (0 = instant/ground crash)
+     */
+    public int lineForMultiplier(double multiplier, double growthRate, double linesPerSec) {
+<span class="fc" id="L106">        double t = timeAtMultiplier(multiplier, growthRate);</span>
+<span class="fc" id="L107">        return (int) (t * linesPerSec);</span>
+    }
+
+    /**
+     * Zone classification for a given line index.
+     *
+     * @param lineIndex  current line
+     * @param greenLines {@code configSnapshot.greenLevels}
+     * @param redLines   {@code configSnapshot.redLevels}
+     * @return &quot;GREEN&quot;, &quot;RED&quot;, or &quot;CRASHED&quot;
+     */
+    public String zoneFor(int lineIndex, int greenLines, int redLines) {
+<span class="fc bfc" id="L119" title="All 2 branches covered.">        if (lineIndex &lt; greenLines) return &quot;GREEN&quot;;</span>
+<span class="fc bfc" id="L120" title="All 2 branches covered.">        if (lineIndex &lt; greenLines + redLines) return &quot;RED&quot;;</span>
+<span class="fc" id="L121">        return &quot;CRASHED&quot;;</span>
+    }
+
+    // ── Crash point draw ─────────────────────────────────────────────────
+
+    /**
+     * Draws the crash multiplier from HMAC — deterministic given the seeds.
+     *
+     * &lt;p&gt;Algorithm (§6.1, crash-v1):
+     * &lt;ol&gt;
+     *   &lt;li&gt;{@code h = HMAC-SHA256(serverSeedBytes, (clientSeed + &quot;:&quot; + nonce).bytes)}&lt;/li&gt;
+     *   &lt;li&gt;{@code u = first52bits(h) / 2^52}  — unit interval [0, 1)&lt;/li&gt;
+     *   &lt;li&gt;if {@code u &lt; instantCrashRate} → {@code crashPoint = minCrashPoint}&lt;/li&gt;
+     *   &lt;li&gt;else {@code crashPoint = min(maxWin, max(minCrashPoint, (1 - houseEdge) / u))}&lt;/li&gt;
+     * &lt;/ol&gt;
+     *
+     * &lt;p&gt;&lt;b&gt;I2:&lt;/b&gt; call exactly once at round start; result stored in DB.
+     *
+     * @param serverSeedHex hex-encoded server seed (as stored in DB / {@link com.stoloto.balloongame.provablyfair.RoundSecrets})
+     * @param clientSeed    player seed (empty string if none)
+     * @param nonce         round nonce
+     * @param config        the round's immutable {@code configSnapshot}
+     * @return crash multiplier, scale 4, HALF_UP; always ≥ {@code minCrashPoint}
+     */
+    public BigDecimal drawCrashMultiplier(String serverSeedHex, String clientSeed,
+                                          long nonce, GameConfig config) {
+<span class="fc" id="L147">        return drawCrashMultiplier(serverSeedHex, clientSeed, nonce, config, ProvablyFairService.ALGORITHM_V2);</span>
+    }
+
+    public BigDecimal drawCrashMultiplier(String serverSeedHex, String clientSeed,
+                                          long nonce, GameConfig config, String algorithm) {
+<span class="fc" id="L152">        byte[] serverSeedBytes = provablyFairService.decodeServerSeed(serverSeedHex);</span>
+<span class="fc" id="L153">        String message = clientSeed + &quot;:&quot; + nonce;</span>
+<span class="fc" id="L154">        byte[] hmac = provablyFairService.hmacSha256(</span>
+<span class="fc" id="L155">                serverSeedBytes, message.getBytes(StandardCharsets.UTF_8));</span>
+<span class="fc" id="L156">        return computeCrashPoint(extractU(hmac), config, algorithm);</span>
+    }
+
+    // ── Internal helpers ─────────────────────────────────────────────────
+
+    /**
+     * Extracts u = first52bits(hmac) / 2^52 ∈ [0, 1).
+     * If u == 0.0 (extremely rare), returns a tiny positive value to avoid ÷0.
+     */
+    public double extractU(byte[] hmac) {
+        // Assemble top 7 bytes (56 bits) as a long, then shift right 4 to get 52 bits
+<span class="fc" id="L167">        long top7 = 0L;</span>
+<span class="fc bfc" id="L168" title="All 2 branches covered.">        for (int i = 0; i &lt; 7; i++) {</span>
+<span class="fc" id="L169">            top7 = (top7 &lt;&lt; 8) | (hmac[i] &amp; 0xFFL);</span>
+        }
+<span class="fc" id="L171">        long first52 = top7 &gt;&gt;&gt; 4;   // unsigned right shift discards low 4 bits</span>
+<span class="fc" id="L172">        double u = (double) first52 / (double) (1L &lt;&lt; 52);</span>
+<span class="fc bfc" id="L173" title="All 2 branches covered.">        return u == 0.0 ? Double.MIN_VALUE : u;</span>
+    }
+
+    /**
+     * Applies the crash-point formula given u ∈ (0, 1).
+     * Never returns below {@code math.minCrashPoint} (default 1.00).
+     */
+    public BigDecimal computeCrashPoint(double u, GameConfig config) {
+<span class="nc" id="L181">        return computeCrashPoint(u, config, com.stoloto.balloongame.provablyfair.ProvablyFairService.ALGORITHM_V2);</span>
+    }
+
+    public BigDecimal computeCrashPoint(double u, GameConfig config, String algorithm) {
+<span class="fc bfc" id="L185" title="All 2 branches covered.">        if (com.stoloto.balloongame.provablyfair.ProvablyFairService.ALGORITHM_V1.equals(algorithm)) {</span>
+<span class="fc" id="L186">            return computeCrashPointV1(u, config);</span>
+        }
+<span class="fc" id="L188">        return computeCrashPointV2(u, config);</span>
+    }
+
+    /**
+     * Historical crash-v1: {@code instantCrashRate} and {@code houseEdge} both reduce RTP.
+     */
+    private BigDecimal computeCrashPointV1(double u, GameConfig config) {
+<span class="fc" id="L195">        GameConfig.MathConfig math = config.getMath();</span>
+<span class="fc" id="L196">        BigDecimal floor = floor(config);</span>
+<span class="fc" id="L197">        double floorD = floor.doubleValue();</span>
+<span class="fc" id="L198">        double maxWin = maxWin(config, floorD);</span>
+
+<span class="fc bfc" id="L200" title="All 2 branches covered.">        if (u &lt; math.getInstantCrashRate()) {</span>
+<span class="fc" id="L201">            return floor.setScale(SCALE, RoundingMode.HALF_UP);</span>
+        }
+
+<span class="fc" id="L204">        double raw = (1.0 - math.getHouseEdge()) / u;</span>
+<span class="fc" id="L205">        double capped = Math.min(maxWin, Math.max(floorD, raw));</span>
+<span class="fc" id="L206">        return BigDecimal.valueOf(capped).setScale(SCALE, RoundingMode.HALF_UP);</span>
+    }
+
+    /**
+     * crash-v2: a fixed cashout M below the cap returns RTP = 1 - houseEdge.
+     * Instant busts at {@code minCrashPoint} happen with probability {@code houseEdge}.
+     * {@code instantCrashRate} is ignored so it cannot stack a second edge.
+     */
+    private BigDecimal computeCrashPointV2(double u, GameConfig config) {
+<span class="fc" id="L215">        GameConfig.MathConfig math = config.getMath();</span>
+<span class="fc" id="L216">        BigDecimal floor = floor(config);</span>
+<span class="fc" id="L217">        double floorD = floor.doubleValue();</span>
+<span class="fc" id="L218">        double maxWin = maxWin(config, floorD);</span>
+<span class="fc" id="L219">        double h = math.getHouseEdge();</span>
+<span class="pc bpc" id="L220" title="1 of 2 branches missed.">        if (h &lt; 0) {</span>
+<span class="nc" id="L221">            h = 0;</span>
+        }
+<span class="pc bpc" id="L223" title="1 of 2 branches missed.">        if (h &gt;= 1) {</span>
+<span class="nc" id="L224">            return floor.setScale(SCALE, RoundingMode.HALF_UP);</span>
+        }
+<span class="fc bfc" id="L226" title="All 2 branches covered.">        if (u &lt; h) {</span>
+<span class="fc" id="L227">            return floor.setScale(SCALE, RoundingMode.HALF_UP);</span>
+        }
+<span class="fc" id="L229">        double v = (u - h) / (1.0 - h);</span>
+<span class="pc bpc" id="L230" title="1 of 2 branches missed.">        if (v &gt;= 1.0) {</span>
+<span class="nc" id="L231">            v = Math.nextDown(1.0);</span>
+        }
+<span class="fc" id="L233">        double raw = 1.0 / (1.0 - v);</span>
+<span class="fc" id="L234">        double capped = Math.min(maxWin, Math.max(floorD, raw));</span>
+<span class="fc" id="L235">        return BigDecimal.valueOf(capped).setScale(SCALE, RoundingMode.HALF_UP);</span>
+    }
+
+    private static BigDecimal floor(GameConfig config) {
+<span class="fc" id="L239">        BigDecimal floor = config.getMath().getMinCrashPoint();</span>
+<span class="pc bpc" id="L240" title="1 of 2 branches missed.">        return floor != null ? floor : ONE;</span>
+    }
+
+    private static double maxWin(GameConfig config, double floorD) {
+<span class="fc" id="L244">        double maxWin = config.getAdmin().getMaxWinMultiplier().doubleValue();</span>
+<span class="pc bpc" id="L245" title="1 of 2 branches missed.">        return maxWin &lt; floorD ? floorD : maxWin;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

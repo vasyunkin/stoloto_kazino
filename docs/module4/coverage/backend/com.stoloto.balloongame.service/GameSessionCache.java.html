@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GameSessionCache.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">balloon-game</a> &gt; <a href="index.source.html" class="el_package">com.stoloto.balloongame.service</a> &gt; <span class="el_source">GameSessionCache.java</span></div><h1>GameSessionCache.java</h1><pre class="source lang-java linenums">package com.stoloto.balloongame.service;
+
+import org.springframework.stereotype.Component;
+
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.ReentrantLock;
+
+/**
+ * In-memory registry of {@link GameSession} keyed by {@code gameId}.
+ *
+ * &lt;p&gt;Terminal sessions expire after {@link #TERMINAL_TTL}; FLYING sessions are not TTL-evicted.
+ * A FLYING cache miss is not rebuilt (S7) — the round is treated as expired.
+ */
+@Component
+public class GameSessionCache {
+
+<span class="nc" id="L23">    public static final Duration TERMINAL_TTL = Duration.ofMinutes(15);</span>
+
+<span class="nc" id="L25">    private final ConcurrentHashMap&lt;UUID, GameSession&gt; sessions = new ConcurrentHashMap&lt;&gt;();</span>
+<span class="nc" id="L26">    private final ConcurrentHashMap&lt;UUID, ReentrantLock&gt; locks = new ConcurrentHashMap&lt;&gt;();</span>
+<span class="nc" id="L27">    private final AtomicLong nonceSequence = new AtomicLong(0);</span>
+    private final Clock clock;
+
+<span class="nc" id="L30">    public GameSessionCache(Clock clock) {</span>
+<span class="nc" id="L31">        this.clock = clock;</span>
+<span class="nc" id="L32">    }</span>
+
+    public void put(GameSession session) {
+<span class="nc" id="L35">        sessions.put(session.getGameId(), session);</span>
+<span class="nc" id="L36">        lockFor(session.getGameId());</span>
+<span class="nc" id="L37">    }</span>
+
+    public Optional&lt;GameSession&gt; get(UUID gameId) {
+<span class="nc" id="L40">        GameSession session = sessions.get(gameId);</span>
+<span class="nc bnc" id="L41" title="All 2 branches missed.">        if (session == null) {</span>
+<span class="nc" id="L42">            return Optional.empty();</span>
+        }
+<span class="nc bnc" id="L44" title="All 4 branches missed.">        if (session.getStatus().isTerminal() &amp;&amp; isTerminalExpired(session)) {</span>
+<span class="nc" id="L45">            evict(gameId);</span>
+<span class="nc" id="L46">            return Optional.empty();</span>
+        }
+<span class="nc" id="L48">        return Optional.of(session);</span>
+    }
+
+    public ReentrantLock lockFor(UUID gameId) {
+<span class="nc" id="L52">        return locks.computeIfAbsent(gameId, key -&gt; new ReentrantLock());</span>
+    }
+
+    public void evict(UUID gameId) {
+<span class="nc" id="L56">        sessions.remove(gameId);</span>
+<span class="nc" id="L57">        locks.remove(gameId);</span>
+<span class="nc" id="L58">    }</span>
+
+    public long nextNonce() {
+<span class="nc" id="L61">        return nonceSequence.incrementAndGet();</span>
+    }
+
+    private boolean isTerminalExpired(GameSession session) {
+<span class="nc bnc" id="L65" title="All 2 branches missed.">        Instant anchor = session.getEndedAt() != null ? session.getEndedAt() : session.getCreatedAt();</span>
+<span class="nc" id="L66">        return clock.instant().isAfter(anchor.plus(TERMINAL_TTL));</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

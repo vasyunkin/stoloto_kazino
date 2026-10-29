@@ -1,0 +1,283 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RoundLifecycleService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">balloon-game</a> &gt; <a href="index.source.html" class="el_package">com.stoloto.balloongame.service</a> &gt; <span class="el_source">RoundLifecycleService.java</span></div><h1>RoundLifecycleService.java</h1><pre class="source lang-java linenums">package com.stoloto.balloongame.service;
+
+import com.stoloto.balloongame.api.exception.GameException;
+import com.stoloto.balloongame.config.GameConfig;
+import com.stoloto.balloongame.domain.entity.GameRound;
+import com.stoloto.balloongame.domain.entity.RoundStatus;
+import com.stoloto.balloongame.domain.repository.GameRoundRepository;
+import com.stoloto.balloongame.domain.repository.PlayerRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.Clock;
+import java.time.Instant;
+import java.util.concurrent.locks.ReentrantLock;
+
+/**
+ * Single lifecycle path for {@code GET state} and {@code POST cashout} (Spec §5.4).
+ *
+ * &lt;p&gt;One {@code ReentrantLock} per {@code gameId} covers both intents (I4).
+ * Multiplier is computed once per tick via {@link GameClockService#multiplier} (I3)
+ * from {@code session.configSnapshot} only (I8).
+ *
+ * &lt;p&gt;Money writes run in a nested transaction started &lt;em&gt;after&lt;/em&gt; the lock is held,
+ * so we never join a read-only outer TX and the first DB call of a cashout TX is
+ * {@code SELECT FOR UPDATE} on the player (I5).
+ */
+<span class="nc" id="L31">@Slf4j</span>
+@Service
+@RequiredArgsConstructor
+public class RoundLifecycleService {
+
+    private static final int MONEY_SCALE = 4;
+
+    private final GameSessionCache sessionCache;
+    private final GameClockService gameClock;
+    private final CrashMathService crashMath;
+    private final Clock clock;
+    private final TransactionTemplate transactionTemplate;
+    private final PlayerRepository playerRepository;
+    private final PlayerService playerService;
+    private final GameRoundRepository gameRoundRepository;
+    private final ScoringService scoringService;
+    private final PuzzleService puzzleService;
+
+    public RoundView resolve(GameSession session, ResolveIntent intent) {
+<span class="nc" id="L50">        ReentrantLock lock = sessionCache.lockFor(session.getGameId());</span>
+<span class="nc" id="L51">        lock.lock();</span>
+        try {
+<span class="nc" id="L53">            GameSession current = sessionCache.get(session.getGameId()).orElse(session);</span>
+
+<span class="nc bnc" id="L55" title="All 2 branches missed.">            if (current.getStatus().isTerminal()) {</span>
+<span class="nc bnc" id="L56" title="All 2 branches missed.">                if (intent == ResolveIntent.CASHOUT) {</span>
+<span class="nc" id="L57">                    throw terminalCashoutException(current.getStatus());</span>
+                }
+<span class="nc" id="L59">                current.setLastPointsDelta(0);</span>
+<span class="nc" id="L60">                return viewOfTerminal(current);</span>
+            }
+
+<span class="nc" id="L63">            Instant now = clock.instant();</span>
+<span class="nc" id="L64">            BigDecimal k = gameClock.multiplier(current, now);</span>
+<span class="nc" id="L65">            int line = gameClock.lineIndex(current, now);</span>
+<span class="nc" id="L66">            BigDecimal crashPoint = current.getCrashPoint();</span>
+<span class="nc bnc" id="L67" title="All 2 branches missed.">            boolean crashed = k.compareTo(crashPoint) &gt;= 0;</span>
+<span class="nc" id="L68">            BigDecimal auto = current.getAutoCashoutMultiplier();</span>
+<span class="nc bnc" id="L69" title="All 4 branches missed.">            boolean autoDue = intent != ResolveIntent.CASHOUT</span>
+                    &amp;&amp; auto != null
+<span class="nc bnc" id="L71" title="All 2 branches missed.">                    &amp;&amp; auto.compareTo(crashPoint) &lt; 0</span>
+<span class="nc bnc" id="L72" title="All 2 branches missed.">                    &amp;&amp; k.compareTo(auto) &gt;= 0;</span>
+
+<span class="nc bnc" id="L74" title="All 2 branches missed.">            if (autoDue) {</span>
+<span class="nc" id="L75">                settleCashout(current, auto, now);</span>
+<span class="nc" id="L76">                return viewOfTerminal(current);</span>
+            }
+
+<span class="nc bnc" id="L79" title="All 2 branches missed.">            if (crashed) {</span>
+<span class="nc" id="L80">                settleCrash(current, now);</span>
+<span class="nc bnc" id="L81" title="All 2 branches missed.">                if (intent == ResolveIntent.CASHOUT) {</span>
+<span class="nc" id="L82">                    throw GameException.alreadyCrashed();</span>
+                }
+<span class="nc" id="L84">                return viewOfTerminal(current);</span>
+            }
+
+<span class="nc" id="L87">            applyScoring(current, line);</span>
+<span class="nc" id="L88">            BigDecimal effectiveK = effectiveMultiplier(current, k);</span>
+
+<span class="nc bnc" id="L90" title="All 2 branches missed.">            if (intent == ResolveIntent.CASHOUT) {</span>
+<span class="nc" id="L91">                BigDecimal minCashout = current.getConfigSnapshot().getMath().getMinCashoutMultiplier();</span>
+<span class="nc bnc" id="L92" title="All 4 branches missed.">                if (minCashout != null &amp;&amp; k.compareTo(minCashout) &lt; 0) {</span>
+<span class="nc" id="L93">                    throw GameException.cashoutTooEarly(minCashout);</span>
+                }
+<span class="nc" id="L95">                settleCashout(current, k, now);</span>
+<span class="nc" id="L96">                return viewOfTerminal(current);</span>
+            }
+
+<span class="nc" id="L99">            return flyingView(current, effectiveK, line);</span>
+        } finally {
+<span class="nc" id="L101">            lock.unlock();</span>
+        }
+    }
+
+    /**
+     * Payout multiplier cannot exceed the round's max win, including after a booster.
+     */
+    public static BigDecimal capPayout(GameSession session, BigDecimal multiplier) {
+<span class="nc" id="L109">        BigDecimal cap = session.getConfigSnapshot().getAdmin().getMaxWinMultiplier();</span>
+<span class="nc bnc" id="L110" title="All 4 branches missed.">        if (cap != null &amp;&amp; multiplier.compareTo(cap) &gt; 0) {</span>
+<span class="nc" id="L111">            return cap.setScale(MONEY_SCALE, RoundingMode.HALF_UP);</span>
+        }
+<span class="nc" id="L113">        return multiplier;</span>
+    }
+
+    private void settleCrash(GameSession current, Instant now) {
+<span class="nc" id="L117">        GameConfig snap = current.getConfigSnapshot();</span>
+<span class="nc" id="L118">        int scoredLine = crashMath.lineForMultiplier(</span>
+<span class="nc" id="L119">                current.getCrashPoint().doubleValue(),</span>
+<span class="nc" id="L120">                snap.getMath().getGrowthRate(),</span>
+<span class="nc" id="L121">                snap.getAscentSpeedLinesPerSec());</span>
+<span class="nc" id="L122">        applyScoring(current, scoredLine);</span>
+<span class="nc" id="L123">        int piece = awardPuzzle(current, RoundStatus.CRASHED, null);</span>
+<span class="nc" id="L124">        persistCrash(current, now, piece);</span>
+<span class="nc" id="L125">        current.setStatus(RoundStatus.CRASHED);</span>
+<span class="nc" id="L126">        current.setEndedAt(now);</span>
+<span class="nc" id="L127">        current.setPuzzlePieceIndex(piece);</span>
+<span class="nc" id="L128">        log.info(&quot;Round crashed: gameId={} puzzlePiece={}&quot;, current.getGameId(), piece);</span>
+<span class="nc" id="L129">    }</span>
+
+    /**
+     * Cash out at {@code rawK} (manual click uses the server K; auto uses the target, not the overshoot).
+     * Scoring uses the line of that multiplier so a late tick does not award height past the cashout.
+     */
+    private void settleCashout(GameSession current, BigDecimal rawK, Instant now) {
+<span class="nc" id="L136">        GameConfig snap = current.getConfigSnapshot();</span>
+<span class="nc" id="L137">        int scoredLine = crashMath.lineForMultiplier(</span>
+<span class="nc" id="L138">                rawK.doubleValue(),</span>
+<span class="nc" id="L139">                snap.getMath().getGrowthRate(),</span>
+<span class="nc" id="L140">                snap.getAscentSpeedLinesPerSec());</span>
+<span class="nc" id="L141">        applyScoring(current, scoredLine);</span>
+<span class="nc" id="L142">        BigDecimal paid = capPayout(current, effectiveMultiplier(current, rawK));</span>
+<span class="nc" id="L143">        BigDecimal win = current.getBetAmount().multiply(paid).setScale(MONEY_SCALE, RoundingMode.HALF_UP);</span>
+<span class="nc" id="L144">        int piece = awardPuzzle(current, RoundStatus.CASHED_OUT, paid);</span>
+<span class="nc" id="L145">        persistCashout(current, paid, win, now, piece);</span>
+<span class="nc" id="L146">        current.setStatus(RoundStatus.CASHED_OUT);</span>
+<span class="nc" id="L147">        current.setCashoutMultiplier(paid);</span>
+<span class="nc" id="L148">        current.setWinAmount(win);</span>
+<span class="nc" id="L149">        current.setEndedAt(now);</span>
+<span class="nc" id="L150">        current.setPuzzlePieceIndex(piece);</span>
+<span class="nc" id="L151">        log.info(&quot;Cashout OK: gameId={} win={} puzzlePiece={}&quot;, current.getGameId(), win, piece);</span>
+<span class="nc" id="L152">    }</span>
+
+    /**
+     * After booster activation, payout multiplier is raw K × boost tier multiplier.
+     * Crash detection always uses raw K (caller).
+     */
+    public static BigDecimal effectiveMultiplier(GameSession session, BigDecimal rawK) {
+<span class="nc bnc" id="L159" title="All 4 branches missed.">        if (!session.isBoostActivated() || session.getBoostMultiplier() == null) {</span>
+<span class="nc" id="L160">            return rawK;</span>
+        }
+<span class="nc" id="L162">        return rawK.multiply(session.getBoostMultiplier()).setScale(MONEY_SCALE, RoundingMode.HALF_UP);</span>
+    }
+
+    private RoundView flyingView(GameSession session, BigDecimal k, int line) {
+<span class="nc" id="L166">        GameConfigSnapshotLines lines = GameConfigSnapshotLines.from(session);</span>
+<span class="nc" id="L167">        String zone = crashMath.zoneFor(line, lines.green(), lines.red());</span>
+<span class="nc" id="L168">        return new RoundView(session, RoundStatus.FLYING, k, line, zone,</span>
+<span class="nc" id="L169">                session.getPointsEarned(), session.getLastPointsDelta());</span>
+    }
+
+    private RoundView viewOfTerminal(GameSession session) {
+<span class="nc bnc" id="L173" title="All 2 branches missed.">        Instant asOf = session.getEndedAt() != null ? session.getEndedAt() : clock.instant();</span>
+<span class="nc" id="L174">        int line = gameClock.lineIndex(session, asOf);</span>
+<span class="nc" id="L175">        GameConfigSnapshotLines lines = GameConfigSnapshotLines.from(session);</span>
+<span class="nc bnc" id="L176" title="All 2 branches missed.">        String zone = session.getStatus() == RoundStatus.CRASHED</span>
+<span class="nc" id="L177">                ? &quot;CRASHED&quot;</span>
+<span class="nc" id="L178">                : crashMath.zoneFor(line, lines.green(), lines.red());</span>
+<span class="nc bnc" id="L179" title="All 2 branches missed.">        BigDecimal display = session.getStatus() == RoundStatus.CASHED_OUT</span>
+<span class="nc bnc" id="L180" title="All 2 branches missed.">                &amp;&amp; session.getCashoutMultiplier() != null</span>
+<span class="nc" id="L181">                ? session.getCashoutMultiplier()</span>
+<span class="nc" id="L182">                : session.getCrashPoint();</span>
+<span class="nc" id="L183">        return new RoundView(session, session.getStatus(), display, line, zone,</span>
+<span class="nc" id="L184">                session.getPointsEarned(), session.getLastPointsDelta());</span>
+    }
+
+    /**
+     * Awards points for newly passed lines and a one-shot booster bonus (I8: snapshot only).
+     * Idempotent: repeat polls with the same line add 0.
+     */
+    private void applyScoring(GameSession session, int currentLine) {
+<span class="nc" id="L192">        GameConfig snapshot = session.getConfigSnapshot();</span>
+<span class="nc" id="L193">        int delta = scoringService.pointsForNewLines(</span>
+<span class="nc" id="L194">                session.getLinesPassedSnapshot(), currentLine, snapshot);</span>
+
+<span class="nc" id="L196">        BoosterResult booster = boosterFrom(session);</span>
+<span class="nc bnc" id="L197" title="All 2 branches missed.">        if (scoringService.isBoosterActivating(booster, currentLine, session.isBoostActivated())) {</span>
+<span class="nc" id="L198">            delta += scoringService.boosterBonus(booster, snapshot);</span>
+<span class="nc" id="L199">            session.setBoostActivated(true);</span>
+        }
+
+<span class="nc" id="L202">        session.setLastPointsDelta(delta);</span>
+<span class="nc" id="L203">        session.setPointsEarned(session.getPointsEarned() + delta);</span>
+<span class="nc" id="L204">        session.setLinesPassedSnapshot(Math.max(session.getLinesPassedSnapshot(), currentLine));</span>
+<span class="nc" id="L205">    }</span>
+
+    private static BoosterResult boosterFrom(GameSession session) {
+<span class="nc bnc" id="L208" title="All 4 branches missed.">        if (session.getBoostTier() == null || session.getBoostTriggerLine() == null) {</span>
+<span class="nc" id="L209">            return null;</span>
+        }
+<span class="nc bnc" id="L211" title="All 2 branches missed.">        BigDecimal multiplier = session.getBoostMultiplier() != null</span>
+<span class="nc" id="L212">                ? session.getBoostMultiplier()</span>
+<span class="nc" id="L213">                : BigDecimal.ONE;</span>
+<span class="nc" id="L214">        return new BoosterResult(</span>
+<span class="nc" id="L215">                session.getBoostTier(),</span>
+                &quot;booster&quot;,
+                multiplier,
+<span class="nc" id="L218">                session.getBoostTriggerLine());</span>
+    }
+
+    private int awardPuzzle(GameSession session, RoundStatus terminalStatus, BigDecimal cashoutK) {
+<span class="nc bnc" id="L222" title="All 2 branches missed.">        if (session.getPuzzlePieceIndex() != null) {</span>
+<span class="nc" id="L223">            return session.getPuzzlePieceIndex();</span>
+        }
+<span class="nc" id="L225">        return puzzleService.roll(session.getServerSeedHex(), terminalStatus, cashoutK)</span>
+<span class="nc" id="L226">                .orElseThrow(() -&gt; new IllegalStateException(</span>
+                        &quot;Puzzle roll empty for terminal status &quot; + terminalStatus));
+    }
+
+    private void persistCrash(GameSession session, Instant endedAt, int puzzlePiece) {
+<span class="nc" id="L231">        transactionTemplate.executeWithoutResult(status -&gt; {</span>
+<span class="nc" id="L232">            GameRound round = gameRoundRepository.findById(session.getGameId())</span>
+<span class="nc" id="L233">                    .orElseThrow(GameException::gameNotFound);</span>
+<span class="nc bnc" id="L234" title="All 2 branches missed.">            if (round.getStatus() != RoundStatus.FLYING) {</span>
+<span class="nc" id="L235">                return;</span>
+            }
+<span class="nc" id="L237">            round.setStatus(RoundStatus.CRASHED);</span>
+<span class="nc" id="L238">            round.setEndedAt(endedAt);</span>
+<span class="nc" id="L239">            round.setPointsEarned(session.getPointsEarned());</span>
+<span class="nc bnc" id="L240" title="All 2 branches missed.">            if (round.getPuzzlePieceIndex() == null) {</span>
+<span class="nc" id="L241">                round.setPuzzlePieceIndex(puzzlePiece);</span>
+            }
+<span class="nc" id="L243">        });</span>
+<span class="nc" id="L244">    }</span>
+
+    private void persistCashout(GameSession session, BigDecimal multiplier,
+                                BigDecimal win, Instant endedAt, int puzzlePiece) {
+<span class="nc" id="L248">        transactionTemplate.executeWithoutResult(status -&gt; {</span>
+            // FIRST DB call in this write transaction — player row lock (I5).
+<span class="nc" id="L250">            var player = playerRepository.findByExternalIdForUpdate(session.getPlayerId())</span>
+<span class="nc" id="L251">                    .orElseThrow(GameException::playerNotFound);</span>
+<span class="nc" id="L252">            GameRound round = gameRoundRepository.findById(session.getGameId())</span>
+<span class="nc" id="L253">                    .orElseThrow(GameException::gameNotFound);</span>
+<span class="nc bnc" id="L254" title="All 2 branches missed.">            if (round.getStatus() != RoundStatus.FLYING) {</span>
+<span class="nc" id="L255">                throw terminalCashoutException(round.getStatus());</span>
+            }
+<span class="nc" id="L257">            playerService.creditWin(player, win, round);</span>
+<span class="nc" id="L258">            round.setStatus(RoundStatus.CASHED_OUT);</span>
+<span class="nc" id="L259">            round.setCashoutMultiplier(multiplier);</span>
+<span class="nc" id="L260">            round.setWinAmount(win);</span>
+<span class="nc" id="L261">            round.setEndedAt(endedAt);</span>
+<span class="nc" id="L262">            round.setPointsEarned(session.getPointsEarned());</span>
+<span class="nc bnc" id="L263" title="All 2 branches missed.">            if (round.getPuzzlePieceIndex() == null) {</span>
+<span class="nc" id="L264">                round.setPuzzlePieceIndex(puzzlePiece);</span>
+            }
+<span class="nc" id="L266">        });</span>
+<span class="nc" id="L267">    }</span>
+
+    private static GameException terminalCashoutException(RoundStatus status) {
+<span class="nc bnc" id="L270" title="All 2 branches missed.">        if (status == RoundStatus.CASHED_OUT) {</span>
+<span class="nc" id="L271">            return GameException.alreadyCashedOut();</span>
+        }
+<span class="nc" id="L273">        return GameException.alreadyCrashed();</span>
+    }
+
+<span class="nc" id="L276">    private record GameConfigSnapshotLines(int green, int red) {</span>
+        static GameConfigSnapshotLines from(GameSession session) {
+<span class="nc" id="L278">            var cfg = session.getConfigSnapshot();</span>
+<span class="nc" id="L279">            return new GameConfigSnapshotLines(cfg.getGreenLevels(), cfg.getRedLevels());</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

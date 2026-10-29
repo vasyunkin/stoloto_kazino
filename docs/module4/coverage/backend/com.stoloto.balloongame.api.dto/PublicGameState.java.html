@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PublicGameState.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">balloon-game</a> &gt; <a href="index.source.html" class="el_package">com.stoloto.balloongame.api.dto</a> &gt; <span class="el_source">PublicGameState.java</span></div><h1>PublicGameState.java</h1><pre class="source lang-java linenums">package com.stoloto.balloongame.api.dto;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.stoloto.balloongame.domain.entity.RoundStatus;
+
+import java.math.BigDecimal;
+import java.util.UUID;
+
+/**
+ * Public round projection for WebSocket (S14) and the non-secret part of REST state.
+ *
+ * &lt;p&gt;&lt;strong&gt;I1:&lt;/strong&gt; this type must never declare {@code crashPoint} or {@code serverSeed}
+ * fields — absence is enforced by architecture tests, not {@code @JsonIgnore}.
+ *
+ * &lt;p&gt;{@code pointsDelta} — points awarded on this tick for VFX (S15); 0 on repeat poll.
+ */
+@JsonInclude(JsonInclude.Include.NON_NULL)
+<span class="nc" id="L18">public record PublicGameState(</span>
+        UUID gameId,
+        RoundStatus status,
+        BigDecimal multiplier,
+        int lineIndex,
+        String zone,
+        int pointsTotal,
+        int pointsDelta,
+        BoosterStateDto booster,
+        BigDecimal winAmount,
+        Integer puzzlePieceIndex
+) {}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

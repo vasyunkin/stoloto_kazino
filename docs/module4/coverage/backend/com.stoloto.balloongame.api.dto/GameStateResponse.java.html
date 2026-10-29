@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GameStateResponse.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">balloon-game</a> &gt; <a href="index.source.html" class="el_package">com.stoloto.balloongame.api.dto</a> &gt; <span class="el_source">GameStateResponse.java</span></div><h1>GameStateResponse.java</h1><pre class="source lang-java linenums">package com.stoloto.balloongame.api.dto;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.stoloto.balloongame.domain.entity.RoundStatus;
+import io.swagger.v3.oas.annotations.media.Schema;
+
+import java.math.BigDecimal;
+import java.util.UUID;
+
+/**
+ * {@code GET /api/game/state/{gameId}}.
+ *
+ * &lt;p&gt;I1: {@code crashPoint} and {@code serverSeed} are null (omitted from JSON)
+ * while {@code status = FLYING}. {@code puzzlePieceIndex} only after terminal win/loss (S12).
+ * {@code pointsDelta} is the increment on this poll for VFX (S15).
+ */
+@JsonInclude(JsonInclude.Include.NON_NULL)
+@Schema(description = &quot;Пока FLYING: crashPoint, serverSeed и puzzlePieceIndex отсутствуют. Poll 100–250 ms&quot;)
+<span class="nc" id="L19">public record GameStateResponse(</span>
+        UUID gameId,
+        RoundStatus status,
+        BigDecimal multiplier,
+        int lineIndex,
+        String zone,
+        int pointsTotal,
+        int pointsDelta,
+        BoosterStateDto booster,
+        BigDecimal crashPoint,
+        String serverSeed,
+        BigDecimal winAmount,
+        Integer puzzlePieceIndex
+) {}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

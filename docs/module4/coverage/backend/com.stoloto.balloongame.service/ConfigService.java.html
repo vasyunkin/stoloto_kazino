@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ConfigService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">balloon-game</a> &gt; <a href="index.source.html" class="el_package">com.stoloto.balloongame.service</a> &gt; <span class="el_source">ConfigService.java</span></div><h1>ConfigService.java</h1><pre class="source lang-java linenums">package com.stoloto.balloongame.service;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.stoloto.balloongame.api.dto.ConfigHistoryItemResponse;
+import com.stoloto.balloongame.api.exception.GameException;
+import com.stoloto.balloongame.config.GameConfig;
+import com.stoloto.balloongame.domain.entity.ConfigSnapshotEntity;
+import com.stoloto.balloongame.domain.repository.ConfigSnapshotRepository;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validator;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
+
+/**
+ * Runtime game configuration for &lt;em&gt;new&lt;/em&gt; rounds (I8).
+ *
+ * &lt;p&gt;Holds an {@link AtomicReference} independent of the
+ * {@code @ConfigurationProperties} bean. Admin PUT swaps the reference after
+ * Jakarta Validation; flying sessions keep their start-time snapshot.
+ */
+@Service
+public class ConfigService {
+
+    private final AtomicReference&lt;GameConfig&gt; current;
+    private final ObjectMapper objectMapper;
+    private final Validator validator;
+    private final ConfigSnapshotRepository snapshotRepository;
+
+    public ConfigService(GameConfig initialConfig,
+                         ObjectMapper objectMapper,
+                         Validator validator,
+<span class="fc" id="L40">                         ConfigSnapshotRepository snapshotRepository) {</span>
+<span class="fc" id="L41">        this.current = new AtomicReference&lt;&gt;(initialConfig.deepCopy());</span>
+<span class="fc" id="L42">        this.objectMapper = objectMapper;</span>
+<span class="fc" id="L43">        this.validator = validator;</span>
+<span class="fc" id="L44">        this.snapshotRepository = snapshotRepository;</span>
+<span class="fc" id="L45">    }</span>
+
+    /** Deep copy — never the live mutable reference. */
+    public GameConfig getSnapshot() {
+<span class="fc" id="L49">        return current.get().deepCopy();</span>
+    }
+
+    public void update(GameConfig newConfig) {
+<span class="fc" id="L53">        current.set(newConfig.deepCopy());</span>
+<span class="fc" id="L54">    }</span>
+
+    /**
+     * Partial JSON merge into the current config, validate, persist audit row, atomic swap.
+     */
+    @Transactional
+    public GameConfig mergeAndApply(String json, String appliedBy) {
+<span class="fc" id="L61">        GameConfig merged = getSnapshot();</span>
+        try {
+<span class="fc" id="L63">            JsonNode tree = objectMapper.readTree(json);</span>
+<span class="pc bpc" id="L64" title="2 of 4 branches missed.">            if (tree == null || !tree.isObject()) {</span>
+<span class="nc" id="L65">                throw GameException.configValidationFailed(&quot;Config body must be a JSON object&quot;);</span>
+            }
+<span class="fc" id="L67">            objectMapper.readerForUpdating(merged).readValue(tree);</span>
+<span class="nc" id="L68">        } catch (GameException e) {</span>
+<span class="nc" id="L69">            throw e;</span>
+<span class="nc" id="L70">        } catch (JsonProcessingException e) {</span>
+<span class="nc" id="L71">            throw GameException.configValidationFailed(&quot;Invalid config JSON&quot;);</span>
+<span class="nc" id="L72">        } catch (Exception e) {</span>
+<span class="nc" id="L73">            throw GameException.configValidationFailed(&quot;Invalid config JSON&quot;);</span>
+<span class="fc" id="L74">        }</span>
+
+<span class="fc" id="L76">        validate(merged);</span>
+        try {
+<span class="fc" id="L78">            String payload = objectMapper.writeValueAsString(merged);</span>
+<span class="pc bpc" id="L79" title="1 of 2 branches missed.">            snapshotRepository.save(new ConfigSnapshotEntity(payload, appliedBy == null ? &quot;admin&quot; : appliedBy));</span>
+<span class="nc" id="L80">        } catch (JsonProcessingException e) {</span>
+<span class="nc" id="L81">            throw GameException.configValidationFailed(&quot;Failed to persist config snapshot&quot;);</span>
+<span class="fc" id="L82">        }</span>
+<span class="fc" id="L83">        update(merged);</span>
+<span class="fc" id="L84">        return getSnapshot();</span>
+    }
+
+    @Transactional(readOnly = true)
+    public List&lt;ConfigHistoryItemResponse&gt; listHistory(int limit) {
+<span class="nc" id="L89">        int capped = Math.min(Math.max(limit, 1), 100);</span>
+<span class="nc" id="L90">        return snapshotRepository.findAllByOrderByAppliedAtDesc(PageRequest.of(0, capped))</span>
+<span class="nc" id="L91">                .stream()</span>
+<span class="nc" id="L92">                .map(s -&gt; new ConfigHistoryItemResponse(</span>
+<span class="nc" id="L93">                        s.getId(),</span>
+<span class="nc" id="L94">                        s.getAppliedAt(),</span>
+<span class="nc" id="L95">                        s.getAppliedBy(),</span>
+<span class="nc" id="L96">                        truncate(s.getPayload(), 200),</span>
+<span class="nc bnc" id="L97" title="All 2 branches missed.">                        s.getPayload() == null ? &quot;&quot; : s.getPayload()</span>
+                ))
+<span class="nc" id="L99">                .toList();</span>
+    }
+
+    private static String truncate(String payload, int max) {
+<span class="nc bnc" id="L103" title="All 2 branches missed.">        if (payload == null) {</span>
+<span class="nc" id="L104">            return &quot;&quot;;</span>
+        }
+<span class="nc bnc" id="L106" title="All 2 branches missed.">        return payload.length() &lt;= max ? payload : payload.substring(0, max);</span>
+    }
+
+    private void validate(GameConfig config) {
+<span class="fc" id="L110">        Set&lt;ConstraintViolation&lt;GameConfig&gt;&gt; violations = validator.validate(config);</span>
+<span class="fc bfc" id="L111" title="All 2 branches covered.">        if (!violations.isEmpty()) {</span>
+<span class="fc" id="L112">            String details = violations.stream()</span>
+<span class="fc" id="L113">                    .map(v -&gt; v.getPropertyPath() + &quot; &quot; + v.getMessage())</span>
+<span class="fc" id="L114">                    .collect(Collectors.joining(&quot;; &quot;));</span>
+<span class="fc" id="L115">            throw GameException.configValidationFailed(details);</span>
+        }
+<span class="fc" id="L117">        var admin = config.getAdmin();</span>
+<span class="pc bpc" id="L118" title="1 of 2 branches missed.">        if (admin.getMinBetAmount().compareTo(admin.getMaxBetAmount()) &gt; 0) {</span>
+<span class="nc" id="L119">            throw GameException.configValidationFailed(&quot;minBetAmount must be &lt;= maxBetAmount&quot;);</span>
+        }
+<span class="fc" id="L121">        var math = config.getMath();</span>
+<span class="pc bpc" id="L122" title="1 of 2 branches missed.">        if (math.getMinCrashPoint() != null</span>
+<span class="pc bpc" id="L123" title="1 of 2 branches missed.">                &amp;&amp; math.getMinCrashPoint().compareTo(admin.getMaxWinMultiplier()) &gt; 0) {</span>
+<span class="nc" id="L124">            throw GameException.configValidationFailed(</span>
+                    &quot;minCrashPoint must be &lt;= maxWinMultiplier&quot;);
+        }
+<span class="pc bpc" id="L127" title="1 of 2 branches missed.">        if (math.getMinCashoutMultiplier() != null</span>
+<span class="pc bpc" id="L128" title="1 of 2 branches missed.">                &amp;&amp; math.getMinCrashPoint() != null</span>
+<span class="pc bpc" id="L129" title="1 of 2 branches missed.">                &amp;&amp; math.getMinCashoutMultiplier().compareTo(admin.getMaxWinMultiplier()) &gt; 0) {</span>
+<span class="nc" id="L130">            throw GameException.configValidationFailed(</span>
+                    &quot;minCashoutMultiplier must be &lt;= maxWinMultiplier&quot;);
+        }
+<span class="fc" id="L133">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

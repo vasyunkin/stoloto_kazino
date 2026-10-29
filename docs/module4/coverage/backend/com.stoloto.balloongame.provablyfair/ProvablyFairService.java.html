@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ProvablyFairService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">balloon-game</a> &gt; <a href="index.source.html" class="el_package">com.stoloto.balloongame.provablyfair</a> &gt; <span class="el_source">ProvablyFairService.java</span></div><h1>ProvablyFairService.java</h1><pre class="source lang-java linenums">package com.stoloto.balloongame.provablyfair;
+
+import com.stoloto.balloongame.config.GameConfig;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
+import org.springframework.stereotype.Service;
+
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.SecureRandom;
+import java.util.Arrays;
+import java.util.HexFormat;
+import java.util.Locale;
+
+/**
+ * Provably Fair helpers — algorithm version {@code crash-v1}.
+ *
+ * &lt;h3&gt;Commit (before round):&lt;/h3&gt;
+ * &lt;pre&gt;
+ *   commitHash = SHA-256( serverSeedHex + &quot;|&quot; + clientSeed + &quot;|&quot; + nonce )
+ * &lt;/pre&gt;
+ * Sent to the client in {@code StartGameResponse} before flight starts.
+ *
+ * &lt;h3&gt;HMAC for crash point (internal, §6.1):&lt;/h3&gt;
+ * &lt;pre&gt;
+ *   h = HMAC-SHA256( key=serverSeedBytes, msg=(clientSeed + &quot;:&quot; + nonce) )
+ *   u = first52bits(h) / 2^52          // ∈ [0, 1)
+ * &lt;/pre&gt;
+ *
+ * &lt;h3&gt;Reveal (after terminal status):&lt;/h3&gt;
+ * {@code GET /api/game/verify/{gameId}} returns serverSeedHex so the client
+ * can independently reproduce commitHash and crashPoint (§7).
+ *
+ * &lt;p&gt;&lt;b&gt;I7 compliance:&lt;/b&gt; serverSeedHex must not appear in logs or API responses
+ * until the round reaches CRASHED or CASHED_OUT. {@code RoundSecrets} is never
+ * serialised directly to HTTP; controllers use separate DTOs.
+ *
+ * &lt;p&gt;&lt;b&gt;S15:&lt;/b&gt; optional {@code game.provably-fair.dev-fixed-server-seed} is used only
+ * when Spring profile {@code dev} or {@code test} is active.
+ */
+<span class="fc" id="L44">@Slf4j</span>
+@Service
+public class ProvablyFairService {
+
+<span class="fc" id="L48">    private static final HexFormat HEX = HexFormat.of();</span>
+    /** Commit scheme is unchanged. Crash distribution since this version is {@code crash-v2}. */
+    public static final String ALGORITHM_V1 = &quot;crash-v1&quot;;
+    public static final String ALGORITHM_V2 = &quot;crash-v2&quot;;
+    private static final String ALGORITHM_VERSION = ALGORITHM_V2;
+
+    private final Environment environment;
+
+    /** Unit-test constructor — fixed seed never applied without an {@link Environment}. */
+    public ProvablyFairService() {
+<span class="fc" id="L58">        this(null);</span>
+<span class="fc" id="L59">    }</span>
+
+    @Autowired
+<span class="fc" id="L62">    public ProvablyFairService(Environment environment) {</span>
+<span class="fc" id="L63">        this.environment = environment;</span>
+<span class="fc" id="L64">    }</span>
+
+    /** @return current crash algorithm written onto new rounds. */
+    public String algorithmVersion() {
+<span class="fc" id="L68">        return ALGORITHM_VERSION;</span>
+    }
+
+    /** Fresh server seed, honouring the dev/test fixed seed when that profile allows it. */
+    public String newServerSeedHex(GameConfig.ProvablyFairConfig pfConfig) {
+<span class="nc" id="L73">        return resolveServerSeedHex(pfConfig);</span>
+    }
+
+    public String sha256Utf8(String value) {
+<span class="nc" id="L77">        return sha(value.getBytes(StandardCharsets.UTF_8), &quot;SHA-256&quot;);</span>
+    }
+
+    // ── Secret generation ─────────────────────────────────────────────────
+
+    /**
+     * Generates a fresh set of {@link RoundSecrets} for a new round.
+     *
+     * @param clientSeed player-supplied seed (may be empty string if not provided)
+     * @param nonce      per-player counter or global sequence value
+     * @param pfConfig   from the round's {@code configSnapshot} (I8)
+     * @return immutable secrets; {@code serverSeedHex} must be stored in DB immediately (§5.1)
+     */
+    public RoundSecrets generateSecrets(String clientSeed, long nonce,
+                                        GameConfig.ProvablyFairConfig pfConfig) {
+<span class="fc" id="L92">        String hex = resolveServerSeedHex(pfConfig);</span>
+<span class="fc" id="L93">        String commit = computeCommitHash(hex, clientSeed, nonce, pfConfig.getHashAlgorithm());</span>
+<span class="fc" id="L94">        return new RoundSecrets(hex, clientSeed, nonce, commit);</span>
+    }
+
+    /**
+     * Resolve server seed: fixed hex when allowed by profile, otherwise SecureRandom.
+     */
+    String resolveServerSeedHex(GameConfig.ProvablyFairConfig pfConfig) {
+<span class="fc" id="L101">        String fixed = pfConfig.getDevFixedServerSeed();</span>
+<span class="pc bpc" id="L102" title="1 of 4 branches missed.">        if (fixed != null &amp;&amp; !fixed.isBlank()) {</span>
+<span class="fc bfc" id="L103" title="All 2 branches covered.">            if (!fixedSeedProfilesActive()) {</span>
+<span class="fc" id="L104">                throw new IllegalStateException(</span>
+                        &quot;game.provably-fair.dev-fixed-server-seed is set but active profiles &quot;
+                                + &quot;are not dev/test — refusing to start rounds with a fixed seed&quot;);
+            }
+<span class="fc" id="L108">            String normalized = fixed.trim().toLowerCase(Locale.ROOT);</span>
+<span class="fc" id="L109">            int expectedLen = pfConfig.getServerSeedLengthBytes() * 2;</span>
+<span class="pc bpc" id="L110" title="2 of 4 branches missed.">            if (normalized.length() != expectedLen || !normalized.matches(&quot;[0-9a-f]+&quot;)) {</span>
+<span class="nc" id="L111">                throw new IllegalStateException(</span>
+                        &quot;dev-fixed-server-seed must be &quot; + expectedLen
+<span class="nc" id="L113">                                + &quot; lowercase hex chars (got length &quot; + normalized.length() + &quot;)&quot;);</span>
+            }
+<span class="fc" id="L115">            return normalized;</span>
+        }
+<span class="fc" id="L117">        byte[] raw = generateServerSeedBytes(pfConfig.getServerSeedLengthBytes());</span>
+<span class="fc" id="L118">        return HEX.formatHex(raw);</span>
+    }
+
+    boolean fixedSeedProfilesActive() {
+<span class="fc bfc" id="L122" title="All 2 branches covered.">        if (environment == null) {</span>
+<span class="fc" id="L123">            return false;</span>
+        }
+<span class="fc" id="L125">        return Arrays.stream(environment.getActiveProfiles())</span>
+<span class="pc bpc" id="L126" title="1 of 4 branches missed.">                .anyMatch(p -&gt; &quot;dev&quot;.equals(p) || &quot;test&quot;.equals(p));</span>
+    }
+
+    /**
+     * Generate cryptographically secure random bytes for a server seed.
+     */
+    public byte[] generateServerSeedBytes(int lengthBytes) {
+<span class="fc" id="L133">        byte[] seed = new byte[lengthBytes];</span>
+<span class="fc" id="L134">        new SecureRandom().nextBytes(seed);</span>
+<span class="fc" id="L135">        return seed;</span>
+    }
+
+    // ── Commit hash ───────────────────────────────────────────────────────
+
+    /**
+     * Computes the commit hash that is given to the client before the round:
+     * &lt;pre&gt;
+     *   SHA-256( serverSeedHex + &quot;|&quot; + clientSeed + &quot;|&quot; + nonce )
+     * &lt;/pre&gt;
+     *
+     * @param serverSeedHex lowercase hex string (as stored in DB)
+     * @param clientSeed    player seed (empty string if none)
+     * @param nonce         round counter
+     * @param hashAlgorithm e.g. &quot;SHA-256&quot; from pfConfig
+     * @return lowercase hex of the hash
+     */
+    public String computeCommitHash(String serverSeedHex, String clientSeed, long nonce,
+                                    String hashAlgorithm) {
+<span class="fc" id="L154">        String preimage = serverSeedHex + &quot;|&quot; + clientSeed + &quot;|&quot; + nonce;</span>
+<span class="fc" id="L155">        return sha(preimage.getBytes(StandardCharsets.UTF_8), hashAlgorithm);</span>
+    }
+
+    // ── HMAC for crash point (used by CrashMathService) ──────────────────
+
+    /**
+     * Computes HMAC-SHA256 over the message using serverSeedBytes as the key.
+     * Used by {@link com.stoloto.balloongame.service.CrashMathService} to derive {@code u}.
+     *
+     * @param serverSeedBytes raw server seed bytes (decoded from hex)
+     * @param message         UTF-8 bytes of {@code clientSeed + &quot;:&quot; + nonce}
+     * @return 32-byte HMAC digest
+     */
+    public byte[] hmacSha256(byte[] serverSeedBytes, byte[] message) {
+        try {
+<span class="fc" id="L170">            Mac mac = Mac.getInstance(&quot;HmacSHA256&quot;);</span>
+<span class="fc" id="L171">            mac.init(new SecretKeySpec(serverSeedBytes, &quot;HmacSHA256&quot;));</span>
+<span class="fc" id="L172">            return mac.doFinal(message);</span>
+<span class="nc" id="L173">        } catch (Exception e) {</span>
+<span class="nc" id="L174">            throw new IllegalStateException(&quot;HMAC-SHA256 failed — JDK must support it&quot;, e);</span>
+        }
+    }
+
+    // ── Verification (used in GET /verify — S7) ───────────────────────────
+
+    /**
+     * Verifies that {@code commitHash} matches the recomputed hash for the given seeds.
+     * Called from the verify endpoint after the round ends.
+     *
+     * @return {@code true} if the commit is authentic
+     */
+    public boolean verify(String serverSeedHex, String clientSeed, long nonce,
+                          String commitHash, String hashAlgorithm) {
+<span class="fc" id="L188">        String expected = computeCommitHash(serverSeedHex, clientSeed, nonce, hashAlgorithm);</span>
+<span class="fc" id="L189">        return expected.equalsIgnoreCase(commitHash);</span>
+    }
+
+    // ── Utility ───────────────────────────────────────────────────────────
+
+    /**
+     * Hashes the input bytes using the given algorithm and returns lowercase hex.
+     */
+    public String sha(byte[] input, String algorithm) {
+        try {
+<span class="fc" id="L199">            MessageDigest md = MessageDigest.getInstance(algorithm);</span>
+<span class="fc" id="L200">            return HEX.formatHex(md.digest(input));</span>
+<span class="nc" id="L201">        } catch (Exception e) {</span>
+<span class="nc" id="L202">            throw new IllegalStateException(&quot;Hash algorithm not available: &quot; + algorithm, e);</span>
+        }
+    }
+
+    /**
+     * Converts a hex-encoded server seed string to raw bytes.
+     * (Reverse of {@link HexFormat#formatHex})
+     */
+    public byte[] decodeServerSeed(String serverSeedHex) {
+<span class="fc" id="L211">        return HEX.parseHex(serverSeedHex);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

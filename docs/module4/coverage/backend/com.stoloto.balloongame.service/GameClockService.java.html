@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GameClockService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">balloon-game</a> &gt; <a href="index.source.html" class="el_package">com.stoloto.balloongame.service</a> &gt; <span class="el_source">GameClockService.java</span></div><h1>GameClockService.java</h1><pre class="source lang-java linenums">package com.stoloto.balloongame.service;
+
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
+
+/**
+ * Single source of elapsed-time derived values for a round (I3).
+ *
+ * &lt;p&gt;Reads growth rate and ascent speed only from {@code session.configSnapshot}
+ * (I8) — never from the live {@code GameConfig} bean. The injected {@link Clock}
+ * is the only time source.
+ *
+ * &lt;p&gt;HTTP state/cashout endpoints are S5; this service exists from S4 so the
+ * contract is fixed before those paths are wired.
+ */
+@Service
+@RequiredArgsConstructor
+public class GameClockService {
+
+    private final Clock clock;
+    private final CrashMathService crashMath;
+
+    /** I3: single multiplier function. Pass one {@code now} per resolve tick. */
+    public BigDecimal multiplier(GameSession session, Instant now) {
+<span class="nc" id="L29">        return crashMath.multiplierAt(</span>
+<span class="nc" id="L30">                session.getStartTime(),</span>
+                now,
+<span class="nc" id="L32">                session.getConfigSnapshot().getMath().getGrowthRate());</span>
+    }
+
+    public int lineIndex(GameSession session, Instant now) {
+<span class="nc" id="L36">        return crashMath.lineIndexAt(</span>
+<span class="nc" id="L37">                session.getStartTime(),</span>
+                now,
+<span class="nc" id="L39">                session.getConfigSnapshot().getAscentSpeedLinesPerSec());</span>
+    }
+
+    public BigDecimal currentMultiplier(GameSession session) {
+<span class="nc" id="L43">        return multiplier(session, clock.instant());</span>
+    }
+
+    public int currentLine(GameSession session) {
+<span class="nc" id="L47">        return lineIndex(session, clock.instant());</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

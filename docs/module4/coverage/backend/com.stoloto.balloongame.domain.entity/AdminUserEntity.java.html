@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AdminUserEntity.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">balloon-game</a> &gt; <a href="index.source.html" class="el_package">com.stoloto.balloongame.domain.entity</a> &gt; <span class="el_source">AdminUserEntity.java</span></div><h1>AdminUserEntity.java</h1><pre class="source lang-java linenums">package com.stoloto.balloongame.domain.entity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+import java.time.Instant;
+import java.util.UUID;
+
+@Entity
+@Table(name = &quot;admin_user&quot;)
+@Getter
+@Setter
+@NoArgsConstructor
+public class AdminUserEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(columnDefinition = &quot;uuid&quot;, updatable = false, nullable = false)
+    private UUID id;
+
+    @Column(nullable = false, unique = true, length = 64)
+    private String username;
+
+    @Column(name = &quot;password_hash&quot;, nullable = false, length = 100)
+    private String passwordHash;
+
+    @Column(name = &quot;display_name&quot;, length = 128)
+    private String displayName;
+
+<span class="nc" id="L38">    @Column(nullable = false)</span>
+    private boolean enabled = true;
+
+<span class="nc" id="L41">    @Column(name = &quot;created_at&quot;, nullable = false, updatable = false)</span>
+<span class="nc" id="L42">    private Instant createdAt = Instant.now();</span>
+
+<span class="nc" id="L44">    @Column(name = &quot;updated_at&quot;, nullable = false)</span>
+<span class="nc" id="L45">    private Instant updatedAt = Instant.now();</span>
+
+    @Column(name = &quot;last_login_at&quot;)
+    private Instant lastLoginAt;
+
+<span class="nc" id="L50">    public AdminUserEntity(String username, String passwordHash, String displayName) {</span>
+<span class="nc" id="L51">        this.username = username;</span>
+<span class="nc" id="L52">        this.passwordHash = passwordHash;</span>
+<span class="nc" id="L53">        this.displayName = displayName;</span>
+<span class="nc" id="L54">    }</span>
+
+    @PreUpdate
+    void touchUpdatedAt() {
+<span class="nc" id="L58">        this.updatedAt = Instant.now();</span>
+<span class="nc" id="L59">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GameRateLimitFilter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">balloon-game</a> &gt; <a href="index.source.html" class="el_package">com.stoloto.balloongame.config</a> &gt; <span class="el_source">GameRateLimitFilter.java</span></div><h1>GameRateLimitFilter.java</h1><pre class="source lang-java linenums">package com.stoloto.balloongame.config;
+
+import com.stoloto.balloongame.service.JwtService;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
+import org.springframework.http.MediaType;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+
+/**
+ * Cheap in-memory window limiter for start/cashout spam. Not a substitute for game locks (I4).
+ * Disabled in the test profile so integration loops are not throttled.
+ *
+ * &lt;p&gt;S15 / TD-04: expired windows are evicted so the map does not grow unbounded for
+ * one-off player ids / IPs (still single-JVM only).
+ */
+@Component
+@Order(Ordered.HIGHEST_PRECEDENCE + 20)
+@RequiredArgsConstructor
+public class GameRateLimitFilter extends OncePerRequestFilter {
+
+    /** Opportunistic eviction when the map exceeds this size. */
+    static final int EVICT_SIZE_THRESHOLD = 64;
+
+    private final RateLimitProperties properties;
+    private final JwtService jwtService;
+    private final ConcurrentHashMap&lt;String, Window&gt; windows = new ConcurrentHashMap&lt;&gt;();
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+<span class="nc bnc" id="L41" title="All 2 branches missed.">        if (!properties.isEnabled()) {</span>
+<span class="nc" id="L42">            return true;</span>
+        }
+<span class="nc bnc" id="L44" title="All 2 branches missed.">        if (!&quot;POST&quot;.equalsIgnoreCase(request.getMethod())) {</span>
+<span class="nc" id="L45">            return true;</span>
+        }
+<span class="nc" id="L47">        String path = request.getRequestURI();</span>
+<span class="nc bnc" id="L48" title="All 4 branches missed.">        return !(path.equals(&quot;/api/game/start&quot;) || path.startsWith(&quot;/api/game/cashout/&quot;));</span>
+    }
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain filterChain) throws ServletException, IOException {
+<span class="nc" id="L55">        String key = rateKey(request);</span>
+<span class="nc bnc" id="L56" title="All 2 branches missed.">        if (!allow(key)) {</span>
+<span class="nc" id="L57">            response.setStatus(429);</span>
+<span class="nc" id="L58">            response.setContentType(MediaType.APPLICATION_JSON_VALUE);</span>
+<span class="nc" id="L59">            response.setCharacterEncoding(StandardCharsets.UTF_8.name());</span>
+<span class="nc" id="L60">            response.getWriter().write(</span>
+                    &quot;{\&quot;code\&quot;:\&quot;RATE_LIMITED\&quot;,\&quot;message\&quot;:\&quot;Too many requests\&quot;}&quot;);
+<span class="nc" id="L62">            return;</span>
+        }
+<span class="nc" id="L64">        filterChain.doFilter(request, response);</span>
+<span class="nc" id="L65">    }</span>
+
+    private String rateKey(HttpServletRequest request) {
+<span class="nc" id="L68">        String authorization = request.getHeader(&quot;Authorization&quot;);</span>
+<span class="nc bnc" id="L69" title="All 6 branches missed.">        if (jwtService != null &amp;&amp; authorization != null &amp;&amp; authorization.startsWith(&quot;Bearer &quot;)) {</span>
+<span class="nc" id="L70">            String token = authorization.substring(&quot;Bearer &quot;.length()).trim();</span>
+<span class="nc bnc" id="L71" title="All 2 branches missed.">            if (jwtService.parse(token) instanceof JwtService.ParseResult.PlayerOk ok) {</span>
+<span class="nc" id="L72">                return ok.principal().playerId();</span>
+            }
+        }
+<span class="nc" id="L75">        String player = request.getHeader(&quot;X-Player-Id&quot;);</span>
+<span class="nc bnc" id="L76" title="All 4 branches missed.">        if (player != null &amp;&amp; !player.isBlank()) {</span>
+<span class="nc" id="L77">            return player;</span>
+        }
+<span class="nc" id="L79">        return request.getRemoteAddr();</span>
+    }
+
+    boolean allow(String key) {
+<span class="nc" id="L83">        long now = System.currentTimeMillis();</span>
+<span class="nc" id="L84">        long windowMs = properties.getWindowSeconds() * 1000L;</span>
+<span class="nc" id="L85">        maybeEvictExpired(now, windowMs);</span>
+<span class="nc" id="L86">        Window window = windows.compute(key, (k, existing) -&gt; {</span>
+<span class="nc bnc" id="L87" title="All 4 branches missed.">            if (existing == null || now - existing.startMs &gt;= windowMs) {</span>
+<span class="nc" id="L88">                return new Window(now, new AtomicInteger(1));</span>
+            }
+<span class="nc" id="L90">            existing.count.incrementAndGet();</span>
+<span class="nc" id="L91">            return existing;</span>
+        });
+<span class="nc bnc" id="L93" title="All 2 branches missed.">        return window.count.get() &lt;= properties.getCapacity();</span>
+    }
+
+    /**
+     * Drops windows whose interval has elapsed (TD-04). Called when the map is large
+     * enough that unbounded growth from unique keys would matter.
+     */
+    void maybeEvictExpired(long now, long windowMs) {
+<span class="nc bnc" id="L101" title="All 2 branches missed.">        if (windows.size() &lt; EVICT_SIZE_THRESHOLD) {</span>
+<span class="nc" id="L102">            return;</span>
+        }
+<span class="nc bnc" id="L104" title="All 2 branches missed.">        windows.entrySet().removeIf(e -&gt; now - e.getValue().startMs &gt;= windowMs);</span>
+<span class="nc" id="L105">    }</span>
+
+    /** Package-visible for unit tests. */
+    int activeKeyCount() {
+<span class="nc" id="L109">        return windows.size();</span>
+    }
+
+    /** Package-visible for unit tests — seed a stale window. */
+    void putWindowForTest(String key, long startMs, int count) {
+<span class="nc" id="L114">        windows.put(key, new Window(startMs, new AtomicInteger(count)));</span>
+<span class="nc" id="L115">    }</span>
+
+<span class="nc" id="L117">    private record Window(long startMs, AtomicInteger count) {}</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>JsonAuthHandlers.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">balloon-game</a> &gt; <a href="index.source.html" class="el_package">com.stoloto.balloongame.config</a> &gt; <span class="el_source">JsonAuthHandlers.java</span></div><h1>JsonAuthHandlers.java</h1><pre class="source lang-java linenums">package com.stoloto.balloongame.config;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.stoloto.balloongame.api.exception.ErrorCode;
+import com.stoloto.balloongame.api.exception.ErrorResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.security.web.access.AccessDeniedHandler;
+import org.springframework.stereotype.Component;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+
+@Component
+@RequiredArgsConstructor
+public class JsonAuthHandlers implements AuthenticationEntryPoint, AccessDeniedHandler {
+
+    private final ObjectMapper objectMapper;
+
+    @Override
+    public void commence(HttpServletRequest request,
+                         HttpServletResponse response,
+                         AuthenticationException authException) throws IOException {
+<span class="nc" id="L29">        write(response, HttpServletResponse.SC_UNAUTHORIZED, ErrorCode.AUTH_UNAUTHORIZED, &quot;Unauthorized&quot;);</span>
+<span class="nc" id="L30">    }</span>
+
+    @Override
+    public void handle(HttpServletRequest request,
+                       HttpServletResponse response,
+                       AccessDeniedException accessDeniedException) throws IOException {
+<span class="nc" id="L36">        write(response, HttpServletResponse.SC_FORBIDDEN, ErrorCode.FORBIDDEN, &quot;Access denied&quot;);</span>
+<span class="nc" id="L37">    }</span>
+
+    private void write(HttpServletResponse response, int status, ErrorCode code, String message)
+            throws IOException {
+<span class="nc" id="L41">        response.setStatus(status);</span>
+<span class="nc" id="L42">        response.setContentType(MediaType.APPLICATION_JSON_VALUE);</span>
+<span class="nc" id="L43">        response.setCharacterEncoding(StandardCharsets.UTF_8.name());</span>
+<span class="nc" id="L44">        response.getWriter().write(objectMapper.writeValueAsString(new ErrorResponse(code, message)));</span>
+<span class="nc" id="L45">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

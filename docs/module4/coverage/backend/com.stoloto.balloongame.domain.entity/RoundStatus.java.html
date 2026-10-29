@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RoundStatus.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">balloon-game</a> &gt; <a href="index.source.html" class="el_package">com.stoloto.balloongame.domain.entity</a> &gt; <span class="el_source">RoundStatus.java</span></div><h1>RoundStatus.java</h1><pre class="source lang-java linenums">package com.stoloto.balloongame.domain.entity;
+
+/**
+ * Life-cycle states of a game round.
+ * Stored as VARCHAR(16) in game_round.status.
+ */
+<span class="fc" id="L7">public enum RoundStatus {</span>
+    /** Balloon is in the air; crashPoint not yet revealed. */
+<span class="fc" id="L9">    FLYING,</span>
+    /** Server detected K(t) &gt;= crashPoint; bet lost. */
+<span class="fc" id="L11">    CRASHED,</span>
+    /** Player cashed out before crash; win credited. */
+<span class="fc" id="L13">    CASHED_OUT,</span>
+    /** Round voided on server restart (refund issued). */
+<span class="fc" id="L15">    VOID;</span>
+
+    public boolean isTerminal() {
+<span class="nc bnc" id="L18" title="All 2 branches missed.">        return this != FLYING;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

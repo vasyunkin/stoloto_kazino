@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BetRequest.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">balloon-game</a> &gt; <a href="index.source.html" class="el_package">com.stoloto.balloongame.api.dto</a> &gt; <span class="el_source">BetRequest.java</span></div><h1>BetRequest.java</h1><pre class="source lang-java linenums">package com.stoloto.balloongame.api.dto;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+
+import java.math.BigDecimal;
+
+/**
+ * Body of {@code POST /api/game/start}.
+ *
+ * {@code betAmount} floor here is bean-validation only; the orchestrator
+ * enforces {@code [minBet, maxBet]} from the round's config snapshot.
+ */
+@Schema(description = &quot;Ставка. playerId должен совпадать с заголовком X-Player-Id&quot;)
+<span class="nc" id="L19">public record BetRequest(</span>
+
+        @NotBlank(message = &quot;playerId is required&quot;)
+        @Schema(example = &quot;demo&quot;)
+        String playerId,
+
+        @NotNull(message = &quot;betAmount is required&quot;)
+        @DecimalMin(value = &quot;0.01&quot;, message = &quot;betAmount must be &gt; 0&quot;)
+        @Schema(example = &quot;50.00&quot;)
+        BigDecimal betAmount,
+
+        @NotBlank(message = &quot;balloonType is required&quot;)
+        @Pattern(regexp = &quot;STANDARD|LUCKY&quot;, message = &quot;balloonType must be STANDARD or LUCKY&quot;)
+        @Schema(example = &quot;STANDARD&quot;, allowableValues = {&quot;STANDARD&quot;, &quot;LUCKY&quot;})
+        String balloonType,
+
+        /** {@code NONE} skips booster roll; {@code AUTO} or null — server rolls by config. */
+        @Schema(example = &quot;AUTO&quot;, allowableValues = {&quot;AUTO&quot;, &quot;NONE&quot;})
+        String boosterPreference,
+
+        @Size(max = 64, message = &quot;clientSeed must be at most 64 characters&quot;)
+        @Schema(description = &quot;Опциональный client seed для Provably Fair&quot;)
+        String clientSeed,
+
+        @DecimalMin(value = &quot;1.00&quot;, message = &quot;autoCashoutMultiplier must be &gt;= 1&quot;)
+        @Schema(description = &quot;Сервер забирает на этом множителе, если краш ещё не случился&quot;, example = &quot;2.00&quot;)
+        BigDecimal autoCashoutMultiplier
+) {}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>
