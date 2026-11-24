@@ -132,6 +132,26 @@
 
 	<build>
 		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-resources-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>publish-openapi-contract</id>
+						<phase>process-resources</phase>
+						<goals><goal>copy-resources</goal></goals>
+						<configuration>
+							<outputDirectory>${project.build.outputDirectory}/static/api</outputDirectory>
+							<resources>
+								<resource>
+									<directory>${project.basedir}/docs/api</directory>
+									<includes><include>openapi.yaml</include></includes>
+								</resource>
+							</resources>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
 			<!-- Surefire: Docker Desktop 4.28+ dropped API v1.24 (docker-java default).
 			     -Dapi.version=1.40 sets docker-java API version (system property, not env var).
 			     DOCKER_HOST forces EnvironmentAndSystemPropertyClientProviderStrategy.

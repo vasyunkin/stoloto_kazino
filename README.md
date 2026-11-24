@@ -385,3 +385,29 @@ CONNECT с native-header `X-Player-Id` → подписка `/topic/game/{gameId
 | Git hooks | `pip install pre-commit && pre-commit install` |
 
 Корневые конфиги: [`.editorconfig`](.editorconfig), [`checkstyle.xml`](checkstyle.xml), [`.pre-commit-config.yaml`](.pre-commit-config.yaml), [`frontend/oxlint.json`](frontend/oxlint.json).
+
+### Контракт API и тестовая среда
+
+Спецификация OpenAPI 3.0 хранится в [`docs/api/openapi.yaml`](docs/api/openapi.yaml), журнал версий — [`docs/api/changelog.md`](docs/api/changelog.md), решение о стиле — [ADR 005](docs/adr/005_api_style.md). Swagger UI доступен по адресу `http://localhost:8080/swagger-ui.html`, JSON документация — `/v3/api-docs`. Swagger UI показывает контракт текущего приложения; файл OpenAPI предназначен для mock-сервера и версионирования.
+
+Mock-сервер Prism запускается независимо от бэкенда: `docker compose --profile api-mock up prism`. Адрес: `http://localhost:4010`. Коллекция Bruno находится в [`tests/api`](tests/api); выберите окружение `local`. Для административного API используйте JWT после входа через `/api/admin/auth/login` либо ключ `GAME_ADMIN_KEY`, если `GAME_ADMIN_LEGACY_API_KEY_ENABLED=true` (по умолчанию ключевой режим выключен). Для игроков поддерживается `X-Player-Id` или access JWT. Секрет JWT задаётся через `ADMIN_JWT_SECRET`; шаблон локальных переменных находится в `.env.example`.
+
+Пример создания раунда:
+
+```bash
+curl -X POST http://localhost:8080/api/game/start \\
+  -H 'Content-Type: application/json' -H 'X-Player-Id: demo' \\
+  -d '{"playerId":"demo","betAmount":50,"balloonType":"STANDARD"}'
+```
+
+Пример чтения баланса:
+
+```bash
+curl http://localhost:8080/api/players/demo/balance -H 'X-Player-Id: demo'
+```
+
+Пример чтения административной конфигурации с JWT:
+
+```bash
+curl http://localhost:8080/api/admin/config -H 'Authorization: Bearer <accessToken>'
+```

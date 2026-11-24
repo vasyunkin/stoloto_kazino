@@ -1,0 +1,416 @@
+openapi: 3.0.3
+info:
+  title: Balloon Game API
+  version: 1.0.0
+  description: REST API игры «Воздушный Шар». Игровой процесс использует REST-команды и STOMP уведомления.
+servers:
+  - url: http://localhost:8080
+    description: Локальная среда
+  - url: http://localhost:4010
+    description: Локальная mock-среда Prism
+tags:
+  - name: Authentication
+  - name: Players
+  - name: Rounds
+  - name: Game
+  - name: Administration
+paths:
+  /api/auth/register:
+    post:
+      tags: [Authentication]
+      summary: Регистрация игрока
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Credentials'}
+      responses:
+        '201': {description: Игрок зарегистрирован, content: {application/json: {schema: {$ref: '#/components/schemas/PlayerToken'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/Validation'}
+        '500': {$ref: '#/components/responses/Internal'}
+  /api/auth/login:
+    post:
+      tags: [Authentication]
+      summary: Вход игрока
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/Credentials'}}}
+      responses:
+        '200': {description: Токены выпущены, content: {application/json: {schema: {$ref: '#/components/schemas/PlayerToken'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '422': {$ref: '#/components/responses/Validation'}
+        '500': {$ref: '#/components/responses/Internal'}
+  /api/auth/refresh:
+    post:
+      tags: [Authentication]
+      summary: Обновление токена игрока
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/RefreshToken'}}}
+      responses:
+        '200': {description: Токен обновлён, content: {application/json: {schema: {$ref: '#/components/schemas/PlayerToken'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '422': {$ref: '#/components/responses/Validation'}
+        '500': {$ref: '#/components/responses/Internal'}
+  /api/auth/logout:
+    post:
+      tags: [Authentication]
+      summary: Выход игрока
+      requestBody:
+        content: {application/json: {schema: {$ref: '#/components/schemas/RefreshToken'}}}
+      responses:
+        '204': {description: Сессия завершена}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '500': {$ref: '#/components/responses/Internal'}
+  /api/players/leaderboard:
+    get:
+      tags: [Players]
+      summary: Таблица лидеров
+      parameters:
+        - {in: query, name: limit, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+      responses:
+        '200': {description: Список игроков}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '500': {$ref: '#/components/responses/Internal'}
+  /api/players/{externalId}/balance:
+    get:
+      tags: [Players]
+      summary: Получить баланс (создаёт демо-кошелёк при первом обращении)
+      parameters:
+        - {$ref: '#/components/parameters/ExternalId'}
+        - {$ref: '#/components/parameters/PlayerId'}
+      responses:
+        '200': {description: Баланс, content: {application/json: {schema: {$ref: '#/components/schemas/Balance'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '500': {$ref: '#/components/responses/Internal'}
+  /api/players/{externalId}/deposit:
+    post:
+      tags: [Players]
+      summary: Демо-пополнение кошелька
+      parameters:
+        - {$ref: '#/components/parameters/ExternalId'}
+        - {$ref: '#/components/parameters/PlayerId'}
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/Deposit'}}}
+      responses:
+        '200': {description: Баланс пополнен}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/Validation'}
+        '500': {$ref: '#/components/responses/Internal'}
+  /api/game/start:
+    post:
+      tags: [Rounds]
+      summary: Создать игровой раунд и списать ставку
+      parameters: [{$ref: '#/components/parameters/PlayerId'}]
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/StartRound'}}}
+      responses:
+        '200': {description: Раунд создан, content: {application/json: {schema: {$ref: '#/components/schemas/StartedRound'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/Validation'}
+        '500': {$ref: '#/components/responses/Internal'}
+  /api/game/state/{gameId}:
+    get:
+      tags: [Rounds]
+      summary: Получить состояние раунда
+      parameters: [{$ref: '#/components/parameters/GameId'}, {$ref: '#/components/parameters/PlayerId'}]
+      responses:
+        '200': {description: Состояние игры}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/Internal'}
+  /api/game/cashout/{gameId}:
+    post:
+      tags: [Rounds]
+      summary: Зафиксировать выигрыш раунда
+      parameters: [{$ref: '#/components/parameters/GameId'}, {$ref: '#/components/parameters/PlayerId'}]
+      responses:
+        '200': {description: Выплата зафиксирована}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/Internal'}
+  /api/game/verify/{gameId}:
+    get:
+      tags: [Rounds]
+      summary: Проверить provably fair раунда после завершения
+      parameters: [{$ref: '#/components/parameters/GameId'}, {$ref: '#/components/parameters/PlayerId'}]
+      responses:
+        '200': {description: Данные для проверки честности}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/Internal'}
+  /api/game/limits:
+    get:
+      tags: [Game]
+      summary: Получить лимиты ставок
+      responses:
+        '200': {description: Лимиты для игровых тем}
+        '500': {$ref: '#/components/responses/Internal'}
+  /api/game/fairness:
+    get:
+      tags: [Game]
+      summary: Получить commitment следующего раунда
+      parameters: [{$ref: '#/components/parameters/PlayerId'}]
+      responses:
+        '200': {description: Хеш server seed}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '500': {$ref: '#/components/responses/Internal'}
+  /api/game/me/history:
+    get:
+      tags: [Rounds]
+      summary: История собственных раундов
+      parameters: [{$ref: '#/components/parameters/PlayerId'}, {in: query, name: limit, schema: {type: integer, minimum: 1, maximum: 100}}]
+      responses:
+        '200': {description: Список раундов игрока}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '500': {$ref: '#/components/responses/Internal'}
+  /api/game/history:
+    get:
+      tags: [Rounds]
+      summary: Публичная история завершённых раундов
+      parameters: [{in: query, name: limit, schema: {type: integer, minimum: 1, maximum: 100}}]
+      responses:
+        '200': {description: Публичный список без секретов}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '500': {$ref: '#/components/responses/Internal'}
+  /api/album:
+    get:
+      tags: [Players]
+      summary: Получить альбом игрока
+      responses:
+        '200': {description: Слоты альбома}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '500': {$ref: '#/components/responses/Internal'}
+  /api/album/sync:
+    post:
+      tags: [Players]
+      summary: Синхронизировать найденные фрагменты
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/AlbumSync'}}}
+      responses:
+        '200': {description: Обновлённый альбом}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '422': {$ref: '#/components/responses/Validation'}
+        '500': {$ref: '#/components/responses/Internal'}
+  /api/admin/auth/login:
+    post:
+      tags: [Administration]
+      summary: Вход администратора
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/AdminCredentials'}}}
+      responses:
+        '200': {description: Access и refresh JWT}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '422': {$ref: '#/components/responses/Validation'}
+        '500': {$ref: '#/components/responses/Internal'}
+  /api/admin/auth/refresh:
+    post:
+      tags: [Administration]
+      summary: Обновить JWT администратора
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/RefreshToken'}}}
+      responses:
+        '200': {description: Токены обновлены}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '500': {$ref: '#/components/responses/Internal'}
+  /api/admin/config:
+    get:
+      tags: [Administration]
+      summary: Получить runtime-конфигурацию
+      security: [{BearerAuth: []}, {AdminApiKey: []}]
+      responses:
+        '200': {description: Конфигурация игры}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '500': {$ref: '#/components/responses/Internal'}
+    put:
+      tags: [Administration]
+      summary: Полностью заменить runtime-конфигурацию
+      security: [{BearerAuth: []}, {AdminApiKey: []}]
+      requestBody:
+        required: true
+        content: {application/json: {schema: {type: object, additionalProperties: true}}}
+      responses:
+        '200': {description: Конфигурация заменена}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/Validation'}
+        '500': {$ref: '#/components/responses/Internal'}
+  /api/admin/config/history:
+    get:
+      tags: [Administration]
+      summary: История изменений конфигурации
+      security: [{BearerAuth: []}, {AdminApiKey: []}]
+      responses:
+        '200': {description: Список снимков конфигурации}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '500': {$ref: '#/components/responses/Internal'}
+  /api/admin/stats:
+    get:
+      tags: [Administration]
+      summary: Статистика ставок и выплат
+      security: [{BearerAuth: []}, {AdminApiKey: []}]
+      parameters:
+        - {in: query, name: from, schema: {type: string, format: date-time}}
+        - {in: query, name: to, schema: {type: string, format: date-time}}
+      responses:
+        '200': {description: GGR за период}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '500': {$ref: '#/components/responses/Internal'}
+  /api/admin/players:
+    get:
+      tags: [Administration]
+      summary: Поиск игроков
+      security: [{BearerAuth: []}, {AdminApiKey: []}]
+      parameters: [{in: query, name: q, schema: {type: string}}]
+      responses:
+        '200': {description: Найденные игроки}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '500': {$ref: '#/components/responses/Internal'}
+  /api/admin/rounds/{gameId}:
+    get:
+      tags: [Administration]
+      summary: Карточка раунда для администратора
+      security: [{BearerAuth: []}, {AdminApiKey: []}]
+      parameters: [{$ref: '#/components/parameters/GameId'}]
+      responses:
+        '200': {description: Раунд и служебные сведения}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/Internal'}
+  /api/admin/reconciliation:
+    get:
+      tags: [Administration]
+      summary: Проверка согласованности журнала кошелька
+      security: [{BearerAuth: []}, {AdminApiKey: []}]
+      responses:
+        '200': {description: Результат сверки}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '500': {$ref: '#/components/responses/Internal'}
+components:
+  securitySchemes:
+    BearerAuth: {type: http, scheme: bearer, bearerFormat: JWT}
+    AdminApiKey: {type: apiKey, in: header, name: X-Admin-Key}
+    PlayerId: {type: apiKey, in: header, name: X-Player-Id}
+  parameters:
+    ExternalId: {in: path, name: externalId, required: true, schema: {type: string, maxLength: 64}}
+    GameId: {in: path, name: gameId, required: true, schema: {type: string, format: uuid}}
+    PlayerId: {in: header, name: X-Player-Id, required: false, schema: {type: string, maxLength: 64}}
+  schemas:
+    Problem:
+      type: object
+      required: [type, title, status, detail]
+      properties:
+        type: {type: string, format: uri-reference, example: "about:blank"}
+        title: {type: string, example: Validation failed}
+        status: {type: integer, example: 422}
+        detail: {type: string, example: betAmount must be greater than 0}
+    Credentials:
+      type: object
+      required: [email, password]
+      properties:
+        email: {type: string, format: email, maxLength: 254}
+        password: {type: string, minLength: 8, maxLength: 72, format: password}
+    AdminCredentials:
+      type: object
+      required: [username, password]
+      properties:
+        username: {type: string, minLength: 1, maxLength: 64}
+        password: {type: string, minLength: 1, maxLength: 72, format: password}
+    RefreshToken:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken: {type: string, minLength: 1}
+    PlayerToken:
+      type: object
+      properties:
+        accessToken: {type: string}
+        refreshToken: {type: string}
+        playerId: {type: string}
+    StartRound:
+      type: object
+      required: [playerId, betAmount, balloonType]
+      properties:
+        playerId: {type: string, minLength: 1}
+        betAmount: {type: number, minimum: 0.01, example: 50.0}
+        balloonType: {type: string, enum: [STANDARD, LUCKY]}
+        boosterPreference: {type: string, enum: [AUTO, NONE]}
+        clientSeed: {type: string, maxLength: 64}
+        autoCashoutMultiplier: {type: number, minimum: 1.0}
+    StartedRound:
+      type: object
+      properties:
+        gameId: {type: string, format: uuid}
+        commitHash: {type: string}
+    Deposit:
+      type: object
+      required: [amount]
+      properties:
+        amount: {type: number, minimum: 0.01}
+    Balance:
+      type: object
+      properties:
+        playerId: {type: string}
+        balance: {type: number}
+    AlbumSync:
+      type: object
+      properties:
+        pieces: {type: array, items: {type: integer, minimum: 0, maximum: 23}}
+  responses:
+    BadRequest:
+      description: Некорректный запрос или JSON
+      content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}
+    Unauthorized:
+      description: Аутентификация не пройдена
+      content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}
+    Forbidden:
+      description: Недостаточно прав или неверный владелец ресурса
+      content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}
+    NotFound:
+      description: Ресурс не найден
+      content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}
+    Conflict:
+      description: Конфликт состояния или дубликат
+      content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}
+    Validation:
+      description: Данные не прошли проверку ограничений схемы
+      content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}
+    Internal:
+      description: Внутренняя ошибка сервера
+      content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}

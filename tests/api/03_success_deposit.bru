@@ -1,0 +1,23 @@
+meta {
+  name: Пополнить демо-баланс
+  type: http
+  seq: 3
+}
+post {
+  url: {{baseUrl}}/api/players/{{playerId}}/deposit
+  body: json
+  auth: none
+}
+headers {
+  Content-Type: application/json
+  X-Player-Id: {{playerId}}
+}
+body:json {
+  {"amount": 50}
+}
+tests {
+  test("returns success and balance", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body).to.have.property("newBalance");
+  });
+}

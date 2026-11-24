@@ -72,8 +72,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private void writeUnauthorized(HttpServletResponse response, ErrorCode code, String message)
             throws IOException {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-        response.getWriter().write(objectMapper.writeValueAsString(new ErrorResponse(code, message)));
+        response.getWriter().write(objectMapper.writeValueAsString(
+                new ErrorResponse(code, org.springframework.http.HttpStatus.UNAUTHORIZED, message)));
     }
 }

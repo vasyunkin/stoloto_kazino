@@ -1,0 +1,19 @@
+meta {
+  name: Ошибка 403 — токен без прав администратора
+  type: http
+  seq: 10
+}
+get {
+  url: {{baseUrl}}/api/admin/config
+  body: none
+  auth: bearer
+}
+auth:bearer {
+  token: {{playerAccessToken}}
+}
+tests {
+  test("returns 403 for a player token", function() {
+    expect(res.status).to.equal(403);
+    expect(res.body.status).to.equal(403);
+  });
+}

@@ -1,0 +1,16 @@
+meta {
+  name: Список игровых лимитов
+  type: http
+  seq: 1
+}
+get {
+  url: {{baseUrl}}/api/game/limits
+  body: none
+  auth: none
+}
+tests {
+  test("returns 200 and JSON", function() {
+    expect(res.status).to.equal(200);
+    expect(res.headers["content-type"]).to.contain("application/json");
+  });
+}

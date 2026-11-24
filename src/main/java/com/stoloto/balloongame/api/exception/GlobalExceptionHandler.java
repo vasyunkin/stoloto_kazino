@@ -3,6 +3,7 @@ package com.stoloto.balloongame.api.exception;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
@@ -26,7 +27,8 @@ public class GlobalExceptionHandler {
         log.warn("GameException [{}]: {}", ex.getErrorCode(), ex.getMessage());
         return ResponseEntity
                 .status(ex.getHttpStatus())
-                .body(new ErrorResponse(ex.getErrorCode(), ex.getMessage()));
+                .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+                .body(new ErrorResponse(ex.getErrorCode(), ex.getHttpStatus(), ex.getMessage()));
     }
 
     /**
@@ -43,7 +45,8 @@ public class GlobalExceptionHandler {
                 : ErrorCode.VALIDATION_ERROR;
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponse(code, "Invalid JSON"));
+                .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+                .body(new ErrorResponse(code, HttpStatus.BAD_REQUEST, "Invalid JSON"));
     }
 
     private static boolean isAdminConfigPath(String uri) {
@@ -55,7 +58,8 @@ public class GlobalExceptionHandler {
         log.warn("Missing header: {}", ex.getHeaderName());
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponse(ErrorCode.VALIDATION_ERROR,
+                .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+                .body(new ErrorResponse(ErrorCode.VALIDATION_ERROR, HttpStatus.BAD_REQUEST,
                         "Missing required header: " + ex.getHeaderName()));
     }
 
@@ -66,9 +70,10 @@ public class GlobalExceptionHandler {
                 .collect(Collectors.joining("; "));
         log.warn("Validation error: {}", details);
         return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponse(ErrorCode.VALIDATION_ERROR,
-                        "Request validation failed", details));
+                .status(HttpStatus.UNPROCESSABLE_ENTITY)
+                .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+                .body(new ErrorResponse(ErrorCode.VALIDATION_ERROR, HttpStatus.UNPROCESSABLE_ENTITY,
+                        "Request validation failed: " + details));
     }
 
     @ExceptionHandler(Exception.class)
@@ -76,7 +81,8 @@ public class GlobalExceptionHandler {
         log.error("Unexpected error", ex);
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new ErrorResponse(ErrorCode.INTERNAL_ERROR,
+                .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+                .body(new ErrorResponse(ErrorCode.INTERNAL_ERROR, HttpStatus.INTERNAL_SERVER_ERROR,
                         "An unexpected error occurred"));
     }
 }

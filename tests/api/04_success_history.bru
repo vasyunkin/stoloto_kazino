@@ -1,0 +1,16 @@
+meta {
+  name: Публичная история раундов
+  type: http
+  seq: 4
+}
+get {
+  url: {{baseUrl}}/api/game/history?limit=10
+  body: none
+  auth: none
+}
+tests {
+  test("returns a list", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body).to.be.an("array");
+  });
+}

@@ -32,6 +32,7 @@ services:
       SPRING_DATASOURCE_USERNAME: balloon
       SPRING_DATASOURCE_PASSWORD: balloon
       GAME_ADMIN_KEY: ${GAME_ADMIN_KEY:-change-me-in-prod}
+      GAME_ADMIN_LEGACY_API_KEY_ENABLED: ${GAME_ADMIN_LEGACY_API_KEY_ENABLED:-false}
       ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET:-change-me-jwt-secret-use-long-value-32b}
       ADMIN_BOOTSTRAP_USER: ${ADMIN_BOOTSTRAP_USER:-admin}
       ADMIN_BOOTSTRAP_PASSWORD: ${ADMIN_BOOTSTRAP_PASSWORD:-admin}
@@ -53,6 +54,16 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
+
+  prism:
+    image: stoplight/prism:5
+    container_name: balloon-game-prism
+    command: [mock, -h, 0.0.0.0, /spec/openapi.yaml]
+    ports:
+      - "4010:4010"
+    volumes:
+      - ./docs/api/openapi.yaml:/spec/openapi.yaml:ro
+    profiles: [api-mock]
 
 volumes:
   postgres-data:

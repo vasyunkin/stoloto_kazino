@@ -1,0 +1,25 @@
+meta {
+  name: Создать игровой раунд
+  type: http
+  seq: 11
+}
+post {
+  url: {{baseUrl}}/api/game/start
+  body: json
+  auth: none
+}
+headers {
+  Content-Type: application/json
+  X-Player-Id: {{playerId}}
+}
+body:json {
+  {"playerId":"{{playerId}}","betAmount":20,"balloonType":"STANDARD","boosterPreference":"NONE"}
+}
+tests {
+  test("creates a round and returns its identifier", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.gameId).to.be.a("string");
+    expect(res.body).to.have.property("commitHash");
+    bru.setEnvVar("gameId", res.body.gameId);
+  });
+}

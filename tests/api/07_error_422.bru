@@ -1,0 +1,24 @@
+meta {
+  name: Ошибка 422 — отрицательная ставка
+  type: http
+  seq: 7
+}
+post {
+  url: {{baseUrl}}/api/game/start
+  body: json
+  auth: none
+}
+headers {
+  Content-Type: application/json
+  X-Player-Id: {{playerId}}
+}
+body:json {
+  {"playerId":"{{playerId}}","betAmount":-1,"balloonType":"STANDARD"}
+}
+tests {
+  test("returns 422 validation problem", function() {
+    expect(res.status).to.equal(422);
+    expect(res.body.status).to.equal(422);
+    expect(res.body).to.have.property("detail");
+  });
+}
